@@ -39,6 +39,7 @@ from typing import Optional
 from csis.agents.coordinator import Coordinator, IterationResult
 from csis.backends.base import LLMBackend
 from csis.backends.mock import MockBackend
+from csis.budget import BudgetCapExceeded, BudgetTracker, _BackendTracker
 from csis.config import CSISConfig
 from csis.curiosity import Curiosity, FrontierItem
 from csis.improvement.skill_library import consolidate_skill, is_skill_artifact, stats as skill_stats
@@ -107,9 +108,17 @@ class Daemon:
         budget: DaemonBudget | None = None,
         max_total_iterations: Optional[int] = None,
         domain: "object | None" = None,
+        max_cost_per_day_usd: float | None = None,
     ) -> None:
         self.config = config
-        self.backend = backend
+        # Wrap the backend in the budget tracker so EVERY complete() call
+        # (Researcher, Builder, Critic, Verifier, Auditor — all of them)
+        # is metered against the per-day cap.
+        self.budget_tracker = BudgetTracker(
+            path=config.brain_root / "daemon.budget.json",
+            max_cost_per_day_usd=max_cost_per_day_usd,
+        )
+        self.backend = _BackendTracker(backend, self.budget_tracker)
         self.budget = budget or DaemonBudget()
         self.max_total_iterations = max_total_iterations
         # If a Domain is provided, swap in its grader registry + curiosity.
@@ -118,7 +127,7 @@ class Daemon:
         if domain is not None:
             registry = domain.graders()
             curiosity = domain.curiosity()
-        self.coord = Coordinator(config=config, backend=backend, registry=registry)
+        self.coord = Coordinator(config=config, backend=self.backend, registry=registry)
         self.curiosity = curiosity
         self.domain = domain
         self.stats = DaemonStats()
@@ -146,6 +155,13 @@ class Daemon:
                     self._tick()
                 except KeyboardInterrupt:
                     raise
+                except BudgetCapExceeded as exc:
+                    self.coord.event_log.emit("coordinator", "daemon.budget_cap", {
+                        "reason": str(exc),
+                        "today": self.budget_tracker.snapshot()["today"],
+                    })
+                    # Halt; the next while-loop check exits cleanly.
+                    self.stop(reason=f"budget-cap:{exc}")
                 except Exception as exc:  # noqa: BLE001 — daemon must survive any single failure
                     tb = traceback.format_exc(limit=4)
                     self.coord.event_log.emit("coordinator", "daemon.exception", {
@@ -404,6 +420,8 @@ def main(argv: list[str] | None = None) -> int:
                         help="optional: pr_maintenance | self_improve | lean_math (default: none, uses mock graders)")
     parser.add_argument("--repo-path", default=None,
                         help="repo path for --domain pr_maintenance")
+    parser.add_argument("--max-cost-per-day-usd", type=float, default=None,
+                        help="cumulative spend cap per UTC day. Daemon halts when reached (default: no cap)")
     args = parser.parse_args(argv)
 
     cfg = CSISConfig()
@@ -428,9 +446,12 @@ def main(argv: list[str] | None = None) -> int:
         budget=budget,
         max_total_iterations=args.max_iter,
         domain=domain,
+        max_cost_per_day_usd=args.max_cost_per_day_usd,
     )
     print(f"[csis.daemon] starting · backend={backend_name} · max-iter={args.max_iter or 'unlimited'} "
-          f"· rate={args.rate_per_hour}/h · domain={args.domain or 'none'} · stop file = {daemon._stop_file}")
+          f"· rate={args.rate_per_hour}/h · domain={args.domain or 'none'} "
+          f"· max-cost/day={('$' + str(args.max_cost_per_day_usd)) if args.max_cost_per_day_usd else 'none'} "
+          f"· stop file = {daemon._stop_file}")
     return daemon.run_forever()
 
 
