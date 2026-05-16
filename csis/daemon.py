@@ -55,6 +55,12 @@ class DaemonBudget:
     sleep_between_iterations_s: float = 1.0
     snapshot_every_n_iterations: int = 25
     heartbeat_every_n_iterations: int = 1
+    # F7 (cycle-7) fix: dedupe fuzz_false_positives events so a daemon
+    # that hits the same stable set of false-positive corpus rows on
+    # every snapshot doesn't spam the event log 5760+ times per day.
+    # When the failure signature is unchanged from last emission, we
+    # skip; the next change emits.
+    fuzz_event_dedupe: bool = True
 
 
 @dataclass
@@ -141,6 +147,10 @@ class Daemon:
             constitution=self.coord.constitution,
             tripwires=self.coord.tripwires,
         )
+        # F7: track the last fuzz-false-positive signature so we don't
+        # emit a duplicate event every snapshot when the failure set is
+        # stable.
+        self._last_false_positive_signature: tuple[str, ...] = ()
         self._heartbeat_path = config.brain_root / "daemon.heartbeat"
         self._stats_path = config.brain_root / "daemon.stats.json"
         self._stop_file = Path(config.event_log_path).parent.parent / STOP_FILE_NAME
@@ -196,7 +206,10 @@ class Daemon:
 
     def _tick(self) -> None:
         item: FrontierItem = self.curiosity.next(self.coord.hierarchy)
-        res = self.coord.run_iteration(frontier_item=item.text)
+        # F4 (cycle-7) fix: pass salt explicitly so the iter.start event
+        # records the authoritative value from FrontierItem rather than
+        # regex-extracting a possibly-misleading substring.
+        res = self.coord.run_iteration(frontier_item=item.text, salt=item.salt)
         self.stats.record(res)
 
         if res.outcome == "promoted":
@@ -250,12 +263,16 @@ class Daemon:
                 })
                 self.stop(reason=f"safety-fuzz-failure:{len(rep.security_regressions)}")
             elif rep.false_positives:
-                # Warn but continue — operator-tunable patterns may still
-                # over-catch benign documentation; this is not a halt cause.
-                self.coord.event_log.emit("coordinator", "safety.fuzz_false_positives", {
-                    "cases_checked": rep.cases_checked,
-                    "false_positives": rep.false_positives,
-                })
+                # F7: dedupe consecutive-identical false-positive sets so
+                # a stable corpus doesn't flood the log. Emit ONLY when
+                # the signature changes vs last emission.
+                signature = tuple(sorted(fp["label"] for fp in rep.false_positives))
+                if (not self.budget.fuzz_event_dedupe) or signature != self._last_false_positive_signature:
+                    self.coord.event_log.emit("coordinator", "safety.fuzz_false_positives", {
+                        "cases_checked": rep.cases_checked,
+                        "false_positives": rep.false_positives,
+                    })
+                    self._last_false_positive_signature = signature
             else:
                 self.coord.event_log.emit("coordinator", "safety.fuzz_ok", {
                     "cases_checked": rep.cases_checked,

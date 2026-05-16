@@ -8,7 +8,6 @@ The Coordinator's core method is `run_iteration()` — the 8-step loop from
 """
 from __future__ import annotations
 
-import re
 import threading
 import time
 import uuid
@@ -113,6 +112,7 @@ class Coordinator:
         *,
         frontier_item: str,
         target_tier: str = "episodic",
+        salt: int | None = None,
     ) -> IterationResult:
         """Execute one full 8-step loop. Returns IterationResult.
 
@@ -124,15 +124,15 @@ class Coordinator:
 
         iteration_id = f"iter-{uuid.uuid4().hex}"  # P9: full uuid hex, not truncated
         result = IterationResult(iteration_id=iteration_id)
-        # E10 (cycle-6) fix: record any curiosity salt that's part of the
-        # frontier_item, so a replay tool can reconstruct the exact prompt
-        # that was generated. Salts appear in gap-driven frontier items as
-        # "[salt=NNNN]"; extract them if present.
-        salt_match = re.search(r"\[salt=(\d+)\]", frontier_item)
+        # F4 (cycle-7) fix: the daemon passes salt explicitly (read from
+        # FrontierItem.salt). Cycle-6's regex against frontier_item picked
+        # up legitimate `[salt=N]` substrings in research-paper titles
+        # and misattributed them — forensic replay misled. The `salt`
+        # parameter is now the authoritative source.
         self.event_log.emit("coordinator", "iter.start", {
             "id": iteration_id,
             "frontier": frontier_item,
-            "salt": int(salt_match.group(1)) if salt_match else None,
+            "salt": salt,
         })
 
         # P6: scan the frontier item BEFORE inviting the LLM to plan on it.
@@ -308,18 +308,19 @@ class Coordinator:
                 log=self.event_log,
             )
         except TierMismatch as exc:
-            # Discard from EVERY tier the bad candidates might have landed in.
-            # The Librarian bug that produces tier mismatches could have
-            # written to multiple tiers; we walk all five and clear any
-            # match. Surface failures explicitly — no bare except
-            # (E1 cycle-6 fix: bare except previously swallowed the
-            # NameError on `store`, masking that nothing was discarded).
-            bad_ids = {entry.entry_id for entry in candidates}
-            for tier_name in ("working", "episodic", "semantic", "procedural", "causal"):
-                tier_store = self.hierarchy.tier(tier_name)
-                for eid in list(tier_store._candidate.keys()):
-                    if eid in bad_ids:
-                        tier_store.discard_candidate(eid, reason=f"tier-mismatch:{exc}")
+            # F2 (cycle-7) fix: discard ONLY from the tier the entry claims
+            # to be in (entry.tier), not from every tier that happens to
+            # have a matching id. Pre-existing legitimate candidates in
+            # other tiers must not be collateral damage. The Librarian-
+            # writes-to-multiple-tiers attack surface, if it exists, would
+            # surface as VERIFIED entries on later iterations — visible
+            # in the audit trail rather than silently swept here.
+            for entry in candidates:
+                tier_store = self.hierarchy.tier(entry.tier)
+                if tier_store.has_candidate(entry.entry_id):
+                    tier_store.discard_candidate(
+                        entry.entry_id, reason=f"tier-mismatch:{exc}"
+                    )
             self.event_log.emit("coordinator", "tier.mismatch", {"reason": str(exc)})
             self._rollback(result, f"tier-mismatch:{exc}")
             return result

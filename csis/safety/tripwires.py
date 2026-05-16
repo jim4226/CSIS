@@ -136,15 +136,23 @@ class TripwireResult:
     firings: list[TripwireFiring] = field(default_factory=list)
 
 
+_DEFAULT_HISTORY_MAX = 10_000
+
+
 class Tripwires:
-    def __init__(self) -> None:
+    def __init__(self, history_max: int = _DEFAULT_HISTORY_MAX) -> None:
         self._patterns = list(_TRIP_PATTERNS)
-        self._fired_history: list[TripwireFiring] = []
-        # E7 (cycle-6) fix: O(1) dedupe set alongside the history list.
-        # Without it, every scan_text() rebuilt the dedupe set from
-        # self._fired_history — measured 8 ms at 50k entries, called
-        # 4× per Coordinator iteration. Now constant-time per insert.
-        self._history_keys: set[tuple[str, str]] = set()
+        # F5 (cycle-7) fix: bounded history. Cycle-6 E7 fixed O(n) per-
+        # scan dedupe rebuild but left both the deque and the keys set
+        # unbounded — at 1M unique inputs the set reached ~150 MB. Now
+        # uses a bounded deque + OrderedDict for FIFO eviction; the
+        # dedupe semantics are eventually-consistent (an evicted key
+        # whose input recurs will record again, which is fine for
+        # operator-visible tripwire counts).
+        from collections import OrderedDict, deque
+        self._history_max = history_max
+        self._fired_history: deque[TripwireFiring] = deque(maxlen=history_max)
+        self._history_keys: "OrderedDict[tuple[str, str], None]" = OrderedDict()
 
     def _scan_dual_form(self, text: str) -> list[TripwireFiring]:
         """Cycle-5 D7 fix: dedupe per LABEL across both canonical forms.
@@ -168,13 +176,21 @@ class Tripwires:
     def scan_text(self, text: str) -> TripwireResult:
         firings = self._scan_dual_form(text)
         if firings:
-            # E7 (cycle-6) fix: O(1) per-insert dedupe via the
-            # _history_keys set rather than O(n) rebuild per call.
+            # E7 + F5: O(1) per-insert dedupe via OrderedDict. When the
+            # history hits maxlen, the underlying deque drops the oldest
+            # firing — we also pop the corresponding key from the ordered
+            # dict to keep the two in sync (FIFO eviction).
             for f in firings:
                 key = (f.label, f.snippet[:80])
-                if key not in self._history_keys:
-                    self._fired_history.append(f)
-                    self._history_keys.add(key)
+                if key in self._history_keys:
+                    continue
+                # If history is at maxlen, the deque.append below will
+                # silently drop the leftmost entry. Pop the matching key
+                # from the OrderedDict first so they stay aligned.
+                if len(self._fired_history) >= self._history_max:
+                    self._history_keys.popitem(last=False)
+                self._fired_history.append(f)
+                self._history_keys[key] = None
         return TripwireResult(fired=bool(firings), firings=firings)
 
     def scan_text_no_history(self, text: str) -> TripwireResult:
@@ -192,6 +208,9 @@ class Tripwires:
 
     def history(self) -> list[TripwireFiring]:
         return list(self._fired_history)
+
+    def history_size(self) -> int:
+        return len(self._fired_history)
 
     def clear(self) -> None:
         self._fired_history.clear()

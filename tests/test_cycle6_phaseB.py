@@ -102,7 +102,12 @@ def test_E10_curiosity_salt_appears_in_iter_start(tmp_path: Path) -> None:
         '"tier":"T0","tool_calls_planned":[]}')
     coord = Coordinator(config=cfg, backend=backend)
 
-    coord.run_iteration(frontier_item="gap-driven: tier=episodic has only 0 promoted entries; produce one more [salt=4242]")
+    # Cycle-7 F4 update: salt is now passed as a parameter, not extracted
+    # from the frontier_item text.
+    coord.run_iteration(
+        frontier_item="gap-driven: tier=episodic has only 0 promoted entries; produce one more [salt=4242]",
+        salt=4242,
+    )
 
     iter_starts = [s for s in coord.event_log if s.event.kind == "iter.start"]
     assert iter_starts, "no iter.start event found"

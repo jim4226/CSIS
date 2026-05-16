@@ -60,15 +60,15 @@ def test_E1_tier_mismatch_actually_discards_candidates(tmp_path: Path) -> None:
 
     def bad(*args, **kwargs):
         entries = original(*args, **kwargs)
-        store = kwargs["hierarchy"].tier(kwargs["target_tier"])
+        # Realistic bug: the Librarian writes the candidate to the wrong
+        # tier (causal instead of the intended target_tier). Cycle-7 F2
+        # narrowed the cleanup to entry.tier only, so we write only to
+        # the wrong tier — not both. The legitimate-id-collision case
+        # is covered by test_F2_tier_mismatch_does_not_over_discard.
         bad_entries = []
         for e in entries:
-            # Write a mismatched-tier candidate into a DIFFERENT tier
-            # store (causal) so we can verify the handler discards
-            # from the right place.
             be = e.model_copy(update={"tier": "causal"})
             kwargs["hierarchy"].tier("causal").write_candidate(be)
-            store.write_candidate(be)  # also in target tier
             bad_entries.append(be)
         return bad_entries
 
@@ -79,16 +79,14 @@ def test_E1_tier_mismatch_actually_discards_candidates(tmp_path: Path) -> None:
         coord_mod.consolidate_to_candidates = original
 
     assert res.outcome.startswith("rolled-back:tier-mismatch"), res.outcome
-    # E1: after rollback, NO candidates with the bad entry_id should
-    # remain in any tier.
-    for tier_name in ("working", "episodic", "semantic", "procedural", "causal"):
-        tier_store = coord.hierarchy.tier(tier_name)
-        remaining_ids = set(tier_store._candidate.keys())
-        for entry in res.candidate_entries:
-            assert entry.entry_id not in remaining_ids, (
-                f"E1 bug: bad candidate {entry.entry_id} leaked into "
-                f"tier={tier_name} after TierMismatch rollback"
-            )
+    # E1: after rollback, the bad candidate must NOT remain in causal
+    # (its declared tier). Cycle-7 F2 narrowed the cleanup to entry.tier
+    # only — so we check causal specifically rather than all five tiers.
+    for entry in res.candidate_entries:
+        assert not coord.hierarchy.causal.has_candidate(entry.entry_id), (
+            f"E1 bug: bad candidate {entry.entry_id} leaked into causal "
+            f"after TierMismatch rollback"
+        )
 
 
 # ---- E2 — attack imperatives with doc-style suffix blocked --------------

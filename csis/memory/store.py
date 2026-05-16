@@ -263,6 +263,14 @@ class MemoryStore:
             self._archive_candidate(cand, f"discarded:{reason}")
             self._flush()
 
+    def has_candidate(self, entry_id: str) -> bool:
+        """F2 (cycle-7) API surface: public 'does this id have a candidate'
+        check, so callers don't reach into the private `_candidate` dict.
+        The Coordinator's tier-mismatch cleanup uses this to determine
+        which tier(s) actually need a discard call."""
+        with self._lock:
+            return entry_id in self._candidate
+
     def deprecate_live(self, entry_id: str, *, reason: str) -> None:
         """Mark a live entry deprecated. Terminal; cannot be undone here."""
         with self._lock:

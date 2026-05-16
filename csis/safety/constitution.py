@@ -74,24 +74,35 @@ class Constitution:
         self._patterns: tuple[re.Pattern[str], ...] = tuple(
             list(DISALLOWED_PATTERNS) + list(extra_patterns or ())
         )
+        # F6 (cycle-7) fix: add_pattern/remove_pattern was a non-atomic
+        # read-modify-write (`self._patterns = self._patterns + (new,)`).
+        # Safe under CPython's GIL today but breaks under PyPy or
+        # PEP 703 free-threaded Python. The lock makes the swap atomic.
+        import threading as _threading
+        self._patterns_lock = _threading.Lock()
 
     def add_pattern(self, pattern: re.Pattern[str]) -> None:
         """Explicit, auditable extension. New tuple replaces the old one
         so any module that captured a reference still sees the previous
-        snapshot."""
-        self._patterns = self._patterns + (pattern,)
+        snapshot. F6: swap is atomic under the patterns lock."""
+        with self._patterns_lock:
+            self._patterns = self._patterns + (pattern,)
 
     def remove_pattern(self, pattern_source: str) -> bool:
         """Remove by pattern.pattern string. Returns True if found."""
-        kept = tuple(p for p in self._patterns if p.pattern != pattern_source)
-        if len(kept) == len(self._patterns):
-            return False
-        self._patterns = kept
-        return True
+        with self._patterns_lock:
+            kept = tuple(p for p in self._patterns if p.pattern != pattern_source)
+            if len(kept) == len(self._patterns):
+                return False
+            self._patterns = kept
+            return True
 
     def patterns(self) -> tuple[re.Pattern[str], ...]:
-        """Read-only view of the current pattern tuple."""
-        return self._patterns
+        """Read-only view of the current pattern tuple. Returning the
+        tuple under the lock guarantees the caller sees a coherent
+        snapshot — any concurrent add/remove builds a fresh tuple."""
+        with self._patterns_lock:
+            return self._patterns
 
     def allows(self, plan: Plan) -> ConstitutionDecision:
         # P11: concatenate every string-valued field, including tool names

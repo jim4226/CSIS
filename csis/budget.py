@@ -288,7 +288,7 @@ class BudgetTracker:
         # Cycle-4 C2 fix: re-read under the file lock so the snapshot
         # reflects sibling-daemon writes too. Without this, two daemons
         # would each report only their own spend.
-        with self._lock, _file_lock(self._file_lock_path):
+        with self._lock, self._maybe_locked():
             self._load()
             return {
                 "max_cost_per_day_usd": self.max_cost_per_day_usd,
@@ -298,16 +298,29 @@ class BudgetTracker:
 
     # ---- check + record -----------------------------------------------
 
+    @contextlib.contextmanager
+    def _maybe_locked(self):
+        """F3 (cycle-7) fix: cycle-6 E5 made __init__ skip the file lock
+        when no cap was set, but every other method still entered the
+        lock unconditionally — mock daemons broke on the first LLM call.
+        This wrapper short-circuits when there's no cap, so mock daemons
+        run with best-effort local-only state."""
+        if self._needs_locking():
+            with _file_lock(self._file_lock_path):
+                yield
+        else:
+            yield
+
     def check_or_raise(self) -> None:
         """Call before starting an iteration. If the day's cumulative cost
         is already at or above the cap, raises BudgetCapExceeded.
 
         Cycle-4 C2 fix: re-loads from disk under the file lock so a sibling
-        daemon's writes are visible.
+        daemon's writes are visible. Cycle-7 F3: conditional lock.
         """
         if self.max_cost_per_day_usd is None:
             return
-        with self._lock, _file_lock(self._file_lock_path):
+        with self._lock, self._maybe_locked():
             self._load()
             today = self._state.current()
             if today.cost_usd >= self.max_cost_per_day_usd:
@@ -330,7 +343,7 @@ class BudgetTracker:
                 f"per-call estimate ${estimated_cost_usd:.4f} > "
                 f"max_cost_per_call ${self.max_cost_per_call_usd:.4f}"
             )
-        with self._lock, _file_lock(self._file_lock_path):
+        with self._lock, self._maybe_locked():
             self._load()
             self._state.prune_stale_pending(self.prune_stale_pending_s)
             today = self._state.current()
@@ -364,7 +377,7 @@ class BudgetTracker:
         tokens_in = max(0, prompt_chars) // 4
         tokens_out = max(0, response_tokens)
         delta_cost = (tokens_in / 1000.0) * prices["in"] + (tokens_out / 1000.0) * prices["out"]
-        with self._lock, _file_lock(self._file_lock_path):
+        with self._lock, self._maybe_locked():
             self._load()  # pick up sibling-daemon writes
             self._state.prune_stale_pending(self.prune_stale_pending_s)
             today = self._state.current()
@@ -389,7 +402,7 @@ class BudgetTracker:
         first matching entry, mis-cancelling other concurrent reservations
         on the same daemon.
         """
-        with self._lock, _file_lock(self._file_lock_path):
+        with self._lock, self._maybe_locked():
             self._load()
             self._state.prune_stale_pending(self.prune_stale_pending_s)
             for i, p in enumerate(self._state.pending):
@@ -424,11 +437,17 @@ class _BackendTracker:
 
     def __init_subclass__(cls, **kwargs):
         super().__init_subclass__(**kwargs)
-        # E4 (cycle-6) fix: refuse subclasses that re-introduce the
-        # bypass attribute, no matter what name they use.
-        forbidden = {"_wrapped", "__wrapped", "_BackendTracker__wrapped"}
+        # F1 (cycle-7) fix: cycle-6 E4 checked only the literal names
+        # `_wrapped` / `_BackendTracker__wrapped` and missed Python's
+        # name-mangling of `__wrapped` inside a subclass body to
+        # `_<subclass>__wrapped`. Now we check ANY attribute name whose
+        # canonical form references the bypass slot.
         for name in cls.__dict__:
-            if name in forbidden:
+            if (
+                name == "_wrapped"
+                or name.endswith("__wrapped")  # catches _<subclass>__wrapped
+                or name == "_BackendTracker__wrapped"
+            ):
                 raise TypeError(
                     f"_BackendTracker subclass {cls.__name__} cannot define "
                     f"{name!r} — it would re-expose the wrapped backend "
