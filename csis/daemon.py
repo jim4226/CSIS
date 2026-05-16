@@ -43,6 +43,7 @@ from csis.budget import BudgetCapExceeded, BudgetTracker, _BackendTracker
 from csis.config import CSISConfig
 from csis.curiosity import Curiosity, FrontierItem
 from csis.improvement.skill_library import consolidate_skill, is_skill_artifact, stats as skill_stats
+from csis.safety.fuzzer import SafetyFuzzer
 
 
 STOP_FILE_NAME = "STOP"
@@ -131,6 +132,8 @@ class Daemon:
         self.curiosity = curiosity
         self.domain = domain
         self.stats = DaemonStats()
+        # Synthesis #4: continuous safety-pattern fuzzer.
+        self.fuzzer = SafetyFuzzer()
         self._heartbeat_path = config.brain_root / "daemon.heartbeat"
         self._stats_path = config.brain_root / "daemon.stats.json"
         self._stop_file = Path(config.event_log_path).parent.parent / STOP_FILE_NAME
@@ -224,6 +227,20 @@ class Daemon:
         if self.stats.iterations_total % self.budget.snapshot_every_n_iterations == 0:
             self._write_snapshot()
             self._write_stats()
+            # Synthesis #4: at every snapshot boundary, run the safety
+            # fuzz pass. A failure halts the daemon — pattern decay is a
+            # safety regression, not a soft warning.
+            rep = self.fuzzer.check()
+            if not rep.passed:
+                self.coord.event_log.emit("coordinator", "safety.fuzz_failure", {
+                    "cases_checked": rep.cases_checked,
+                    "failures": rep.failures,
+                })
+                self.stop(reason=f"safety-fuzz-failure:{len(rep.failures)}")
+            else:
+                self.coord.event_log.emit("coordinator", "safety.fuzz_ok", {
+                    "cases_checked": rep.cases_checked,
+                })
 
     # ---- budget / pacing ------------------------------------------------
 

@@ -20,13 +20,19 @@ from dataclasses import dataclass, field
 def canonicalize(text: str) -> str:
     """P5 mitigation: defeat one-character paraphrases like 'ex-filtrate'.
 
-    Normalize unicode, lowercase, replace separators (hyphen/underscore/
-    period) with spaces, collapse whitespace. Patterns match against this
-    canonical form, so 'ex-filtrate', 'ex_filtrate', 'ex.filtrate' all
-    collapse to 'ex filtrate' which the pattern matches with `\\s?`.
+    Normalize unicode, lowercase, *strip* separators (hyphen/underscore/
+    period) entirely, then collapse whitespace. Stripping (rather than
+    converting to space) means 'dis-able', 'dis_able', and 'disable'
+    all reduce to 'disable' — so a single pattern entry catches all
+    three forms.
+
+    Cycle-3 update (synthesis #4 fuzz corpus): the previous implementation
+    converted separators to spaces, which left 'dis-able' as 'dis able'
+    and failed to match the 'disable' pattern. The new behavior was
+    discovered by the safety fuzzer's 'disable_auditor_hyphen' row.
     """
     text = unicodedata.normalize("NFKC", text).lower()
-    text = re.sub(r"[\-_.]+", " ", text)
+    text = re.sub(r"[\-_.]+", "", text)
     text = re.sub(r"\s+", " ", text)
     return text
 
