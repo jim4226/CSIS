@@ -161,7 +161,9 @@ def main(argv: list[str] | None = None) -> int:
     for i, scenario in enumerate(SCENARIOS):
         name = scenario[0]
         print(f"[scenario {i+1}/{len(SCENARIOS)}] {name}")
-        res = coord.run_iteration(frontier_item=name)
+        # G5 (cycle-8): demo doesn't drive curiosity but pass salt=None
+        # explicitly to make the absence intentional in the event log.
+        res = coord.run_iteration(frontier_item=name, salt=None)
         results.append(res)
         print(f"  outcome: {res.outcome}")
         if res.cert:

@@ -142,17 +142,16 @@ _DEFAULT_HISTORY_MAX = 10_000
 class Tripwires:
     def __init__(self, history_max: int = _DEFAULT_HISTORY_MAX) -> None:
         self._patterns = list(_TRIP_PATTERNS)
-        # F5 (cycle-7) fix: bounded history. Cycle-6 E7 fixed O(n) per-
-        # scan dedupe rebuild but left both the deque and the keys set
-        # unbounded — at 1M unique inputs the set reached ~150 MB. Now
-        # uses a bounded deque + OrderedDict for FIFO eviction; the
-        # dedupe semantics are eventually-consistent (an evicted key
-        # whose input recurs will record again, which is fine for
-        # operator-visible tripwire counts).
+        # F5 (cycle-7) fix: bounded history via deque(maxlen) + OrderedDict.
+        # G4 (cycle-8) fix: added _history_lock so concurrent scan_text
+        # calls don't desync the deque and the keys set (reproduced under
+        # `sys.setswitchinterval(1e-9)` with 16 threads × 2k scans).
         from collections import OrderedDict, deque
+        import threading as _threading
         self._history_max = history_max
         self._fired_history: deque[TripwireFiring] = deque(maxlen=history_max)
         self._history_keys: "OrderedDict[tuple[str, str], None]" = OrderedDict()
+        self._history_lock = _threading.Lock()
 
     def _scan_dual_form(self, text: str) -> list[TripwireFiring]:
         """Cycle-5 D7 fix: dedupe per LABEL across both canonical forms.
@@ -176,21 +175,18 @@ class Tripwires:
     def scan_text(self, text: str) -> TripwireResult:
         firings = self._scan_dual_form(text)
         if firings:
-            # E7 + F5: O(1) per-insert dedupe via OrderedDict. When the
-            # history hits maxlen, the underlying deque drops the oldest
-            # firing — we also pop the corresponding key from the ordered
-            # dict to keep the two in sync (FIFO eviction).
-            for f in firings:
-                key = (f.label, f.snippet[:80])
-                if key in self._history_keys:
-                    continue
-                # If history is at maxlen, the deque.append below will
-                # silently drop the leftmost entry. Pop the matching key
-                # from the OrderedDict first so they stay aligned.
-                if len(self._fired_history) >= self._history_max:
-                    self._history_keys.popitem(last=False)
-                self._fired_history.append(f)
-                self._history_keys[key] = None
+            # G4 (cycle-8) fix: hold _history_lock for the entire
+            # check-pop-append sequence so concurrent scans cannot
+            # desync the deque and the OrderedDict.
+            with self._history_lock:
+                for f in firings:
+                    key = (f.label, f.snippet[:80])
+                    if key in self._history_keys:
+                        continue
+                    if len(self._fired_history) >= self._history_max:
+                        self._history_keys.popitem(last=False)
+                    self._fired_history.append(f)
+                    self._history_keys[key] = None
         return TripwireResult(fired=bool(firings), firings=firings)
 
     def scan_text_no_history(self, text: str) -> TripwireResult:
@@ -207,11 +203,16 @@ class Tripwires:
         return bool(self._fired_history)
 
     def history(self) -> list[TripwireFiring]:
-        return list(self._fired_history)
+        # G4: snapshot under the lock so callers don't iterate a
+        # concurrently-mutating deque.
+        with self._history_lock:
+            return list(self._fired_history)
 
     def history_size(self) -> int:
-        return len(self._fired_history)
+        with self._history_lock:
+            return len(self._fired_history)
 
     def clear(self) -> None:
-        self._fired_history.clear()
-        self._history_keys.clear()
+        with self._history_lock:
+            self._fired_history.clear()
+            self._history_keys.clear()

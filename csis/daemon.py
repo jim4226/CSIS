@@ -128,6 +128,16 @@ class Daemon:
             max_cost_per_call_usd=max_cost_per_call_usd,
         )
         self.backend = _BackendTracker(backend, self.budget_tracker)
+        # Cycle-8 G1 architectural pivot: the wrap site is the security
+        # boundary, not the subclass surface. Exact type-equality (not
+        # isinstance) defeats any subclass-based bypass — including
+        # post-hoc setattr, metaclasses, and Python name-mangling tricks
+        # that defeated cycles 4/6/7 guards.
+        if type(self.backend) is not _BackendTracker:
+            raise TypeError(
+                f"daemon backend must be exactly _BackendTracker, "
+                f"not a subclass or impostor. got: {type(self.backend).__name__!r}"
+            )
         self.budget = budget or DaemonBudget()
         self.max_total_iterations = max_total_iterations
         # If a Domain is provided, swap in its grader registry + curiosity.
@@ -263,10 +273,16 @@ class Daemon:
                 })
                 self.stop(reason=f"safety-fuzz-failure:{len(rep.security_regressions)}")
             elif rep.false_positives:
-                # F7: dedupe consecutive-identical false-positive sets so
-                # a stable corpus doesn't flood the log. Emit ONLY when
-                # the signature changes vs last emission.
-                signature = tuple(sorted(fp["label"] for fp in rep.false_positives))
+                # G6 (cycle-8) fix: dedupe signature now includes both
+                # label AND short text-hash. Cycle-7 F7 used labels only,
+                # which collapsed two different false-positive texts that
+                # happened to share a label into one signature and
+                # suppressed the second.
+                import hashlib as _hashlib
+                signature = tuple(sorted(
+                    (fp["label"], _hashlib.sha256(fp["text"].encode("utf-8")).hexdigest()[:16])
+                    for fp in rep.false_positives
+                ))
                 if (not self.budget.fuzz_event_dedupe) or signature != self._last_false_positive_signature:
                     self.coord.event_log.emit("coordinator", "safety.fuzz_false_positives", {
                         "cases_checked": rep.cases_checked,

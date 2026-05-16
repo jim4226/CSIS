@@ -77,12 +77,13 @@
     <p>Report: <a href="critiques/06-cycle6-redteam.md">critiques/06-cycle6-redteam.md</a></p>
   </div>
   <div class="card">
-    <h3>Cycle 8 · adversarial review of cycle-7 fixes <span class="pill warn">in flight</span></h3>
-    <p>Attacking metaclass-based bypass of F1, post-hoc setattr, F2 entry.tier-itself-wrong cases, F3 cross-cap-state races, F5 deque/OrderedDict eviction race, F7 dedupe collision via shared labels. Output queued for <a href="critiques/07-cycle7-redteam.md">critiques/07-cycle7-redteam.md</a>.</p>
+    <h3>Cycle 8 · 6 findings, 0 open <span class="pill good">shipped — architectural pivot</span></h3>
+    <p>G1 critical: 3rd-gen <code>_wrapped</code> bypass closed by dropping the subclass guard and constraining the wrap site (exact <code>type(...) is _BackendTracker</code> in <code>Daemon.__init__</code>). G2 added pre-consolidate per-tier snapshots so TierMismatch cleanup brute-walks all five tiers without over-discarding pre-existing same-id candidates. G3 fixed the Win <code>os.replace</code> race between cap and no-cap trackers sharing a file. <span class="pill good">202 tests pass</span>.</p>
+    <p>Report: <a href="critiques/07-cycle7-redteam.md">critiques/07-cycle7-redteam.md</a></p>
   </div>
 </div>
 
-<h2>Loop quality (cumulative across 7 cycles)</h2>
+<h2>Loop quality (cumulative across 8 cycles)</h2>
 <table>
   <tr><th>Cycle</th><th>Findings</th><th>Critical</th><th>High</th><th>Medium</th><th>Low</th><th>Open</th><th>Deferred</th><th>Tests after</th></tr>
   <tr><td>1 (pre-impl)</td><td>18</td><td>2</td><td>6</td><td>7</td><td>3</td><td>0</td><td>0</td><td>52</td></tr>
@@ -91,10 +92,11 @@
   <tr><td>4 fixes</td><td>11</td><td>2</td><td>4</td><td>4</td><td>1</td><td>0</td><td>0</td><td>141</td></tr>
   <tr><td>5 fixes</td><td>11</td><td>3</td><td>3</td><td>4</td><td>1</td><td>0</td><td>0</td><td>165</td></tr>
   <tr><td>6 fixes</td><td>10</td><td>3</td><td>3</td><td>3</td><td>1</td><td>0</td><td>1 (E8)</td><td>186</td></tr>
-  <tr><td>7 fixes</td><td>7</td><td>1</td><td>2</td><td>3</td><td>1</td><td>0</td><td>0</td><td><b>195</b></td></tr>
-  <tr><th>Total</th><th>81</th><th>15</th><th>28</th><th>28</th><th>10</th><th>0</th><th>1</th><th>—</th></tr>
+  <tr><td>7 fixes</td><td>7</td><td>1</td><td>2</td><td>3</td><td>1</td><td>0</td><td>0</td><td>195</td></tr>
+  <tr><td>8 fixes</td><td>6</td><td>2</td><td>2</td><td>2</td><td>0</td><td>0</td><td>0</td><td><b>202</b></td></tr>
+  <tr><th>Total</th><th>87</th><th>17</th><th>30</th><th>30</th><th>10</th><th>0</th><th>1</th><th>—</th></tr>
 </table>
-<p style="font-family: var(--mono); font-size: 13px; color: var(--ink-dim);">Cycle 7's finding count (7) is smaller than prior cycles (10-18). The cycle-8 critique brief explicitly asks: "is the loop at diminishing returns?" The loop has paid for itself many times over already; the structural invariants are now genuinely substrate-enforced. If cycle 8 returns &lt;5 real findings, this is a natural stopping point.</p>
+<p style="font-family: var(--mono); font-size: 13px; color: var(--ink-dim);">Cycle 8 closed 6 findings — including two architectural-level corrections rather than additional guards. G1 ended the 3rd-generation <code>_wrapped</code> attack class by changing which layer the constraint lives at (wrap site, not subclass surface). G2 ended the TierMismatch-cleanup arms race by snapshotting pre-consolidate state so the cleanup brute-walk is structurally safe. Both are wins of design, not patches.</p>
 
 <h2>24/7 daemon at a glance</h2>
 <table>
@@ -151,6 +153,7 @@
   <tr><td>07</td><td><a href="snapshots/07-cycle5-shipped.md">snapshots/07-cycle5-shipped.md</a></td><td>All 11 cycle-5 findings closed (3 crit + 3 high + 4 med + 1 low); 165/165 tests; cycle-6 dispatched</td></tr>
   <tr><td>08</td><td><a href="snapshots/08-cycle6-shipped.md">snapshots/08-cycle6-shipped.md</a></td><td>9 cycle-6 findings closed + 1 deferred (E8 Pydantic-frozen-dict); 186/186 tests; cycle-7 dispatched</td></tr>
   <tr><td>09</td><td><a href="snapshots/09-cycle7-shipped.md">snapshots/09-cycle7-shipped.md</a></td><td>All 7 cycle-7 findings closed; 195/195 tests; cycle-8 dispatched; diminishing-returns reflection</td></tr>
+  <tr><td>10</td><td><a href="snapshots/10-cycle8-shipped.md">snapshots/10-cycle8-shipped.md</a></td><td>All 6 cycle-8 findings closed (G1 architectural pivot on <code>_wrapped</code>, G2 pre-consolidate snapshot); 202/202 tests; pause/pivot decision point</td></tr>
 </table>
 
 <h2>Plans</h2>
@@ -169,7 +172,7 @@
   <tr><td><a href="critiques/04-cycle4-redteam.md">critiques/04-cycle4-redteam.md</a></td><td>Cycle 4 fixes</td><td>11 findings · 3 critical (D1 dual-form FPs, D2 shallow snapshot, D3 sibling reservation) · all addressed</td></tr>
   <tr><td><a href="critiques/05-cycle5-redteam.md">critiques/05-cycle5-redteam.md</a></td><td>Cycle 5 fixes</td><td>11 findings · 3 critical (D1 dual-form FPs, D2 shallow snapshot, D3 sibling reservation) · all addressed</td></tr>
   <tr><td><a href="critiques/06-cycle6-redteam.md">critiques/06-cycle6-redteam.md</a></td><td>Cycle 6 fixes</td><td>7 findings · 1 critical (F1 acknowledged-but-shipped mangling escape) · all addressed</td></tr>
-  <tr><td><a href="critiques/07-cycle7-redteam.md">critiques/07-cycle7-redteam.md</a></td><td>Cycle 7 fixes</td><td><em>in flight</em></td></tr>
+  <tr><td><a href="critiques/07-cycle7-redteam.md">critiques/07-cycle7-redteam.md</a></td><td>Cycle 7 fixes</td><td>6 findings · 2 critical (G1 3rd-gen <code>_wrapped</code> bypass, G3 cap/no-cap tracker race) · all addressed via architectural pivot</td></tr>
 </table>
 
 <h2>Research</h2>

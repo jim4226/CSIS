@@ -300,15 +300,23 @@ class BudgetTracker:
 
     @contextlib.contextmanager
     def _maybe_locked(self):
-        """F3 (cycle-7) fix: cycle-6 E5 made __init__ skip the file lock
-        when no cap was set, but every other method still entered the
-        lock unconditionally — mock daemons broke on the first LLM call.
-        This wrapper short-circuits when there's no cap, so mock daemons
-        run with best-effort local-only state."""
-        if self._needs_locking():
+        """G3 (cycle-8) fix: always TRY to lock first; only fall through
+        when the OS doesn't support locking AND we don't need to enforce
+        a cap. Cycle-7 F3 unconditionally skipped the lock for no-cap
+        trackers, but on Windows that caused PermissionError mid-rename
+        when a capped tracker and a no-cap tracker shared a file — only
+        one was serializing access. With this version, the no-cap path
+        still serializes whenever fcntl/msvcrt is available; the
+        no-lock fallback is reserved for actually-no-lock-support
+        systems running in best-effort-mock mode."""
+        try:
             with _file_lock(self._file_lock_path):
                 yield
-        else:
+                return
+        except LockUnavailable:
+            if self._needs_locking():
+                raise
+            # No cap AND the OS can't lock → best-effort local mode.
             yield
 
     def check_or_raise(self) -> None:

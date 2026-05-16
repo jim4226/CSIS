@@ -110,7 +110,10 @@ def main(argv: list[str] | None = None) -> int:
 
         item = curiosity.next(coord.hierarchy)
         print(f"[burst] iter {i+1}/{args.iters} · frontier='{item.text[:60]}...'")
-        res = coord.run_iteration(frontier_item=item.text)
+        # G5 (cycle-8) fix: pass salt explicitly so iter.start records
+        # the authoritative salt for forensic replay; cycle-7 F4
+        # established the parameter but burst.py hadn't been updated.
+        res = coord.run_iteration(frontier_item=item.text, salt=item.salt)
         if res.outcome == "promoted":
             promoted += 1
             curiosity.record_promoted(item.text)

@@ -271,6 +271,16 @@ class MemoryStore:
         with self._lock:
             return entry_id in self._candidate
 
+    def candidate_ids(self) -> set[str]:
+        """G2 (cycle-8) API surface: snapshot of currently-present candidate
+        IDs. The Coordinator takes one of these per tier BEFORE running
+        the Librarian so a TierMismatch cleanup can distinguish 'IDs this
+        iteration introduced' from 'IDs a prior iteration legitimately
+        wrote' — preventing over-discard of pre-existing candidates that
+        happen to share an entry_id (F2 regression)."""
+        with self._lock:
+            return set(self._candidate.keys())
+
     def deprecate_live(self, entry_id: str, *, reason: str) -> None:
         """Mark a live entry deprecated. Terminal; cannot be undone here."""
         with self._lock:

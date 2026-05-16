@@ -258,6 +258,18 @@ class Coordinator:
             self._rollback(result, f"verifier-rejected:{cert.notes}")
             return result
 
+        # G2 (cycle-8): snapshot which candidate IDs exist in EACH tier
+        # before Librarian runs. The TierMismatch cleanup path uses this
+        # to distinguish "IDs THIS iteration introduced" from "IDs that
+        # were already there", so a brute-walk discard doesn't trash a
+        # legitimate pre-existing candidate that happens to share an
+        # entry_id (the F2 regression scenario).
+        ALL_TIERS = ("working", "episodic", "semantic", "procedural", "causal")
+        pre_consolidate_ids: dict[str, set[str]] = {
+            tier_name: self.hierarchy.tier(tier_name).candidate_ids()
+            for tier_name in ALL_TIERS
+        }
+
         # Librarian (step 6): consolidate to candidate stores.
         try:
             candidates = consolidate_to_candidates(
@@ -291,6 +303,31 @@ class Coordinator:
         # candidates after every TierMismatch.
         store = self.hierarchy.tier(target_tier)
 
+        # G2 (cycle-8) fix: lie detection. A buggy/malicious Librarian
+        # can write to one tier but lie about it in entry.tier (claim
+        # target). _build_diff's existing entry.tier != target_tier
+        # check catches the honest-bug case but not the lying case
+        # (where entry.tier == target_tier == wherever-it-claims).
+        # Detect by checking each returned candidate actually exists as
+        # a candidate in the tier it claims. If not, raise TierMismatch
+        # so the cleanup runs.
+        try:
+            for entry in candidates:
+                claimed_store = self.hierarchy.tier(entry.tier)
+                if not claimed_store.has_candidate(entry.entry_id):
+                    raise TierMismatch(
+                        f"candidate {entry.entry_id} claims tier={entry.tier!r} "
+                        f"but no candidate with that id exists there. "
+                        f"Librarian wrote to a different tier than it advertised.",
+                        claimed_tier=entry.tier,
+                        target_tier=target_tier,
+                    )
+        except TierMismatch as exc:
+            self._tier_mismatch_cleanup(
+                exc, candidates, pre_consolidate_ids, result,
+            )
+            return result
+
         # Auditor (steps 7-8): write why-doc, sign with hash precondition, promote.
         # D4 (cycle-5) fix: catch TierMismatch so a Librarian bug doesn't
         # leak VERIFIED-trust candidates on disk forever. The rollback
@@ -308,21 +345,9 @@ class Coordinator:
                 log=self.event_log,
             )
         except TierMismatch as exc:
-            # F2 (cycle-7) fix: discard ONLY from the tier the entry claims
-            # to be in (entry.tier), not from every tier that happens to
-            # have a matching id. Pre-existing legitimate candidates in
-            # other tiers must not be collateral damage. The Librarian-
-            # writes-to-multiple-tiers attack surface, if it exists, would
-            # surface as VERIFIED entries on later iterations — visible
-            # in the audit trail rather than silently swept here.
-            for entry in candidates:
-                tier_store = self.hierarchy.tier(entry.tier)
-                if tier_store.has_candidate(entry.entry_id):
-                    tier_store.discard_candidate(
-                        entry.entry_id, reason=f"tier-mismatch:{exc}"
-                    )
-            self.event_log.emit("coordinator", "tier.mismatch", {"reason": str(exc)})
-            self._rollback(result, f"tier-mismatch:{exc}")
+            self._tier_mismatch_cleanup(
+                exc, candidates, pre_consolidate_ids, result,
+            )
             return result
         except BudgetCapExceeded:
             raise
@@ -429,6 +454,44 @@ class Coordinator:
             "iteration_id": result.iteration_id,
             "reason": reason,
         })
+
+    def _tier_mismatch_cleanup(
+        self,
+        exc: TierMismatch,
+        candidates: list[MemoryEntry],
+        pre_consolidate_ids: dict[str, set[str]],
+        result: IterationResult,
+    ) -> None:
+        """G2 (cycle-8) cleanup. Brute-walk every tier to find stranded
+        candidates this iteration introduced, BUT only discard IDs that
+        were NOT present at the pre-consolidate snapshot — so a
+        legitimate pre-existing candidate with the same id is preserved
+        (cycle-7 F2 regression scenario).
+
+        This combines cycle-7 F2's "don't over-discard" discipline with
+        cycle-8 G2's "don't trust the Librarian's tier claim" discipline.
+        """
+        ALL_TIERS = ("working", "episodic", "semantic", "procedural", "causal")
+        discarded: list[tuple[str, str]] = []
+        for entry in candidates:
+            for tier_name in ALL_TIERS:
+                tier_store = self.hierarchy.tier(tier_name)
+                if not tier_store.has_candidate(entry.entry_id):
+                    continue
+                if entry.entry_id in pre_consolidate_ids.get(tier_name, set()):
+                    # Pre-existing legitimate candidate — leave it alone.
+                    continue
+                tier_store.discard_candidate(
+                    entry.entry_id, reason=f"tier-mismatch:{exc}"
+                )
+                discarded.append((tier_name, entry.entry_id))
+        self.event_log.emit("coordinator", "tier.mismatch", {
+            "reason": str(exc),
+            "claimed_tier": exc.claimed_tier,
+            "target_tier": exc.target_tier,
+            "discarded": [{"tier": t, "id": i} for t, i in discarded],
+        })
+        self._rollback(result, f"tier-mismatch:{exc}")
 
     def _write_auto_snapshot(self, iter_count: int) -> None:
         path = self.config.brain_root / "snapshots" / f"auto-{iter_count:04d}.md"

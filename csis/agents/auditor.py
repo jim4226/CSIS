@@ -54,7 +54,18 @@ class TierMismatch(Exception):
     """Cycle-4 C6: raised when a candidate's tier disagrees with the
     target tier of the promotion. The Librarian must consolidate to a
     single tier per iteration; a cross-tier candidate is a bug.
+
+    Cycle-8 G2: carries BOTH the claimed_tier (entry.tier — what the
+    Librarian said) and the target_tier (what the iteration expected).
+    The Coordinator's cleanup walks the union so a buggy Librarian that
+    wrote to one tier but lied about it in entry.tier doesn't strand
+    its dirty data.
     """
+
+    def __init__(self, msg: str, *, claimed_tier: str | None = None, target_tier: str | None = None) -> None:
+        super().__init__(msg)
+        self.claimed_tier = claimed_tier
+        self.target_tier = target_tier
 
 
 def _build_diff(
@@ -83,7 +94,9 @@ def _build_diff(
             raise TierMismatch(
                 f"candidate {entry.entry_id} has tier={entry.tier!r} but "
                 f"target_tier={target_tier!r}. Librarian must consolidate "
-                f"to a single tier per iteration."
+                f"to a single tier per iteration.",
+                claimed_tier=entry.tier,
+                target_tier=target_tier,
             )
         cand_hash = canonical_json_hash(entry.model_dump())
         if live_snapshot is not None:
