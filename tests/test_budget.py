@@ -106,18 +106,23 @@ def test_backend_tracker_meters_every_complete_call(tmp_path: Path) -> None:
 
 
 def test_backend_tracker_blocks_at_cap(tmp_path: Path) -> None:
+    """Cycle-4 C3 update: the wrapper now reserves cost BEFORE the call,
+    so a single call whose estimate exceeds the cap is refused upfront.
+    We test by pre-charging close to the cap, then asserting the next
+    call's reservation blocks."""
     backend = MockBackend()
     backend.set_model_id("alpha", "claude-opus-4-7")
     backend.script("researcher", "alpha", "ok")
 
-    tracker = BudgetTracker(tmp_path / "budget.json", max_cost_per_day_usd=0.001)  # tiny cap
-    wrapped = _BackendTracker(backend, tracker)
+    tracker = BudgetTracker(tmp_path / "budget.json", max_cost_per_day_usd=0.10)
+    # Pre-charge $0.075 (one Opus call's worth).
+    tracker.record("claude-opus-4-7", prompt_chars=4000, response_tokens=800)
 
+    wrapped = _BackendTracker(backend, tracker)
     from csis.backends.base import LLMRequest
-    req = LLMRequest(role="researcher", checkpoint_id="alpha", system="s", prompt="hello " * 1000)
-    # First call records and pushes over the tiny cap.
-    wrapped.complete(req)
-    # Second call refuses.
+    req = LLMRequest(role="researcher", checkpoint_id="alpha", system="s",
+                     prompt="hello " * 1000, max_tokens=2000)
+    # Reservation = ~$0.075 in + $0.15 out = $0.225; pre-charged $0.075; total $0.3 > $0.10 → block.
     with pytest.raises(BudgetCapExceeded):
         wrapped.complete(req)
 
@@ -126,8 +131,10 @@ def test_backend_tracker_blocks_at_cap(tmp_path: Path) -> None:
 
 
 def test_daemon_halts_on_budget_cap(tmp_path: Path) -> None:
-    """With a tiny cap on the real-priced model_id, the daemon emits a
-    daemon.budget_cap event and exits cleanly."""
+    """With a small cap on real-priced model_ids, the daemon emits a
+    daemon.budget_cap event and exits cleanly. Cycle-4 C3 update: the
+    reservation step may fire before any spend records, which is the
+    correct behavior — we test that the event fired and the daemon halted."""
     cfg = CSISConfig.for_tests(tmp_path)
     backend = _select_backend("mock", cfg)
     # Re-label mock checkpoints to real model_ids so the tracker's price
@@ -140,12 +147,11 @@ def test_daemon_halts_on_budget_cap(tmp_path: Path) -> None:
         budget=DaemonBudget(max_iterations_per_hour=10000, sleep_between_iterations_s=0,
                             snapshot_every_n_iterations=1000, heartbeat_every_n_iterations=1),
         max_total_iterations=10,
-        max_cost_per_day_usd=0.01,  # cap immediately
+        max_cost_per_day_usd=0.05,  # tight but reservations can still fit a few small calls
     )
     rc = daemon.run_forever()
     assert rc == 0
-    # Some iterations may have run before cap hit; check budget_cap event.
     kinds = [s.event.kind for s in daemon.coord.event_log]
     assert "daemon.budget_cap" in kinds, kinds
-    # Budget file persisted with non-zero spend.
-    assert daemon.budget_tracker.today_cost_usd() > 0
+    # With reservation, daemon may halt before completing 10 iterations.
+    assert daemon.stats.iterations_total < 10

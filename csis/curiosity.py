@@ -19,12 +19,23 @@ twice in a row.
 """
 from __future__ import annotations
 
+import os
 import random
 from collections import deque
 from dataclasses import dataclass, field
 from typing import Iterable
 
 from csis.memory.store import MemoryHierarchy
+
+
+def _default_rng() -> random.Random:
+    """Cycle-4 C5 fix: seed from os.urandom so daemon restarts don't
+    reproduce the exact same gap-driven prompt salts. The cycle-3 fix
+    used Random(0) which made the 'synthesis #6 salt' decorative across
+    restarts — every fresh daemon started with the same salt sequence,
+    re-manufacturing the mock-skill artifact synthesis #6 was meant to
+    kill."""
+    return random.Random(os.urandom(16))
 
 
 CURIOSITY_SEEDS: tuple[str, ...] = (
@@ -56,7 +67,8 @@ class Curiosity:
     recent: deque[str] = field(default_factory=lambda: deque(maxlen=8))
     _rollback_followups: deque[str] = field(default_factory=lambda: deque(maxlen=16))
     _seed_index: int = 0
-    _rng: random.Random = field(default_factory=lambda: random.Random(0))
+    # Cycle-4 C5 fix: non-deterministic RNG so daemon restarts vary.
+    _rng: random.Random = field(default_factory=_default_rng)
 
     def record_rollback(self, frontier_item: str, reason: str) -> None:
         """Called by the daemon after a rolled-back iteration."""

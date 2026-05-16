@@ -21,6 +21,7 @@ from csis.agents.librarian import consolidate_to_candidates
 from csis.agents.researcher import propose_plan
 from csis.agents.verifier import verify
 from csis.backends.base import LLMBackend
+from csis.budget import BudgetCapExceeded
 from csis.config import CSISConfig
 from csis.contracts import (
     Artifact,
@@ -140,6 +141,10 @@ class Coordinator:
         # Researcher (steps 1–3): propose plan.
         try:
             plan = propose_plan(self._ctx(Role.RESEARCHER, side="builder"), frontier_item)
+        except BudgetCapExceeded:
+            # Cycle-4 fix: don't swallow budget-cap as a generic rollback;
+            # the daemon needs to see this and halt cleanly.
+            raise
         except Exception as exc:  # noqa: BLE001
             self._rollback(result, f"researcher-raised:{exc!r}")
             return result
@@ -186,6 +191,8 @@ class Coordinator:
         # Builder (step 4): execute the plan.
         try:
             artifact = execute_plan(self._ctx(Role.BUILDER, side="builder"), plan)
+        except BudgetCapExceeded:
+            raise
         except Exception as exc:  # noqa: BLE001
             self._rollback(result, f"builder-raised:{exc!r}")
             return result

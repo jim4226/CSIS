@@ -110,6 +110,7 @@ class Daemon:
         max_total_iterations: Optional[int] = None,
         domain: "object | None" = None,
         max_cost_per_day_usd: float | None = None,
+        max_cost_per_call_usd: float | None = None,
     ) -> None:
         self.config = config
         # Wrap the backend in the budget tracker so EVERY complete() call
@@ -118,6 +119,7 @@ class Daemon:
         self.budget_tracker = BudgetTracker(
             path=config.brain_root / "daemon.budget.json",
             max_cost_per_day_usd=max_cost_per_day_usd,
+            max_cost_per_call_usd=max_cost_per_call_usd,
         )
         self.backend = _BackendTracker(backend, self.budget_tracker)
         self.budget = budget or DaemonBudget()
@@ -133,7 +135,12 @@ class Daemon:
         self.domain = domain
         self.stats = DaemonStats()
         # Synthesis #4: continuous safety-pattern fuzzer.
-        self.fuzzer = SafetyFuzzer()
+        # Cycle-4 C10 fix: the fuzzer sees the SAME constitution + tripwires
+        # the Coordinator uses, so operator-added patterns are validated too.
+        self.fuzzer = SafetyFuzzer(
+            constitution=self.coord.constitution,
+            tripwires=self.coord.tripwires,
+        )
         self._heartbeat_path = config.brain_root / "daemon.heartbeat"
         self._stats_path = config.brain_root / "daemon.stats.json"
         self._stop_file = Path(config.event_log_path).parent.parent / STOP_FILE_NAME
@@ -439,6 +446,8 @@ def main(argv: list[str] | None = None) -> int:
                         help="repo path for --domain pr_maintenance")
     parser.add_argument("--max-cost-per-day-usd", type=float, default=None,
                         help="cumulative spend cap per UTC day. Daemon halts when reached (default: no cap)")
+    parser.add_argument("--max-cost-per-call-usd", type=float, default=None,
+                        help="hard ceiling on any single LLM call's estimated cost (default: no ceiling)")
     args = parser.parse_args(argv)
 
     cfg = CSISConfig()
@@ -464,6 +473,7 @@ def main(argv: list[str] | None = None) -> int:
         max_total_iterations=args.max_iter,
         domain=domain,
         max_cost_per_day_usd=args.max_cost_per_day_usd,
+        max_cost_per_call_usd=args.max_cost_per_call_usd,
     )
     print(f"[csis.daemon] starting · backend={backend_name} · max-iter={args.max_iter or 'unlimited'} "
           f"· rate={args.rate_per_hour}/h · domain={args.domain or 'none'} "

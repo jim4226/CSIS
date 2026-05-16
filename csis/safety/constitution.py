@@ -15,7 +15,7 @@ from dataclasses import dataclass
 from typing import Iterable
 
 from csis.contracts import Plan
-from csis.safety.tripwires import canonicalize
+from csis.safety.tripwires import canonical_variants, canonicalize
 
 
 # Patterns that immediately disqualify a plan. Conservative list; expand
@@ -81,21 +81,27 @@ class Constitution:
         for k, v in plan.budget.items():
             parts.append(str(k))
             parts.append(str(v))
-        text = canonicalize("\n".join(parts))
+        joined = "\n".join(parts)
 
+        # C1 fix: check BOTH canonical forms. Strip-form catches intra-word
+        # splits ('dis-able'); space-form catches inter-word separators
+        # ('disable-the-auditor'). Either match denies.
+        strip_form, space_form = canonical_variants(joined)
         for pat in self._patterns:
-            m = pat.search(text)
-            if m:
-                return ConstitutionDecision(False, f"matched disallowed pattern: {pat.pattern!r}")
+            for text in (strip_form, space_form):
+                m = pat.search(text)
+                if m:
+                    return ConstitutionDecision(False, f"matched disallowed pattern: {pat.pattern!r}")
 
         # P11: tool name substring check on top of pattern scan.
         for tool in plan.tool_calls_planned:
-            tcanon = canonicalize(tool)
-            for bad in DISALLOWED_TOOL_SUBSTRINGS:
-                if bad in tcanon:
-                    return ConstitutionDecision(
-                        False, f"tool {tool!r} contains disallowed substring {bad!r}"
-                    )
-            if tcanon in {"shutdown override", "self modify weights"}:
-                return ConstitutionDecision(False, f"tool {tool!r} is disallowed in Phase-0")
+            t_strip, t_space = canonical_variants(tool)
+            for tcanon in (t_strip, t_space):
+                for bad in DISALLOWED_TOOL_SUBSTRINGS:
+                    if bad in tcanon:
+                        return ConstitutionDecision(
+                            False, f"tool {tool!r} contains disallowed substring {bad!r}"
+                        )
+                if tcanon in {"shutdown override", "self modify weights"}:
+                    return ConstitutionDecision(False, f"tool {tool!r} is disallowed in Phase-0")
         return ConstitutionDecision(True, "ok")

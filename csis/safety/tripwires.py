@@ -18,23 +18,50 @@ from dataclasses import dataclass, field
 
 
 def canonicalize(text: str) -> str:
-    """P5 mitigation: defeat one-character paraphrases like 'ex-filtrate'.
+    """Strip-form canonicalization: separators removed entirely.
 
-    Normalize unicode, lowercase, *strip* separators (hyphen/underscore/
-    period) entirely, then collapse whitespace. Stripping (rather than
-    converting to space) means 'dis-able', 'dis_able', and 'disable'
-    all reduce to 'disable' — so a single pattern entry catches all
-    three forms.
+    Catches single-word splits: 'dis-able', 'dis_able', 'dis.able' →
+    'disable'. Good for matching within a single keyword.
 
-    Cycle-3 update (synthesis #4 fuzz corpus): the previous implementation
-    converted separators to spaces, which left 'dis-able' as 'dis able'
-    and failed to match the 'disable' pattern. The new behavior was
-    discovered by the safety fuzzer's 'disable_auditor_hyphen' row.
+    Limitation: collapses multi-word constructions joined by separators
+    into one run with no internal space — e.g. 'disable-the-auditor'
+    becomes 'disabletheauditor', which the existing 'disable\\s+the\\s+
+    auditor' patterns will NOT match. For multi-word forms, use
+    `canonicalize_space()`; for safety predicates use `canonical_variants()`
+    and check both.
     """
     text = unicodedata.normalize("NFKC", text).lower()
     text = re.sub(r"[\-_.]+", "", text)
     text = re.sub(r"\s+", " ", text)
     return text
+
+
+def canonicalize_space(text: str) -> str:
+    """Space-form canonicalization: separators converted to space.
+
+    Catches multi-word constructions joined by separators: 'disable-the-
+    auditor', 'disable_the_auditor', 'disable.the.auditor' → 'disable the
+    auditor', matched by existing 'disable\\s+the\\s+auditor' patterns.
+
+    Limitation: leaves 'dis-able' as 'dis able' which doesn't match
+    'disable'. The pair (strip + space) covers both cases; safety
+    predicates should check both via `canonical_variants()`.
+    """
+    text = unicodedata.normalize("NFKC", text).lower()
+    text = re.sub(r"[\-_.]+", " ", text)
+    text = re.sub(r"\s+", " ", text)
+    return text
+
+
+def canonical_variants(text: str) -> tuple[str, str]:
+    """Return both canonical forms (strip, space).
+
+    Cycle-4 C1 fix: a single canonical form was insufficient. Strip-form
+    catches intra-word splits ('dis-able'); space-form catches inter-word
+    separators ('disable-the-auditor'). Safety predicates check whether
+    either form matches their patterns; either match fires.
+    """
+    return canonicalize(text), canonicalize_space(text)
 
 
 # Patterns that immediately fire a tripwire — checked against canonical form.
@@ -100,14 +127,36 @@ class Tripwires:
         self._fired_history: list[TripwireFiring] = []
 
     def scan_text(self, text: str) -> TripwireResult:
-        canon = canonicalize(text)
+        # Cycle-4 C1 fix: check BOTH canonical forms. Strip catches
+        # 'dis-able'; space catches 'disable-the-auditor'. Either match fires.
+        strip_form, space_form = canonical_variants(text)
         firings: list[TripwireFiring] = []
         for label, pat in self._patterns:
-            m = pat.search(canon)
-            if m:
-                firings.append(TripwireFiring(label, canon[max(0, m.start()-40):m.end()+40]))
+            for canon in (strip_form, space_form):
+                m = pat.search(canon)
+                if m:
+                    firings.append(TripwireFiring(label, canon[max(0, m.start()-40):m.end()+40]))
+                    break  # don't double-count the same pattern across both forms
         if firings:
             self._fired_history.extend(firings)
+        return TripwireResult(fired=bool(firings), firings=firings)
+
+    def scan_text_no_history(self, text: str) -> TripwireResult:
+        """Same as scan_text but does NOT append to _fired_history.
+
+        Cycle-4 C9 mitigation: the fuzzer can use this to validate patterns
+        without polluting the operator-visible 'has any tripwire ever fired'
+        state. Repeated fuzz passes would otherwise grow history forever
+        and make `fired()` return True for the lifetime of the daemon.
+        """
+        strip_form, space_form = canonical_variants(text)
+        firings: list[TripwireFiring] = []
+        for label, pat in self._patterns:
+            for canon in (strip_form, space_form):
+                m = pat.search(canon)
+                if m:
+                    firings.append(TripwireFiring(label, canon[max(0, m.start()-40):m.end()+40]))
+                    break
         return TripwireResult(fired=bool(firings), firings=firings)
 
     def fired(self) -> bool:

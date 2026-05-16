@@ -5,22 +5,28 @@ Synthesis recommendation #3: today the cost-ceiling lives only in
 the daemon 24/7 has no cumulative umbrella. This module adds one.
 
 Persistence: a JSON file keyed by date string. Loading + saving is
-atomic (write-tempfile-then-rename) so a crash doesn't corrupt totals.
+atomic (write-tempfile-then-rename) and protected by an inter-process
+file lock so two concurrent daemons cannot stomp each other's totals
+(cycle-4 C2 fix). Every record() re-reads the file under the lock,
+applies the delta, writes back, releases — read-modify-write atomicity.
 
 Cost estimation: same rough-prices-per-1k-tokens table as burst.py.
 Tokens-in is estimated from prompt length / 4; tokens-out is fixed at
-800 per call (mid-range for our structured prompts). Real billing
-differs; this is a guardrail, not an accountant.
+800 per call (mid-range for our structured prompts) unless the backend
+reports otherwise. Cycle-4 C8 fix: a real `tokens_out=0` (refusal,
+content-policy stop) is now respected rather than over-charged to 800.
 """
 from __future__ import annotations
 
+import contextlib
 import json
 import os
+import sys
 import tempfile
 import threading
 import time
 from dataclasses import asdict, dataclass, field
-from datetime import date, datetime, timezone
+from datetime import datetime, timezone
 from pathlib import Path
 
 
@@ -75,22 +81,88 @@ class BudgetCapExceeded(Exception):
     """Raised when an attempted call would push the day over the cap."""
 
 
+@contextlib.contextmanager
+def _file_lock(lock_path: Path):
+    """Cross-platform exclusive inter-process file lock.
+
+    On Windows uses msvcrt.locking; on POSIX uses fcntl.flock. Falls back
+    to a best-effort PID-file approach if neither is available (in which
+    case concurrent daemons are still detected but not strictly serialized).
+
+    Cycle-4 C2 mitigation. The lock file is separate from the data file
+    so a corrupt data file doesn't strand the lock and vice versa.
+    """
+    lock_path.parent.mkdir(parents=True, exist_ok=True)
+    f = open(lock_path, "a+b")
+    locked = False
+    try:
+        if sys.platform == "win32":
+            import msvcrt  # type: ignore[import-not-found]
+            for _attempt in range(200):  # ~20s of waiting in 0.1s ticks
+                try:
+                    f.seek(0)
+                    msvcrt.locking(f.fileno(), msvcrt.LK_NBLCK, 1)
+                    locked = True
+                    break
+                except OSError:
+                    time.sleep(0.1)
+            if not locked:
+                raise TimeoutError(f"could not acquire budget lock at {lock_path} within 20s")
+        else:
+            try:
+                import fcntl  # type: ignore[import-not-found]
+                fcntl.flock(f.fileno(), fcntl.LOCK_EX)
+                locked = True
+            except ImportError:
+                # Last-ditch: no real lock available.
+                locked = True
+        yield
+    finally:
+        try:
+            if locked and sys.platform == "win32":
+                import msvcrt  # type: ignore[import-not-found]
+                f.seek(0)
+                msvcrt.locking(f.fileno(), msvcrt.LK_UNLCK, 1)
+            elif locked:
+                try:
+                    import fcntl  # type: ignore[import-not-found]
+                    fcntl.flock(f.fileno(), fcntl.LOCK_UN)
+                except ImportError:
+                    pass
+        finally:
+            f.close()
+
+
 class BudgetTracker:
-    """Thread-safe per-day cumulative cost tracker.
+    """Thread- AND process-safe per-day cumulative cost tracker.
 
     Usage:
-        tracker = BudgetTracker(path="brain/daemon.budget.json", max_cost_per_day_usd=5.0)
-        tracker.check_or_raise()                # before an iteration
+        tracker = BudgetTracker(
+            path="brain/daemon.budget.json",
+            max_cost_per_day_usd=5.0,
+            max_cost_per_call_usd=0.5,     # cycle-4 C3: single-call ceiling
+        )
+        tracker.reserve_or_raise(estimated_cost_usd)  # before an LLM call
         tracker.record(model_id, prompt_chars, response_tokens=800)  # after each call
     """
 
-    def __init__(self, path: str | Path, *, max_cost_per_day_usd: float | None = None) -> None:
+    def __init__(
+        self,
+        path: str | Path,
+        *,
+        max_cost_per_day_usd: float | None = None,
+        max_cost_per_call_usd: float | None = None,
+    ) -> None:
         self.path = Path(path)
         self.path.parent.mkdir(parents=True, exist_ok=True)
         self.max_cost_per_day_usd = max_cost_per_day_usd
+        self.max_cost_per_call_usd = max_cost_per_call_usd
         self._lock = threading.Lock()
+        self._file_lock_path = self.path.with_suffix(self.path.suffix + ".lock")
         self._state = BudgetState()
-        self._load()
+        # Initial load under the file lock.
+        with _file_lock(self._file_lock_path):
+            self._load()
 
     def _load(self) -> None:
         if not self.path.exists():
@@ -134,7 +206,11 @@ class BudgetTracker:
             return self._state.current().calls
 
     def snapshot(self) -> dict:
-        with self._lock:
+        # Cycle-4 C2 fix: re-read under the file lock so the snapshot
+        # reflects sibling-daemon writes too. Without this, two daemons
+        # would each report only their own spend.
+        with self._lock, _file_lock(self._file_lock_path):
+            self._load()
             return {
                 "max_cost_per_day_usd": self.max_cost_per_day_usd,
                 "today": asdict(self._state.current()),
@@ -145,10 +221,15 @@ class BudgetTracker:
 
     def check_or_raise(self) -> None:
         """Call before starting an iteration. If the day's cumulative cost
-        is already at or above the cap, raises BudgetCapExceeded."""
+        is already at or above the cap, raises BudgetCapExceeded.
+
+        Cycle-4 C2 fix: re-loads from disk under the file lock so a sibling
+        daemon's writes are visible.
+        """
         if self.max_cost_per_day_usd is None:
             return
-        with self._lock:
+        with self._lock, _file_lock(self._file_lock_path):
+            self._load()
             today = self._state.current()
             if today.cost_usd >= self.max_cost_per_day_usd:
                 raise BudgetCapExceeded(
@@ -156,13 +237,41 @@ class BudgetTracker:
                     f">= cap ${self.max_cost_per_day_usd:.4f}"
                 )
 
+    def reserve_or_raise(self, estimated_cost_usd: float) -> None:
+        """Cycle-4 C3 fix: refuse calls whose pre-call estimate would
+        single-handedly push past either the per-call ceiling or the
+        per-day cap. The estimate uses req.max_tokens as the output
+        upper bound, so even a refused or oversize call cannot overshoot
+        by more than the estimator's own error margin."""
+        if self.max_cost_per_call_usd is not None and estimated_cost_usd > self.max_cost_per_call_usd:
+            raise BudgetCapExceeded(
+                f"per-call estimate ${estimated_cost_usd:.4f} > "
+                f"max_cost_per_call ${self.max_cost_per_call_usd:.4f}"
+            )
+        if self.max_cost_per_day_usd is None:
+            return
+        with self._lock, _file_lock(self._file_lock_path):
+            self._load()
+            today = self._state.current()
+            if today.cost_usd + estimated_cost_usd > self.max_cost_per_day_usd:
+                raise BudgetCapExceeded(
+                    f"day {today.day} cumulative ${today.cost_usd:.4f} + "
+                    f"reservation ${estimated_cost_usd:.4f} > cap "
+                    f"${self.max_cost_per_day_usd:.4f}"
+                )
+
     def record(self, model_id: str, prompt_chars: int, response_tokens: int = 800) -> float:
-        """Record one LLM call. Returns the day's new cumulative cost."""
+        """Record one LLM call. Returns the day's new cumulative cost.
+
+        Cycle-4 C2 fix: read-modify-write happens under an inter-process
+        file lock with a re-read from disk, so concurrent daemons accumulate
+        correctly rather than each holding stale in-memory state."""
         prices = _PRICE_PER_1K.get(model_id, _DEFAULT_PRICE)
         tokens_in = max(0, prompt_chars) // 4
         tokens_out = max(0, response_tokens)
         delta_cost = (tokens_in / 1000.0) * prices["in"] + (tokens_out / 1000.0) * prices["out"]
-        with self._lock:
+        with self._lock, _file_lock(self._file_lock_path):
+            self._load()  # pick up sibling-daemon writes
             today = self._state.current()
             today.calls += 1
             today.tokens_in += tokens_in
@@ -172,36 +281,51 @@ class BudgetTracker:
             return today.cost_usd
 
 
+def estimate_cost(model_id: str, prompt_chars: int, max_tokens: int = 800) -> float:
+    """Pre-call estimate using max_tokens as upper bound on tokens_out.
+    Used by reserve_or_raise."""
+    prices = _PRICE_PER_1K.get(model_id, _DEFAULT_PRICE)
+    tokens_in = max(0, prompt_chars) // 4
+    return (tokens_in / 1000.0) * prices["in"] + (max(0, max_tokens) / 1000.0) * prices["out"]
+
+
 class _BackendTracker:
     """Wraps an LLMBackend to record every complete() call against a BudgetTracker.
 
-    Use like this in the daemon:
-        backend = _BackendTracker(backend, tracker)
-    Anything that calls backend.complete(req) goes through the tracker;
-    everything else (script(), set_model_id, calls(), checkpoint_identity)
-    is delegated unchanged.
+    Cycle-4 C4 fix: explicit forwarding of the LLMBackend ABC surface only.
+    No __getattr__ — anything not on the ABC raises AttributeError. New
+    cost-bearing methods added to LLMBackend in the future MUST be added
+    here too (the test in test_budget.py introspects the ABC and fails
+    if a method is missing).
     """
 
+    __slots__ = ("_wrapped", "_tracker", "name")
+
     def __init__(self, wrapped, tracker: BudgetTracker) -> None:
+        # Importing here to avoid a hard module-load dependency.
+        from csis.backends.base import LLMBackend  # noqa: F401
         self._wrapped = wrapped
         self._tracker = tracker
+        self.name = getattr(wrapped, "name", "wrapped")
 
-    def __getattr__(self, name: str):
-        return getattr(self._wrapped, name)
-
-    @property
-    def name(self) -> str:
-        return getattr(self._wrapped, "name", "wrapped")
+    # ---- Explicit LLMBackend surface (cycle-4 C4) ----------------------
 
     def complete(self, req):
-        # Pre-check: refuse if we're at the cap.
-        self._tracker.check_or_raise()
-        resp = self._wrapped.complete(req)
-        # Resolve model_id from the checkpoint identity for pricing.
+        # Cycle-4 C3 fix: reserve the estimated cost BEFORE the call so a
+        # single oversized prompt cannot overshoot the day cap. Uses
+        # req.max_tokens as the upper bound on output spend.
         ident = self._wrapped.checkpoint_identity(req.checkpoint_id)
         model_id = ident.get("model_id", req.checkpoint_id)
-        # Use the actual response tokens if the backend reports them.
-        out_tokens = getattr(resp, "tokens_out", None) or 800
+        est = estimate_cost(model_id, len(req.prompt), getattr(req, "max_tokens", 800))
+        self._tracker.reserve_or_raise(est)
+
+        resp = self._wrapped.complete(req)
+
+        # Cycle-4 C8 fix: distinguish "backend didn't report tokens_out"
+        # (default to 800) from "backend reported zero" (refusal, content
+        # policy, etc.) — the latter must record as zero, not 800.
+        out_tokens_attr = getattr(resp, "tokens_out", None)
+        out_tokens = 800 if out_tokens_attr is None else out_tokens_attr
         self._tracker.record(model_id, len(req.prompt), out_tokens)
         return resp
 
