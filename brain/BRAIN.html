@@ -55,10 +55,13 @@
     <p>Cross-cutting fix: single-site checks promoted to substrate-level invariants.</p>
   </div>
   <div class="card">
-    <h3>Cycle 3 · 24/7 daemon <span class="pill good">running</span></h3>
-    <p>Curiosity loop generates frontier items. Daemon auto-snapshots every 25 iters, writes a heartbeat each tick, accumulates skills in the procedural store.</p>
-    <p>Start: <code>.\scripts\run_daemon.ps1</code>. Stop: drop a <code>STOP</code> file in the repo root.</p>
-    <p>Live status: <code>brain/daemon.heartbeat</code>, <code>brain/daemon.stats.json</code>, <code>brain/snapshots/auto-*.md</code>.</p>
+    <h3>Cycle 3 · 24/7 daemon + 4 follow-ups <span class="pill good">shipped</span></h3>
+    <p>Phase A quick wins; Phase B per-day budget cap; Phase C structured WhyDocDiff; Phase D continuous safety fuzzer. 114/114 tests.</p>
+    <p>Repo live: <a href="https://github.com/jim4226/CSIS">github.com/jim4226/CSIS</a></p>
+  </div>
+  <div class="card">
+    <h3>Cycle 4 · adversarial review of cycle-3 deltas <span class="pill warn">in flight</span></h3>
+    <p>Sub-agent attacking budget atomicity, canonicalize regressions, WhyDocDiff truthfulness, fuzzer DoS, backend wrapper gaps, curiosity salt determinism. Output queued for <a href="critiques/03-cycle3-redteam.md">critiques/03-cycle3-redteam.md</a>.</p>
   </div>
 </div>
 
@@ -112,6 +115,7 @@
   <tr><td>02</td><td><a href="snapshots/02-cycle1-complete.md">snapshots/02-cycle1-complete.md</a></td><td>Implementation runs end-to-end, 52/52 tests</td></tr>
   <tr><td>03</td><td><a href="snapshots/03-cycle2-complete.md">snapshots/03-cycle2-complete.md</a></td><td>Post-impl critique addressed, 78/78 tests, all critical/high closed</td></tr>
   <tr><td>04</td><td><a href="snapshots/04-daemon-24x7-shipped.md">snapshots/04-daemon-24x7-shipped.md</a></td><td>24/7 daemon + 3 domain adapters + burst + NSSM service scripts; 92/92 tests</td></tr>
+  <tr><td>05</td><td><a href="snapshots/05-cycle3-shipped.md">snapshots/05-cycle3-shipped.md</a></td><td>Repo live on GitHub; cycle-3 A+B+C+D shipped; 114/114 tests; cycle-4 dispatched</td></tr>
 </table>
 
 <h2>Plans</h2>
@@ -124,8 +128,9 @@
 <h2>Critiques</h2>
 <table>
   <tr><th>File</th><th>Phase</th><th>Top findings</th></tr>
-  <tr><td><a href="critiques/01-pre-impl-redteam.md">critiques/01-pre-impl-redteam.md</a></td><td>Pre-impl</td><td>18 findings · 2 critical (F1 mock-vs-mock, F2 TOCTOU sign→promote)</td></tr>
-  <tr><td><a href="critiques/02-post-impl-redteam.md">critiques/02-post-impl-redteam.md</a></td><td>Post-impl</td><td>13 findings · 2 critical (P1 pre-bump ghosts, P2 stale hash semantics) · all addressed in cycle 2</td></tr>
+  <tr><td><a href="critiques/01-pre-impl-redteam.md">critiques/01-pre-impl-redteam.md</a></td><td>Pre-impl (cycle 1)</td><td>18 findings · 2 critical (F1 mock-vs-mock, F2 TOCTOU sign→promote) · all addressed</td></tr>
+  <tr><td><a href="critiques/02-post-impl-redteam.md">critiques/02-post-impl-redteam.md</a></td><td>Post-impl (cycle 2)</td><td>13 findings · 2 critical (P1 pre-bump ghosts, P2 stale hash semantics) · all addressed</td></tr>
+  <tr><td><a href="critiques/03-cycle3-redteam.md">critiques/03-cycle3-redteam.md</a></td><td>Cycle 3 deltas</td><td><em>in flight</em></td></tr>
 </table>
 
 <h2>Research</h2>
