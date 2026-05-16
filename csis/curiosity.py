@@ -56,19 +56,33 @@ class FrontierItem:
     text: str
     source: str  # "seed" | "rollback-follow-up" | "gap-driven"
     priority: int = 0
+    salt: int | None = None  # D9: recorded on gap-driven items for replay
 
 
 @dataclass
 class Curiosity:
     """Stateful frontier-item generator. Cheap to construct; safe to share
-    across iterations."""
+    across iterations.
+
+    Cycle-5 D9: `_rng` defaults to non-deterministic (`_default_rng()` →
+    `Random(os.urandom(16))`) but tests/replay code can pass an explicit
+    `Random(seed)` for repeatability. The salt is also tracked on
+    FrontierItem so the iter.start event can record it for forensic
+    replay of which exact prompt was generated.
+    """
 
     seeds: tuple[str, ...] = field(default_factory=lambda: CURIOSITY_SEEDS)
     recent: deque[str] = field(default_factory=lambda: deque(maxlen=8))
     _rollback_followups: deque[str] = field(default_factory=lambda: deque(maxlen=16))
     _seed_index: int = 0
-    # Cycle-4 C5 fix: non-deterministic RNG so daemon restarts vary.
+    # Cycle-4 C5 fix: non-deterministic RNG by default. Cycle-5 D9: opt-in
+    # deterministic for tests/replay via the rng kwarg.
     _rng: random.Random = field(default_factory=_default_rng)
+
+    @classmethod
+    def with_rng(cls, rng: random.Random, seeds: tuple[str, ...] | None = None) -> "Curiosity":
+        """Construct a deterministic Curiosity for tests/replay."""
+        return cls(seeds=seeds or CURIOSITY_SEEDS, _rng=rng)
 
     def record_rollback(self, frontier_item: str, reason: str) -> None:
         """Called by the daemon after a rolled-back iteration."""
@@ -118,6 +132,7 @@ class Curiosity:
         # varies even when (tier, count) is stable. Without this, the daemon
         # under empty hierarchies produces the same prompt every iteration,
         # which hashes to the same mock-backend seed → false 100% promote rate.
+        # D9: salt is also recorded on the FrontierItem for forensic replay.
         salt = self._rng.randrange(0, 10_000)
         return FrontierItem(
             text=(
@@ -126,4 +141,5 @@ class Curiosity:
             ),
             source="gap-driven",
             priority=3,
+            salt=salt,
         )

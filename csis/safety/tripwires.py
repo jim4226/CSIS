@@ -141,9 +141,15 @@ class Tripwires:
         self._patterns = list(_TRIP_PATTERNS)
         self._fired_history: list[TripwireFiring] = []
 
-    def scan_text(self, text: str) -> TripwireResult:
-        # Cycle-4 C1 fix: check BOTH canonical forms. Strip catches
-        # 'dis-able'; space catches 'disable-the-auditor'. Either match fires.
+    def _scan_dual_form(self, text: str) -> list[TripwireFiring]:
+        """Cycle-5 D7 fix: dedupe per LABEL across both canonical forms.
+
+        The per-label break already prevents the same label from firing
+        twice on the strip+space pair. The outer label loop continues
+        normally — distinct labels matching distinct forms still produce
+        distinct firings (which is correct). History append in scan_text
+        also dedupes by `(label, snippet[:80])` so repeated identical
+        inputs don't grow history unboundedly."""
         strip_form, space_form = canonical_variants(text)
         firings: list[TripwireFiring] = []
         for label, pat in self._patterns:
@@ -151,27 +157,30 @@ class Tripwires:
                 m = pat.search(canon)
                 if m:
                     firings.append(TripwireFiring(label, canon[max(0, m.start()-40):m.end()+40]))
-                    break  # don't double-count the same pattern across both forms
+                    break  # one firing per label
+        return firings
+
+    def scan_text(self, text: str) -> TripwireResult:
+        firings = self._scan_dual_form(text)
         if firings:
-            self._fired_history.extend(firings)
+            # D7: dedupe history by (label, snippet[:80]) so repeated
+            # scans of the same offending string don't grow history.
+            existing = {(f.label, f.snippet[:80]) for f in self._fired_history}
+            for f in firings:
+                key = (f.label, f.snippet[:80])
+                if key not in existing:
+                    self._fired_history.append(f)
+                    existing.add(key)
         return TripwireResult(fired=bool(firings), firings=firings)
 
     def scan_text_no_history(self, text: str) -> TripwireResult:
         """Same as scan_text but does NOT append to _fired_history.
 
-        Cycle-4 C9 mitigation: the fuzzer can use this to validate patterns
+        Cycle-4 C9 mitigation: the fuzzer uses this to validate patterns
         without polluting the operator-visible 'has any tripwire ever fired'
-        state. Repeated fuzz passes would otherwise grow history forever
-        and make `fired()` return True for the lifetime of the daemon.
+        state.
         """
-        strip_form, space_form = canonical_variants(text)
-        firings: list[TripwireFiring] = []
-        for label, pat in self._patterns:
-            for canon in (strip_form, space_form):
-                m = pat.search(canon)
-                if m:
-                    firings.append(TripwireFiring(label, canon[max(0, m.start()-40):m.end()+40]))
-                    break
+        firings = self._scan_dual_form(text)
         return TripwireResult(fired=bool(firings), firings=firings)
 
     def fired(self) -> bool:

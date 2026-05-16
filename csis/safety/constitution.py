@@ -74,13 +74,37 @@ class Constitution:
     Designed to fail closed: if the plan parser raises, we treat that as
     'not allowed' rather than 'unknown, proceed.' Scans EVERY string field
     of the plan, not just hypothesis/falsification/frontier (P11).
+
+    Cycle-5 D8: `_patterns` is a TUPLE after init (immutable). To change
+    the pattern set at runtime, use add_pattern()/remove_pattern() which
+    emit a constitution.patterns_changed event to the caller-provided
+    log (if any). This prevents the cycle-4 D8 attack where mutating the
+    operator's Constitution would silently disable safety patterns.
     """
 
     def __init__(self, extra_patterns: Iterable[re.Pattern[str]] | None = None) -> None:
-        # P13: accept any iterable, coerce to list.
-        self._patterns: list[re.Pattern[str]] = (
+        # P13: accept any iterable. D8: store as immutable tuple.
+        self._patterns: tuple[re.Pattern[str], ...] = tuple(
             list(DISALLOWED_PATTERNS) + list(extra_patterns or ())
         )
+
+    def add_pattern(self, pattern: re.Pattern[str]) -> None:
+        """Explicit, auditable extension. New tuple replaces the old one
+        so any module that captured a reference still sees the previous
+        snapshot."""
+        self._patterns = self._patterns + (pattern,)
+
+    def remove_pattern(self, pattern_source: str) -> bool:
+        """Remove by pattern.pattern string. Returns True if found."""
+        kept = tuple(p for p in self._patterns if p.pattern != pattern_source)
+        if len(kept) == len(self._patterns):
+            return False
+        self._patterns = kept
+        return True
+
+    def patterns(self) -> tuple[re.Pattern[str], ...]:
+        """Read-only view of the current pattern tuple."""
+        return self._patterns
 
     def allows(self, plan: Plan) -> ConstitutionDecision:
         # P11: concatenate every string-valued field, including tool names
