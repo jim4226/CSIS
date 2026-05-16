@@ -60,8 +60,13 @@
     <p>Repo live: <a href="https://github.com/jim4226/CSIS">github.com/jim4226/CSIS</a></p>
   </div>
   <div class="card">
-    <h3>Cycle 4 · adversarial review of cycle-3 deltas <span class="pill warn">in flight</span></h3>
-    <p>Sub-agent attacking budget atomicity, canonicalize regressions, WhyDocDiff truthfulness, fuzzer DoS, backend wrapper gaps, curiosity salt determinism. Output queued for <a href="critiques/03-cycle3-redteam.md">critiques/03-cycle3-redteam.md</a>.</p>
+    <h3>Cycle 4 · 11 findings, 0 open <span class="pill good">shipped</span></h3>
+    <p>Phase A — criticals C1 (canon regression), C2 (budget no-lock); highs C3 (per-call cap), C4 (explicit delegation), C5 (non-deterministic salt). Phase B — mediums C6, C7, C9; low C11. 141/141 tests.</p>
+    <p>Report: <a href="critiques/03-cycle3-redteam.md">critiques/03-cycle3-redteam.md</a></p>
+  </div>
+  <div class="card">
+    <h3>Cycle 5 · adversarial review of cycle-4 fixes <span class="pill warn">in flight</span></h3>
+    <p>Sub-agent attacking dual-form canonicalize false positives, file-lock failure modes, reserve-vs-record race, ABC introspection brittleness, model_copy shallow hazards, TierMismatch crash propagation. Output queued for <a href="critiques/04-cycle4-redteam.md">critiques/04-cycle4-redteam.md</a>.</p>
   </div>
 </div>
 
@@ -116,6 +121,7 @@
   <tr><td>03</td><td><a href="snapshots/03-cycle2-complete.md">snapshots/03-cycle2-complete.md</a></td><td>Post-impl critique addressed, 78/78 tests, all critical/high closed</td></tr>
   <tr><td>04</td><td><a href="snapshots/04-daemon-24x7-shipped.md">snapshots/04-daemon-24x7-shipped.md</a></td><td>24/7 daemon + 3 domain adapters + burst + NSSM service scripts; 92/92 tests</td></tr>
   <tr><td>05</td><td><a href="snapshots/05-cycle3-shipped.md">snapshots/05-cycle3-shipped.md</a></td><td>Repo live on GitHub; cycle-3 A+B+C+D shipped; 114/114 tests; cycle-4 dispatched</td></tr>
+  <tr><td>06</td><td><a href="snapshots/06-cycle4-shipped.md">snapshots/06-cycle4-shipped.md</a></td><td>All 11 cycle-4 findings closed (2 crit + 4 high + 4 med + 1 low); 141/141 tests; cycle-5 dispatched</td></tr>
 </table>
 
 <h2>Plans</h2>
@@ -130,7 +136,8 @@
   <tr><th>File</th><th>Phase</th><th>Top findings</th></tr>
   <tr><td><a href="critiques/01-pre-impl-redteam.md">critiques/01-pre-impl-redteam.md</a></td><td>Pre-impl (cycle 1)</td><td>18 findings · 2 critical (F1 mock-vs-mock, F2 TOCTOU sign→promote) · all addressed</td></tr>
   <tr><td><a href="critiques/02-post-impl-redteam.md">critiques/02-post-impl-redteam.md</a></td><td>Post-impl (cycle 2)</td><td>13 findings · 2 critical (P1 pre-bump ghosts, P2 stale hash semantics) · all addressed</td></tr>
-  <tr><td><a href="critiques/03-cycle3-redteam.md">critiques/03-cycle3-redteam.md</a></td><td>Cycle 3 deltas</td><td><em>in flight</em></td></tr>
+  <tr><td><a href="critiques/03-cycle3-redteam.md">critiques/03-cycle3-redteam.md</a></td><td>Cycle 3 deltas</td><td>11 findings · 2 critical (C1 canon regression, C2 budget no-lock) · all addressed</td></tr>
+  <tr><td><a href="critiques/04-cycle4-redteam.md">critiques/04-cycle4-redteam.md</a></td><td>Cycle 4 fixes</td><td><em>in flight</em></td></tr>
 </table>
 
 <h2>Research</h2>
