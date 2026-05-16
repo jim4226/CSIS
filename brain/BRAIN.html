@@ -61,14 +61,29 @@
   </div>
   <div class="card">
     <h3>Cycle 4 · 11 findings, 0 open <span class="pill good">shipped</span></h3>
-    <p>Phase A — criticals C1 (canon regression), C2 (budget no-lock); highs C3 (per-call cap), C4 (explicit delegation), C5 (non-deterministic salt). Phase B — mediums C6, C7, C9; low C11. 141/141 tests.</p>
-    <p>Report: <a href="critiques/03-cycle3-redteam.md">critiques/03-cycle3-redteam.md</a></p>
+    <p>C1-C2 critical (canon regression, budget no-lock); C3-C5 high; C6-C9 medium; C11 low. 141 tests.</p>
   </div>
   <div class="card">
-    <h3>Cycle 5 · adversarial review of cycle-4 fixes <span class="pill warn">in flight</span></h3>
-    <p>Sub-agent attacking dual-form canonicalize false positives, file-lock failure modes, reserve-vs-record race, ABC introspection brittleness, model_copy shallow hazards, TierMismatch crash propagation. Output queued for <a href="critiques/04-cycle4-redteam.md">critiques/04-cycle4-redteam.md</a>.</p>
+    <h3>Cycle 5 · 11 findings, 0 open <span class="pill good">shipped</span></h3>
+    <p>D1-D3 critical (dual-form FPs, shallow snapshot, sibling reservation bypass); D4-D6 high; D7-D10 medium; D11 low. <span class="pill good">165 tests pass</span>.</p>
+    <p>Report: <a href="critiques/04-cycle4-redteam.md">critiques/04-cycle4-redteam.md</a></p>
+  </div>
+  <div class="card">
+    <h3>Cycle 6 · adversarial review of cycle-5 fixes <span class="pill warn">in flight</span></h3>
+    <p>Attacking pattern-exclusion bypass via attack-ending-in-noun, stale-pending-pruning races, cancel-on-pid concurrent-call races, name-mangle subclass bypass, history dedupe perf regression, deep-copy hot-path cost. Output queued for <a href="critiques/05-cycle5-redteam.md">critiques/05-cycle5-redteam.md</a>.</p>
   </div>
 </div>
+
+<h2>Loop quality (cumulative across 5 cycles)</h2>
+<table>
+  <tr><th>Cycle</th><th>Findings</th><th>Critical</th><th>High</th><th>Medium</th><th>Low</th><th>Open</th><th>Tests after</th></tr>
+  <tr><td>1 (pre-impl)</td><td>18</td><td>2</td><td>6</td><td>7</td><td>3</td><td>0</td><td>52</td></tr>
+  <tr><td>2 (post-impl)</td><td>13</td><td>2</td><td>6</td><td>3</td><td>2</td><td>0</td><td>78</td></tr>
+  <tr><td>3 deltas</td><td>11</td><td>2</td><td>4</td><td>4</td><td>1</td><td>0</td><td>114</td></tr>
+  <tr><td>4 fixes</td><td>11</td><td>2</td><td>4</td><td>4</td><td>1</td><td>0</td><td>141</td></tr>
+  <tr><td>5 fixes</td><td>11</td><td>3</td><td>3</td><td>4</td><td>1</td><td>0</td><td><b>165</b></td></tr>
+  <tr><th>Total</th><th>64</th><th>11</th><th>23</th><th>22</th><th>8</th><th>0</th><th>—</th></tr>
+</table>
 
 <h2>24/7 daemon at a glance</h2>
 <table>
@@ -122,6 +137,7 @@
   <tr><td>04</td><td><a href="snapshots/04-daemon-24x7-shipped.md">snapshots/04-daemon-24x7-shipped.md</a></td><td>24/7 daemon + 3 domain adapters + burst + NSSM service scripts; 92/92 tests</td></tr>
   <tr><td>05</td><td><a href="snapshots/05-cycle3-shipped.md">snapshots/05-cycle3-shipped.md</a></td><td>Repo live on GitHub; cycle-3 A+B+C+D shipped; 114/114 tests; cycle-4 dispatched</td></tr>
   <tr><td>06</td><td><a href="snapshots/06-cycle4-shipped.md">snapshots/06-cycle4-shipped.md</a></td><td>All 11 cycle-4 findings closed (2 crit + 4 high + 4 med + 1 low); 141/141 tests; cycle-5 dispatched</td></tr>
+  <tr><td>07</td><td><a href="snapshots/07-cycle5-shipped.md">snapshots/07-cycle5-shipped.md</a></td><td>All 11 cycle-5 findings closed (3 crit + 3 high + 4 med + 1 low); 165/165 tests; cycle-6 dispatched</td></tr>
 </table>
 
 <h2>Plans</h2>
@@ -137,7 +153,8 @@
   <tr><td><a href="critiques/01-pre-impl-redteam.md">critiques/01-pre-impl-redteam.md</a></td><td>Pre-impl (cycle 1)</td><td>18 findings · 2 critical (F1 mock-vs-mock, F2 TOCTOU sign→promote) · all addressed</td></tr>
   <tr><td><a href="critiques/02-post-impl-redteam.md">critiques/02-post-impl-redteam.md</a></td><td>Post-impl (cycle 2)</td><td>13 findings · 2 critical (P1 pre-bump ghosts, P2 stale hash semantics) · all addressed</td></tr>
   <tr><td><a href="critiques/03-cycle3-redteam.md">critiques/03-cycle3-redteam.md</a></td><td>Cycle 3 deltas</td><td>11 findings · 2 critical (C1 canon regression, C2 budget no-lock) · all addressed</td></tr>
-  <tr><td><a href="critiques/04-cycle4-redteam.md">critiques/04-cycle4-redteam.md</a></td><td>Cycle 4 fixes</td><td><em>in flight</em></td></tr>
+  <tr><td><a href="critiques/04-cycle4-redteam.md">critiques/04-cycle4-redteam.md</a></td><td>Cycle 4 fixes</td><td>11 findings · 3 critical (D1 dual-form FPs, D2 shallow snapshot, D3 sibling reservation) · all addressed</td></tr>
+  <tr><td><a href="critiques/05-cycle5-redteam.md">critiques/05-cycle5-redteam.md</a></td><td>Cycle 5 fixes</td><td><em>in flight</em></td></tr>
 </table>
 
 <h2>Research</h2>
