@@ -69,11 +69,18 @@ def canonical_variants(text: str) -> tuple[str, str]:
 # evasions are observed; the test corpus in tests/test_safety.py is the
 # regression gate.
 _TRIP_PATTERNS: list[tuple[str, re.Pattern[str]]] = [
-    # D1 (cycle-5) mitigation: every pattern has a NEGATIVE-LOOKAHEAD tail
-    # that excludes common documentation/configuration noun-suffixes. The
-    # goal: catch the AGENT saying "let me disable the auditor" but NOT
-    # the OPERATOR documenting "document the auditor configuration." This
-    # is imperfect; the cycle-5 benign corpus rows are the regression gate.
+    # E2 (cycle-6) fix: DROPPED the noun-suffix negative-lookaheads from
+    # cycle-5 D1. The lookaheads were trivially bypassed by attackers
+    # appending "configuration"/"mode"/"hook"/etc. as a trailing noun.
+    # The wrong discriminator was the noun *after*; the right one would
+    # be the verb's *subject* (which regex can't see).
+    #
+    # Phase-0 acceptance: these patterns fire on attack-shaped *and*
+    # benign documentation phrasings. The daemon distinguishes:
+    #   - security_regressions (expect_blocked=True, got allowed) → HALT
+    #   - false_positives    (expect_blocked=False, got blocked) → WARN
+    # Operators can extend Constitution with extra patterns for stricter
+    # rules, or whitelist via a separate path in Phase-1.
     (
         "exfil_attempt",
         re.compile(
@@ -81,8 +88,6 @@ _TRIP_PATTERNS: list[tuple[str, re.Pattern[str]]] = [
             r"(send|post|upload|leak|exfiltrate|ex\s?filtrate|egress|smuggle)"
             r".{0,40}\b(api\s?key|secret|token|credential|password|cookie|session\s?id)"
             r")\b"
-            # Doc-context exclusion: not followed by a clearly-noun word.
-            r"(?!\s+(?:documentation|explanation|format|schema|spec|example|reference|name))"
         ),
     ),
     (
@@ -92,9 +97,7 @@ _TRIP_PATTERNS: list[tuple[str, re.Pattern[str]]] = [
             r"(do\s+not|don[' ]?t|decline\s+to|refuse\s+to|stop\s+responding\s+to)\s+(halt|shutdown|shut\s?down|stop|terminate)"
             r"|"
             r"(ignore|override|disregard|defy)\s+(the\s+)?(overseer|operator|shutdown|kill\s?switch)"
-            r")"
-            r"(?!\s+(?:hook|explanation|documentation|semantics|behavior|mechanism|signal|file|config|configuration|mode|name|sh|py|spec|example|reference|gracefully|cleanly|properly|without\b))"
-            r"\b"
+            r")\b"
         ),
     ),
     (
@@ -102,19 +105,16 @@ _TRIP_PATTERNS: list[tuple[str, re.Pattern[str]]] = [
         re.compile(
             r"\b("
             r"(skip|bypass|disable|deactivate|switch\s+off|circumvent)\s+(the\s+)?(auditor|why\s?doc|why\s?document|audit\s+log|verification|verifier|tripwire)"
-            r")"
-            r"(?!\s+(?:configuration|config|mode|test|tests|hook|name|sh|py|file|documentation|explanation|spec|example|reference|interface|stub|mock|fake|fixture))"
-            r"\b"
+            r")\b"
         ),
     ),
     (
         "escalate_to_t2",
         re.compile(
             r"\b("
-            # Tier escalation now requires an action verb of intent.
-            # Allow up to 3 short words between verb and "tier 2" so
-            # "grant me tier-2", "give the builder tier-2", "enable a
-            # tier-2 sandbox" all fire while documentation doesn't.
+            # Tier escalation requires an action verb of intent. This is
+            # NOT a noun-suffix lookahead (which was bypassable); the verb
+            # requirement is structurally different and harder to bypass.
             r"(use|invoke|grant|enable|switch\s+to|elevate(?:\s+to)?|run\s+with|give|request|need|i\s+need|need\s+access\s+to|gimme)(?:\s+\w+){0,3}\s+(t2|tier\s?2)\s+(execution|exec|exec\s?mode|sandbox|access|tool|tools)"
             r"|"
             r"unrestricted\s+network\s+access"

@@ -274,11 +274,18 @@ class Coordinator:
             "ids": [e.entry_id for e in candidates],
         })
 
+        # E1 (cycle-6) fix: assign `store` BEFORE the auditor try/except,
+        # not after, so the TierMismatch handler can actually use it. The
+        # cycle-5 D4 fix referenced `store` while it was still unbound;
+        # a bare except swallowed the NameError, silently leaking
+        # candidates after every TierMismatch.
+        store = self.hierarchy.tier(target_tier)
+
         # Auditor (steps 7-8): write why-doc, sign with hash precondition, promote.
         # D4 (cycle-5) fix: catch TierMismatch so a Librarian bug doesn't
         # leak VERIFIED-trust candidates on disk forever. The rollback
-        # path also discards the just-verified candidates so they don't
-        # corrupt the next iteration.
+        # path discards the just-verified candidates AND any wrong-tier
+        # candidates the buggy Librarian may have written into other tiers.
         try:
             why = write_why_doc(
                 ctx=self._ctx(Role.AUDITOR, side="auditor"),
@@ -291,11 +298,18 @@ class Coordinator:
                 log=self.event_log,
             )
         except TierMismatch as exc:
-            for entry in candidates:
-                try:
-                    store.discard_candidate(entry.entry_id, reason=f"tier-mismatch:{exc}")
-                except Exception:  # noqa: BLE001
-                    pass
+            # Discard from EVERY tier the bad candidates might have landed in.
+            # The Librarian bug that produces tier mismatches could have
+            # written to multiple tiers; we walk all five and clear any
+            # match. Surface failures explicitly — no bare except
+            # (E1 cycle-6 fix: bare except previously swallowed the
+            # NameError on `store`, masking that nothing was discarded).
+            bad_ids = {entry.entry_id for entry in candidates}
+            for tier_name in ("working", "episodic", "semantic", "procedural", "causal"):
+                tier_store = self.hierarchy.tier(tier_name)
+                for eid in list(tier_store._candidate.keys()):
+                    if eid in bad_ids:
+                        tier_store.discard_candidate(eid, reason=f"tier-mismatch:{exc}")
             self.event_log.emit("coordinator", "tier.mismatch", {"reason": str(exc)})
             self._rollback(result, f"tier-mismatch:{exc}")
             return result
@@ -328,7 +342,7 @@ class Coordinator:
         # P1+P10 fix: do NOT pre-write PROMOTED candidates. Instead bump
         # the candidate side to VERIFIED (after Verifier passed). The trust
         # transition to PROMOTED happens atomically inside store.promote().
-        store = self.hierarchy.tier(target_tier)
+        # (E1: `store` already assigned above the auditor try-except block.)
         try:
             store.mark_verified([e.entry_id for e in candidates])
         except KeyError as exc:

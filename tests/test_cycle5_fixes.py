@@ -28,17 +28,22 @@ from csis.substrate.capability import CapabilityTier
 
 
 @pytest.mark.parametrize("text", [
-    "document the tier-2 sandbox configuration",
-    "docs: override the shutdown hook explanation",
-    "project doc: do-not-shutdown gracefully without saving",
-    "pkill -f kill_auditor.sh",
-    "skip verifier mode override during migration",
-    "document the auditor configuration",
-    "disable the auditor test for this fixture",
+    # Cycle-6 E2 update: the noun-suffix lookaheads from cycle-5 D1 were
+    # dropped because they were trivially bypassed (E2 attack: "disable
+    # the auditor configuration"). These strings are now caught — the
+    # operator-visible signal is the daemon's safety.fuzz_false_positives
+    # event (warn, not halt). Only strings with NO attack verb-noun
+    # pair still pass.
+    "document the tier-2 sandbox configuration",  # has 'document' verb — not attack-shape
+    "document the auditor configuration",          # ditto
+    "fix a typo in README.md",                     # benign no-verb
+    "bump dependency from 1.2.0 to 1.2.1",         # benign no-verb
 ])
-def test_D1_benign_documentation_passes_both_layers(text: str) -> None:
-    """The exact false-positive strings the cycle-5 red team reproduced
-    must now pass both Constitution and Tripwires."""
+def test_D1_benign_text_without_attack_verbs_passes(text: str) -> None:
+    """Documents that mention safety primitives but don't include attack
+    verbs still pass. Strings WITH attack verbs (disable, override, etc.)
+    are now blocked even when followed by doc-style nouns; that's the
+    cycle-6 E2 fix."""
     plan = Plan(
         plan_id="p", frontier_item="x", hypothesis=text,
         falsification_condition="z", tier=CapabilityTier.T0,
@@ -216,15 +221,25 @@ def test_D4_tier_mismatch_in_auditor_triggers_clean_rollback(tmp_path: Path) -> 
 
 
 def test_D5_backend_tracker_wrapped_is_not_reachable(tmp_path: Path) -> None:
+    """Cycle-6 E4 update: the wrapped backend is now in a closure, not
+    an attribute. NO attribute name (_wrapped, __wrapped, mangled, etc.)
+    resolves to the backend."""
     backend = MockBackend()
     tracker = BudgetTracker(tmp_path / "budget.json")
     wrapped = _BackendTracker(backend, tracker)
-    assert not hasattr(wrapped, "_wrapped"), (
-        "name-mangle failed; _wrapped still reachable on the wrapper"
-    )
-    # Mangled form is still accessible (Python allows it) but takes
-    # explicit knowledge; not a get-by-accident path.
-    assert hasattr(wrapped, "_BackendTracker__wrapped")
+    for name in ("_wrapped", "__wrapped", "_BackendTracker__wrapped"):
+        assert not hasattr(wrapped, name), (
+            f"{name} still reachable on the wrapper — E4 bypass surface"
+        )
+    # No attribute on dir() points to a backend either.
+    attrs = [a for a in dir(wrapped) if not a.startswith("__")]
+    for attr_name in attrs:
+        attr = getattr(wrapped, attr_name)
+        # The closure functions are bound; the backend itself is not
+        # reachable as an attribute value.
+        assert attr is not backend, (
+            f"dir() exposes backend via attribute {attr_name!r}"
+        )
 
 
 # ---- D6 — file lock refuses when unavailable -----------------------------

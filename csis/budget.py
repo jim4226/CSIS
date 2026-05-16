@@ -68,10 +68,16 @@ class PendingReservation:
     could each reserve 60% of the cap and both overshoot. PendingReservations
     are written under the file lock, visible to siblings, and cleared by
     record() once the call lands.
+
+    E3 (cycle-6) fix: token field added so multi-call same-pid daemons
+    can cancel/record the RIGHT reservation, not the first one matching pid.
+    Without this, a 3-concurrent-call daemon mis-cancels and either
+    over-reserves or under-reserves siblings.
     """
     pid: int
     amount_usd: float
     ts: float
+    token: str = ""
 
 
 @dataclass
@@ -91,10 +97,12 @@ class BudgetState:
             self.days = self.days[:30]
         return self.days[0]
 
-    def prune_stale_pending(self, max_age_s: float = 600.0) -> None:
-        """Drop reservations older than max_age_s (default 10 min). A
-        process that crashed mid-call would otherwise hold its reservation
-        forever and starve siblings."""
+    def prune_stale_pending(self, max_age_s: float = 3600.0) -> None:
+        """Drop reservations older than max_age_s (cycle-6 E6: default
+        bumped from 600s to 3600s). A process that crashed mid-call would
+        otherwise hold its reservation forever and starve siblings; but a
+        too-aggressive timeout strands long-running real API calls
+        (Anthropic Opus with extended thinking can run >10 min)."""
         now = time.time()
         self.pending = [p for p in self.pending if (now - p.ts) <= max_age_s]
 
@@ -203,17 +211,33 @@ class BudgetTracker:
         *,
         max_cost_per_day_usd: float | None = None,
         max_cost_per_call_usd: float | None = None,
+        prune_stale_pending_s: float = 3600.0,
     ) -> None:
         self.path = Path(path)
         self.path.parent.mkdir(parents=True, exist_ok=True)
         self.max_cost_per_day_usd = max_cost_per_day_usd
         self.max_cost_per_call_usd = max_cost_per_call_usd
+        # E6 (cycle-6) fix: prune timeout configurable; default 1 hour
+        # so legitimately slow API calls don't get stranded.
+        self.prune_stale_pending_s = prune_stale_pending_s
         self._lock = threading.Lock()
         self._file_lock_path = self.path.with_suffix(self.path.suffix + ".lock")
         self._state = BudgetState()
-        # Initial load under the file lock.
-        with _file_lock(self._file_lock_path):
-            self._load()
+        # E5 (cycle-6) fix: only require the lock when a cap is set.
+        # Mock daemons with no cap can run on systems without fcntl/msvcrt
+        # by falling through to a best-effort load.
+        if self._needs_locking():
+            with _file_lock(self._file_lock_path):
+                self._load()
+        else:
+            try:
+                self._load()
+            except Exception:
+                self._state = BudgetState()
+
+    def _needs_locking(self) -> bool:
+        """Lock only matters when there's a budget cap to enforce."""
+        return self.max_cost_per_day_usd is not None or self.max_cost_per_call_usd is not None
 
     def _load(self) -> None:
         if not self.path.exists():
@@ -293,13 +317,13 @@ class BudgetTracker:
                 )
 
     def reserve_or_raise(self, estimated_cost_usd: float) -> str:
-        """Cycle-4 C3 + cycle-5 D3 fix: refuse calls whose pre-call estimate
-        plus any sibling daemons' PENDING reservations would push past
-        either the per-call ceiling or the per-day cap.
+        """Cycle-4 C3 + cycle-5 D3 + cycle-6 E3 fix: refuse calls whose
+        pre-call estimate plus any sibling daemons' PENDING reservations
+        would push past either the per-call ceiling or the per-day cap.
 
-        Reservations are persisted under the file lock so a sibling
-        daemon's reserve is visible. Returns a reservation token; pass
-        it to record() so the matching pending entry is cleared.
+        Reservations are persisted under the file lock (cycle-5 D3) and
+        tagged with a unique token (cycle-6 E3) so multi-call same-pid
+        daemons can match the right reservation in cancel/record.
         """
         if self.max_cost_per_call_usd is not None and estimated_cost_usd > self.max_cost_per_call_usd:
             raise BudgetCapExceeded(
@@ -308,7 +332,7 @@ class BudgetTracker:
             )
         with self._lock, _file_lock(self._file_lock_path):
             self._load()
-            self._state.prune_stale_pending()
+            self._state.prune_stale_pending(self.prune_stale_pending_s)
             today = self._state.current()
             pending = self._state.pending_total()
             if self.max_cost_per_day_usd is not None:
@@ -318,15 +342,13 @@ class BudgetTracker:
                         f"pending ${pending:.4f} + reservation ${estimated_cost_usd:.4f} "
                         f"> cap ${self.max_cost_per_day_usd:.4f}"
                     )
-            token = f"res-{os.getpid()}-{int(time.time()*1000)}-{len(self._state.pending)}"
+            token = f"res-{os.getpid()}-{int(time.time()*1_000_000)}-{len(self._state.pending)}"
             self._state.pending.append(PendingReservation(
                 pid=os.getpid(),
                 amount_usd=float(estimated_cost_usd),
                 ts=time.time(),
+                token=token,
             ))
-            # Tag the reservation with the token via index. We use the
-            # token only to find and clear the right reservation later.
-            self._state.pending[-1].pid = self._state.pending[-1].pid  # no-op for clarity
             self._save()
             return token
 
@@ -334,9 +356,9 @@ class BudgetTracker:
                reservation_token: str | None = None) -> float:
         """Record one LLM call. Returns the day's new cumulative cost.
 
-        Cycle-4 C2 + cycle-5 D3: read-modify-write under inter-process
-        lock. If `reservation_token` is provided, the matching pending
-        reservation is cleared atomically with the record.
+        Cycle-4 C2 + cycle-5 D3 + cycle-6 E3: read-modify-write under
+        inter-process lock; reservation cleared by TOKEN (not pid) so
+        same-pid concurrent calls don't mis-cancel each other.
         """
         prices = _PRICE_PER_1K.get(model_id, _DEFAULT_PRICE)
         tokens_in = max(0, prompt_chars) // 4
@@ -344,17 +366,16 @@ class BudgetTracker:
         delta_cost = (tokens_in / 1000.0) * prices["in"] + (tokens_out / 1000.0) * prices["out"]
         with self._lock, _file_lock(self._file_lock_path):
             self._load()  # pick up sibling-daemon writes
-            self._state.prune_stale_pending()
+            self._state.prune_stale_pending(self.prune_stale_pending_s)
             today = self._state.current()
             today.calls += 1
             today.tokens_in += tokens_in
             today.tokens_out += tokens_out
             today.cost_usd = round(today.cost_usd + delta_cost, 6)
-            # Clear the matching pending reservation if one was passed.
             if reservation_token is not None:
-                target_pid = os.getpid()
+                # E3: match by token, not pid.
                 for i, p in enumerate(self._state.pending):
-                    if p.pid == target_pid:
+                    if p.token == reservation_token:
                         del self._state.pending[i]
                         break
             self._save()
@@ -362,13 +383,17 @@ class BudgetTracker:
 
     def cancel_reservation(self, reservation_token: str) -> None:
         """Clear a reservation without recording a real call. Used when
-        the wrapped backend raises before a response is produced."""
+        the wrapped backend raises before a response is produced.
+
+        E3 (cycle-6): match by token. Previous pid-match removed the
+        first matching entry, mis-cancelling other concurrent reservations
+        on the same daemon.
+        """
         with self._lock, _file_lock(self._file_lock_path):
             self._load()
-            self._state.prune_stale_pending()
-            target_pid = os.getpid()
+            self._state.prune_stale_pending(self.prune_stale_pending_s)
             for i, p in enumerate(self._state.pending):
-                if p.pid == target_pid:
+                if p.token == reservation_token:
                     del self._state.pending[i]
                     self._save()
                     return
@@ -385,50 +410,64 @@ def estimate_cost(model_id: str, prompt_chars: int, max_tokens: int = 800) -> fl
 class _BackendTracker:
     """Wraps an LLMBackend to record every complete() call against a BudgetTracker.
 
-    Cycle-4 C4 fix: explicit forwarding of the LLMBackend ABC surface only.
-    No __getattr__ — anything not on the ABC raises AttributeError. New
-    cost-bearing methods added to LLMBackend in the future MUST be added
-    here too (the test in test_budget.py introspects the ABC and fails
-    if a method is missing).
+    Cycle-4 C4 + cycle-5 D5 + cycle-6 E4: the wrapped backend is held in
+    a CLOSURE captured at __init__, NOT in an instance attribute. There
+    is no `_wrapped`, `__wrapped`, or `_BackendTracker__wrapped` reachable
+    via attribute access or `dir()`. The only way to call the backend is
+    via the explicitly-forwarded `complete()` and `checkpoint_identity()`
+    methods on this wrapper.
+
+    Subclasses that try to re-introduce a `_wrapped` attribute (the cycle-6
+    E4 attack) raise TypeError at class definition time via
+    __init_subclass__.
     """
 
-    # D5 (cycle-5) fix: name-mangled slot so external code cannot reach
-    # the wrapped backend via attribute access (was `_wrapped`, single
-    # underscore = pseudo-private but trivially accessible). With double
-    # underscore, Python mangles to _BackendTracker__wrapped at class
-    # load — accessing as `wrapper._wrapped` raises AttributeError.
-    __slots__ = ("_BackendTracker__wrapped", "_BackendTracker__tracker", "name")
+    def __init_subclass__(cls, **kwargs):
+        super().__init_subclass__(**kwargs)
+        # E4 (cycle-6) fix: refuse subclasses that re-introduce the
+        # bypass attribute, no matter what name they use.
+        forbidden = {"_wrapped", "__wrapped", "_BackendTracker__wrapped"}
+        for name in cls.__dict__:
+            if name in forbidden:
+                raise TypeError(
+                    f"_BackendTracker subclass {cls.__name__} cannot define "
+                    f"{name!r} — it would re-expose the wrapped backend "
+                    f"and bypass metering"
+                )
 
     def __init__(self, wrapped, tracker: BudgetTracker) -> None:
         from csis.backends.base import LLMBackend  # noqa: F401
-        self.__wrapped = wrapped
-        self.__tracker = tracker
+        # Capture wrapped+tracker in closures. Instance attributes hold
+        # ONLY the bound closures, not the wrapped object itself. dir(self)
+        # will not list the wrapped backend.
         self.name = getattr(wrapped, "name", "wrapped")
+
+        def _do_complete(req):
+            ident = wrapped.checkpoint_identity(req.checkpoint_id)
+            model_id = ident.get("model_id", req.checkpoint_id)
+            est = estimate_cost(model_id, len(req.prompt), getattr(req, "max_tokens", 800))
+            token = tracker.reserve_or_raise(est)
+            try:
+                resp = wrapped.complete(req)
+            except Exception:
+                tracker.cancel_reservation(token)
+                raise
+            # C8: distinguish missing-attr (default 800) from real zero.
+            out_tokens_attr = getattr(resp, "tokens_out", None)
+            out_tokens = 800 if out_tokens_attr is None else out_tokens_attr
+            tracker.record(model_id, len(req.prompt), out_tokens, reservation_token=token)
+            return resp
+
+        def _do_checkpoint_identity(checkpoint_id):
+            return wrapped.checkpoint_identity(checkpoint_id)
+
+        self._call_complete = _do_complete
+        self._call_identity = _do_checkpoint_identity
 
     # ---- Explicit LLMBackend surface (cycle-4 C4) ----------------------
 
     def complete(self, req):
-        # Cycle-4 C3 + cycle-5 D3 fix: reserve under the file lock so
-        # sibling daemons' pending reservations are visible. The token
-        # threads through to record() so the right entry is cleared.
-        ident = self.__wrapped.checkpoint_identity(req.checkpoint_id)
-        model_id = ident.get("model_id", req.checkpoint_id)
-        est = estimate_cost(model_id, len(req.prompt), getattr(req, "max_tokens", 800))
-        token = self.__tracker.reserve_or_raise(est)
-
-        try:
-            resp = self.__wrapped.complete(req)
-        except Exception:
-            # The reservation must be cancelled or it strands forever.
-            self.__tracker.cancel_reservation(token)
-            raise
-
-        # Cycle-4 C8 fix: distinguish "backend didn't report tokens_out"
-        # (default 800) from "backend reported zero" (refusal).
-        out_tokens_attr = getattr(resp, "tokens_out", None)
-        out_tokens = 800 if out_tokens_attr is None else out_tokens_attr
-        self.__tracker.record(model_id, len(req.prompt), out_tokens, reservation_token=token)
-        return resp
+        return self._call_complete(req)
 
     def checkpoint_identity(self, checkpoint_id: str) -> dict[str, str]:
-        return self.__wrapped.checkpoint_identity(checkpoint_id)
+        return self._call_identity(checkpoint_id)

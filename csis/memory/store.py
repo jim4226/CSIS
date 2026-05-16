@@ -13,6 +13,7 @@ read-only-by-default attachment rule.
 from __future__ import annotations
 
 import json
+import re
 import threading
 import time
 import uuid
@@ -304,9 +305,13 @@ class MemoryStore:
         # P9 mitigation: archive paths include a millisecond timestamp + a
         # random suffix so collisions between two entries with the same
         # entry_id never overwrite each other.
+        # Cycle-6 fix: sanitize why_id for Windows filesystem compatibility.
+        # Reason strings can contain :, =, ', and other chars that Windows
+        # rejects as invalid path characters.
+        safe_why = re.sub(r"[^A-Za-z0-9._-]", "_", why_id)[:80]
         stamp = int(time.time() * 1000)
         salt = uuid.uuid4().hex
-        path = self._archive_dir / f"{self.tier}_{entry.entry_id}_{why_id}_{stamp}_{salt}.json"
+        path = self._archive_dir / f"{self.tier}_{entry.entry_id}_{safe_why}_{stamp}_{salt}.json"
         path.write_text(
             json.dumps(entry.model_dump(mode="json"), indent=2, default=str),
             encoding="utf-8",
