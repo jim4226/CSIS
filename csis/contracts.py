@@ -120,6 +120,45 @@ class DreamCandidate(BaseModel):
 # ---- audit ----------------------------------------------------------------
 
 
+class EntryDelta(BaseModel):
+    """One entry-level change in a structured WhyDocDiff.
+
+    add  = entry_id present in candidate, absent in live
+    mod  = entry_id present in both; content hash differs
+    """
+
+    entry_id: str
+    kind: Literal["add", "mod"]
+    tier: Literal["working", "episodic", "semantic", "procedural", "causal"]
+    candidate_hash: str = Field(..., description="sha256:... of the candidate entry contents")
+    live_hash: Optional[str] = Field(default=None, description="sha256:... of the prior live entry, if mod")
+
+
+class WhyDocDiff(BaseModel):
+    """Structured representation of what the Auditor signed off on.
+
+    Phase-0 deliberate scope: the diff records the *intended* deltas at
+    sign time. The substrate verifies the live-hash precondition at
+    promote time, which protects against the live store moving between
+    sign and promote. Verifying the candidate-hash post-image (a true
+    post-image CAS) is a Phase-1 follow-up.
+    """
+
+    deltas: list[EntryDelta] = Field(default_factory=list)
+    tier_counts: dict[str, int] = Field(
+        default_factory=dict,
+        description="tier -> number of entries this diff touches in that tier",
+    )
+
+    @property
+    def n_added(self) -> int:
+        return sum(1 for d in self.deltas if d.kind == "add")
+
+    @property
+    def n_modified(self) -> int:
+        return sum(1 for d in self.deltas if d.kind == "mod")
+
+
 class WhyDoc(BaseModel):
     """The human-readable why-doc signed by the Auditor.
 
@@ -127,6 +166,10 @@ class WhyDoc(BaseModel):
     the live store at signing time. If the live store has moved between
     when the diff was computed and when signing was attempted, the
     promotion fails and the loop iterates again.
+
+    Cycle-3 (synthesis #2): the structured ``diff`` field records the
+    auditor's intended deltas, so a replay tool can reconstruct exactly
+    what was about to happen without re-deriving from raw entries.
     """
 
     why_id: str
@@ -136,6 +179,7 @@ class WhyDoc(BaseModel):
     summary: str = Field(..., description="Plain-English why we should promote")
     diff_against_hash: str = Field(..., description="Hash of the live store the diff was taken against")
     hash_precondition: str = Field(..., description="Live store hash that must still match at promotion time")
+    diff: WhyDocDiff = Field(default_factory=WhyDocDiff, description="Structured per-entry deltas")
     tier_decisions: dict[str, str] = Field(default_factory=dict)
     escalations: list[str] = Field(default_factory=list)
     signed_at: float
