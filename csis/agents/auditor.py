@@ -1,0 +1,93 @@
+"""Auditor (T0, different checkpoint) — writes why-doc, signs with hash precondition.
+
+F8 mitigation: Auditor reads via a STRUCTURED query API over the event log,
+never free-form. We expose a tiny helper that returns only events produced
+by trusted-tier actors (verifier, librarian, coordinator) so spoofed
+"PREVIOUSLY APPROVED" payloads emitted by Researcher don't reach the
+why-doc context.
+"""
+from __future__ import annotations
+
+import time
+import uuid
+from typing import Iterable
+
+from csis.agents.base import AgentContext, Role
+from csis.contracts import (
+    Artifact,
+    MemoryEntry,
+    Plan,
+    VerifierCertificate,
+    WhyDoc,
+)
+from csis.memory.store import MemoryHierarchy, MemoryStore
+from csis.substrate.event_log import EventLog, SignedEvent
+
+
+# F8 — only events emitted by these actors are read as "audit evidence".
+_TRUSTED_PRODUCERS: frozenset[str] = frozenset({"coordinator", "verifier", "librarian", "auditor"})
+
+
+def structured_query(
+    log: EventLog,
+    *,
+    producers: Iterable[str] = _TRUSTED_PRODUCERS,
+    kinds: Iterable[str] | None = None,
+    since_seq: int = 0,
+) -> list[SignedEvent]:
+    producer_set = frozenset(producers)
+    kind_set = frozenset(kinds) if kinds is not None else None
+    out: list[SignedEvent] = []
+    for sig in log.iter_events(start=since_seq):
+        if sig.event.actor not in producer_set:
+            continue
+        if kind_set is not None and sig.event.kind not in kind_set:
+            continue
+        out.append(sig)
+    return out
+
+
+def write_why_doc(
+    *,
+    ctx: AgentContext,
+    hierarchy: MemoryHierarchy,
+    target_tier: str,
+    plan: Plan,
+    artifact: Artifact,
+    cert: VerifierCertificate,
+    candidate_entries: list[MemoryEntry],
+    log: EventLog | None = None,
+) -> WhyDoc:
+    """Build a why-doc with hash precondition matching the live store NOW.
+
+    The precondition is checked AGAIN at promotion time (in
+    MemoryStore.promote()). If the live store has moved between when this
+    function runs and when promotion is attempted, promotion fails atomically.
+    """
+    assert ctx.role == Role.AUDITOR
+    store: MemoryStore = hierarchy.tier(target_tier)
+    live_hash = store.live_hash()
+
+    # Auditor reads the structured log if provided, for F8 discipline.
+    audit_evidence_count = 0
+    if log is not None:
+        audit_evidence_count = len(
+            structured_query(log, kinds={"verifier.cert", "librarian.consolidate"})
+        )
+
+    return WhyDoc(
+        why_id=f"why-{uuid.uuid4().hex[:10]}",
+        plan_id=plan.plan_id,
+        cert_id=cert.cert_id,
+        auditor_checkpoint=ctx.checkpoint_id,
+        summary=(
+            f"Promote {len(candidate_entries)} candidate entr{'y' if len(candidate_entries)==1 else 'ies'} "
+            f"from tier={target_tier}. Verifier passed={cert.passed} on artifact_hash={cert.artifact_hash[:16]}. "
+            f"Audit evidence events queried: {audit_evidence_count}."
+        ),
+        diff_against_hash=live_hash,
+        hash_precondition=live_hash,
+        tier_decisions={target_tier: f"+{len(candidate_entries)}"},
+        escalations=[] if cert.passed else ["verifier did not pass; auditor refusing sign"],
+        signed_at=time.time(),
+    )

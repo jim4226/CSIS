@@ -1,0 +1,47 @@
+# --- Python --------------------------------------------------------------
+__pycache__/
+*.py[cod]
+*$py.class
+*.egg-info/
+.pytest_cache/
+.mypy_cache/
+.ruff_cache/
+.venv/
+venv/
+build/
+dist/
+
+# --- CSIS runtime state (deliberately not committed) ---------------------
+# These are produced by running the system. They grow forever and contain
+# nothing that informs a fresh checkout. Operator state, not source.
+event_log/
+memory_store/
+
+# Daemon runtime artifacts.
+brain/daemon.heartbeat
+brain/daemon.stats.json
+brain/daemon_logs/
+brain/service_logs/
+
+# Auto-snapshots are ephemeral; manual snapshots (00..NN-named.md) are committed.
+brain/snapshots/auto-*.md
+
+# Stop file used to gracefully halt the daemon.
+STOP
+
+# --- OS / IDE ------------------------------------------------------------
+.DS_Store
+Thumbs.db
+.vscode/
+.idea/
+*.swp
+*.swo
+
+# --- Local env / secrets -------------------------------------------------
+.env
+.env.local
+*.local.json
+secrets/
+
+# --- Pytest temp dirs ----------------------------------------------------
+pytest_temp/

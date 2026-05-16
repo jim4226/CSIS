@@ -1,0 +1,166 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0" />
+<title>CSIS BRAIN — auto-save catalog index</title>
+<style>
+  :root {
+    --bg: #faf9f5; --panel: #f2f0e8; --panel-2: #e8e6dc;
+    --ink: #141413; --ink-dim: #5c5a52; --ink-fade: #8a8880;
+    --accent: #d97757; --good: #788c5d; --bad: #b85042; --warn: #c89b3c;
+    --line: #e0ddd2;
+    --mono: "JetBrains Mono", ui-monospace, Consolas, monospace;
+    --sans: -apple-system, BlinkMacSystemFont, "Poppins", Arial, system-ui, sans-serif;
+  }
+  * { box-sizing: border-box; }
+  body { margin: 0; padding: 32px 28px 80px; background: var(--bg); color: var(--ink); font-family: var(--sans); line-height: 1.55; max-width: 1080px; margin: 0 auto; }
+  h1 { font-size: 32px; margin: 12px 0 6px; }
+  h1 small { display: block; font-size: 15px; color: var(--ink-dim); font-weight: 400; margin-top: 6px; }
+  h2 { font-size: 20px; margin: 36px 0 8px; border-left: 3px solid var(--accent); padding-left: 12px; }
+  .row { display: grid; grid-template-columns: 1fr 1fr; gap: 18px; margin-top: 8px; }
+  .card { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 16px 18px; }
+  .card h3 { margin: 0 0 6px; font-size: 15px; }
+  .card p { margin: 4px 0; font-size: 13.5px; color: var(--ink-dim); }
+  .card a { color: var(--accent); text-decoration: none; }
+  .card a:hover { text-decoration: underline; }
+  table { width: 100%; border-collapse: collapse; margin: 10px 0; font-size: 13.5px; background: var(--panel); border-radius: 8px; overflow: hidden; }
+  th, td { padding: 8px 12px; text-align: left; border-bottom: 1px solid var(--line); vertical-align: top; }
+  th { background: var(--panel-2); font-size: 11px; text-transform: uppercase; letter-spacing: .08em; color: var(--ink-fade); }
+  tr:last-child td { border-bottom: none; }
+  code { font-family: var(--mono); background: rgba(0,0,0,.04); padding: 1px 4px; border-radius: 3px; font-size: 12.5px; }
+  .pill { display: inline-block; padding: 2px 8px; border-radius: 100px; font-size: 11px; font-family: var(--mono); border: 1px solid var(--line); background: var(--panel-2); }
+  .pill.good { color: var(--good); border-color: rgba(120,140,93,.5); }
+  .pill.bad { color: var(--bad); border-color: rgba(184,80,66,.5); }
+  .pill.warn { color: var(--warn); border-color: rgba(200,155,60,.5); }
+  .footer { margin-top: 60px; padding-top: 18px; border-top: 1px solid var(--line); font-family: var(--mono); font-size: 12px; color: var(--ink-fade); }
+</style>
+</head>
+<body>
+
+<h1>CSIS · BRAIN
+  <small>Auto-save index for the CSIS Phase-0 build. The folder lives at <code>brain/</code>. Read this top-down to resume cold.</small>
+</h1>
+
+<h2>Status</h2>
+<div class="row">
+  <div class="card">
+    <h3>Cycle 1 · Implementation <span class="pill good">complete</span></h3>
+    <p>~2,814 LOC across 28 files; <span class="pill good">52/52 tests passing</span>.</p>
+    <p><code>python -m csis.loop</code> runs end-to-end and promotes a candidate.</p>
+  </div>
+  <div class="card">
+    <h3>Cycle 2 · Implementation hardening <span class="pill good">complete</span></h3>
+    <p>Post-impl red team raised 13 findings (2 critical, 6 high). <span class="pill good">All critical + high addressed</span>. <span class="pill good">85/85 tests passing</span>.</p>
+    <p>Cross-cutting fix: single-site checks promoted to substrate-level invariants.</p>
+  </div>
+  <div class="card">
+    <h3>Cycle 3 · 24/7 daemon <span class="pill good">running</span></h3>
+    <p>Curiosity loop generates frontier items. Daemon auto-snapshots every 25 iters, writes a heartbeat each tick, accumulates skills in the procedural store.</p>
+    <p>Start: <code>.\scripts\run_daemon.ps1</code>. Stop: drop a <code>STOP</code> file in the repo root.</p>
+    <p>Live status: <code>brain/daemon.heartbeat</code>, <code>brain/daemon.stats.json</code>, <code>brain/snapshots/auto-*.md</code>.</p>
+  </div>
+</div>
+
+<h2>24/7 daemon at a glance</h2>
+<table>
+  <tr><th>Component</th><th>File</th></tr>
+  <tr><td>Frontier item generator</td><td><code>csis/curiosity.py</code></td></tr>
+  <tr><td>Skill library accumulation (procedural memory)</td><td><code>csis/improvement/skill_library.py</code></td></tr>
+  <tr><td>Daemon runner (budget, watchdog, stop file, auto-snapshot)</td><td><code>csis/daemon.py</code></td></tr>
+  <tr><td>PowerShell launcher with restart-on-crash</td><td><code>scripts/run_daemon.ps1</code></td></tr>
+  <tr><td>Tests for daemon + curiosity + skill path</td><td><code>tests/test_daemon.py</code></td></tr>
+</table>
+<p style="font-family: var(--mono); font-size: 13px; color: var(--ink-dim);">
+  Default rate cap: 60 iter/hour. Sleep between iters: 1s. Snapshot every 25 iters.<br>
+  Switch backend with <code>--backend anthropic</code> (requires <code>ANTHROPIC_API_KEY</code>).
+</p>
+
+<h2>Cycle 2 highlight</h2>
+<table>
+  <tr><th>Finding</th><th>Sev</th><th>Fix</th></tr>
+  <tr><td>P1 — fake-PROMOTED ghosts after failed promote</td><td>critical</td><td>promote() bumps trust atomically; new mark_verified() for the VERIFIED rung</td></tr>
+  <tr><td>P2 — hash_precondition snapshot before Librarian write</td><td>critical</td><td>Promotion CAS now gates; structured-diff deferred to Phase 1</td></tr>
+  <tr><td>P3 — identity shape lets missing keys earn diffs</td><td>high</td><td>REQUIRED_IDENTITY_KEYS + IdentityShapeViolation</td></tr>
+  <tr><td>P4 — TierGuard bypassed by promote()</td><td>high</td><td>MemoryStore accepts TierGuard; producer_role check on every promote</td></tr>
+  <tr><td>P5 — patterns defeated by hyphen substitution</td><td>high</td><td>canonicalize() + paraphrase-expanded patterns</td></tr>
+  <tr><td>P6 — Coordinator scans only artifact body</td><td>high</td><td>Scan frontier + plan + why-doc</td></tr>
+  <tr><td>P7 — EventLog accepts any actor string</td><td>high</td><td>_ALLOWED_ACTORS allow-list + UnknownActorError</td></tr>
+  <tr><td>P8 — why-doc body never scanned</td><td>medium</td><td>Coordinator scans why.summary before promote</td></tr>
+  <tr><td>P9 — archive paths collide under id reuse</td><td>medium</td><td>Timestamp + uuid salt in archive filename</td></tr>
+  <tr><td>P10 — VERIFIED rung was dead code</td><td>medium</td><td>mark_verified() puts entries there explicitly</td></tr>
+  <tr><td>P11 — Constitution doesn't scan tool names / budget keys</td><td>medium</td><td>Scans every string field + tool substring check</td></tr>
+  <tr><td>P12 — EventLog no file lock</td><td>low</td><td>Deferred to Phase 1 (single-process is sufficient for Phase 0)</td></tr>
+  <tr><td>P13 — Constitution crashes on tuple of extra patterns</td><td>low</td><td>list(extra_patterns or ())</td></tr>
+</table>
+
+<h2>Original architecture document</h2>
+<table>
+  <tr><th>File</th><th>What it is</th></tr>
+  <tr><td><a href="../CSIS-architecture.html">CSIS-architecture.html</a></td><td>The v0.2 Phase-0 contract (interactive HTML). The spec.</td></tr>
+  <tr><td><a href="../CSIS-memo.docx">CSIS-memo.docx</a></td><td>8-page memo</td></tr>
+  <tr><td><a href="../CSIS-whitepaper.docx">CSIS-whitepaper.docx</a></td><td>Long-form formal version</td></tr>
+  <tr><td><a href="../CSIS-deck.pptx">CSIS-deck.pptx</a></td><td>19-slide deck</td></tr>
+  <tr><td><a href="../Email-to-Anthropic.md">Email-to-Anthropic.md</a></td><td>Cover-email drafts</td></tr>
+</table>
+
+<h2>Snapshots (chronological)</h2>
+<table>
+  <tr><th>#</th><th>File</th><th>Trigger</th></tr>
+  <tr><td>00</td><td><a href="snapshots/00-initial.md">snapshots/00-initial.md</a></td><td>Session start</td></tr>
+  <tr><td>01</td><td><a href="snapshots/01-after-planning.md">snapshots/01-after-planning.md</a></td><td>4 planning agents returned</td></tr>
+  <tr><td>02</td><td><a href="snapshots/02-cycle1-complete.md">snapshots/02-cycle1-complete.md</a></td><td>Implementation runs end-to-end, 52/52 tests</td></tr>
+  <tr><td>03</td><td><a href="snapshots/03-cycle2-complete.md">snapshots/03-cycle2-complete.md</a></td><td>Post-impl critique addressed, 78/78 tests, all critical/high closed</td></tr>
+  <tr><td>04</td><td><a href="snapshots/04-daemon-24x7-shipped.md">snapshots/04-daemon-24x7-shipped.md</a></td><td>24/7 daemon + 3 domain adapters + burst + NSSM service scripts; 92/92 tests</td></tr>
+</table>
+
+<h2>Plans</h2>
+<table>
+  <tr><th>File</th><th>Author</th><th>Purpose</th></tr>
+  <tr><td><a href="plans/01-architecture.md">plans/01-architecture.md</a></td><td>Architecture sub-agent</td><td>Python module blueprint; ~2,650 LOC budget</td></tr>
+  <tr><td><a href="plans/02-verification.md">plans/02-verification.md</a></td><td>Verification sub-agent</td><td>V1+V2 design, 8 PR graders + 7 math graders</td></tr>
+</table>
+
+<h2>Critiques</h2>
+<table>
+  <tr><th>File</th><th>Phase</th><th>Top findings</th></tr>
+  <tr><td><a href="critiques/01-pre-impl-redteam.md">critiques/01-pre-impl-redteam.md</a></td><td>Pre-impl</td><td>18 findings · 2 critical (F1 mock-vs-mock, F2 TOCTOU sign→promote)</td></tr>
+  <tr><td><a href="critiques/02-post-impl-redteam.md">critiques/02-post-impl-redteam.md</a></td><td>Post-impl</td><td>13 findings · 2 critical (P1 pre-bump ghosts, P2 stale hash semantics) · all addressed in cycle 2</td></tr>
+</table>
+
+<h2>Research</h2>
+<table>
+  <tr><th>File</th><th>Topic</th></tr>
+  <tr><td><a href="research/01-anthropic-sdk.md">research/01-anthropic-sdk.md</a></td><td>Managed Agents shipped April 8 2026. Dreams = <code>dreaming-2026-04-21</code>. Hash precondition via <code>content_sha256</code>. SDK signatures captured.</td></tr>
+</table>
+
+<h2>Live code</h2>
+<table>
+  <tr><th>Path</th><th>Role</th></tr>
+  <tr><td><code>../csis/agents/coordinator.py</code></td><td>The 8-step loop driver. Most-critical file.</td></tr>
+  <tr><td><code>../csis/agents/*.py</code></td><td>6 sub-agents: Researcher, Builder, Critic, Verifier, Librarian, Auditor.</td></tr>
+  <tr><td><code>../csis/verification/</code></td><td>V1 graders, V2 critic, cert build (F1 + F6 + F7 mitigations).</td></tr>
+  <tr><td><code>../csis/memory/store.py</code></td><td>MemoryStore with hash-preconditioned <code>promote()</code> (F2/F3 mitigation).</td></tr>
+  <tr><td><code>../csis/safety/</code></td><td>Constitution, tier_guard (F5), tripwires (F11), shutdown.</td></tr>
+  <tr><td><code>../csis/dreams/</code></td><td>Mock Dream pipeline with per-tier cadence (F10) + partial-output redaction (F4).</td></tr>
+  <tr><td><code>../csis/substrate/event_log.py</code></td><td>Append-only JSONL with SHA-256 chain.</td></tr>
+  <tr><td><code>../csis/loop.py</code></td><td>Runnable demo entry point.</td></tr>
+  <tr><td><code>../tests/</code></td><td>52 tests, one per major invariant + integration.</td></tr>
+</table>
+
+<h2>How to resume cold</h2>
+<ol>
+  <li>Read <a href="snapshots/00-initial.md">snapshots/00-initial.md</a> for what the project is.</li>
+  <li>Read the latest snapshot (highest number under <code>snapshots/</code>) for the current state.</li>
+  <li>Skim the latest critique under <code>critiques/</code> for known weak spots.</li>
+  <li>Run <code>cd Superintellegnce &amp;&amp; python -m pytest tests/ -v</code> to confirm the build still works.</li>
+  <li>Run <code>python -m csis.loop</code> to see a full iteration go end-to-end.</li>
+  <li>Pick up where the latest cycle left off (most likely: address the latest critique's findings).</li>
+</ol>
+
+<div class="footer">
+  CSIS · BRAIN index · last refreshed at cycle 1 boundary · 2026-05-16
+</div>
+
+</body>
+</html>

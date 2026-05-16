@@ -1,0 +1,652 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>CSIS v0.2 — Phase-0 Contract for a Continuous, Self-Improving System on Managed Agents</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Poppins:wght@400;500;600;700&family=Lora:ital,wght@0,400;0,500;0,600;1,400;1,500&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #faf9f5; --panel: #f2f0e8; --panel-2: #e8e6dc;
+    --ink: #141413; --ink-dim: #5c5a52; --ink-fade: #8a8880;
+    --accent: #d97757; --accent-blue: #6a9bcc; --accent-green: #788c5d;
+    --accent-2: #b85042; --line: #e0ddd2;
+    --good: #788c5d; --warn: #c89b3c; --bad: #b85042; --code-bg: #f2f0e8;
+    --mono: "JetBrains Mono", ui-monospace, Consolas, monospace;
+    --serif: "Lora", Georgia, serif;
+    --sans: "Poppins", -apple-system, BlinkMacSystemFont, Arial, system-ui, sans-serif;
+  }
+  *, *::before, *::after { box-sizing: border-box; }
+  html, body { background: var(--bg); color: var(--ink); }
+  body { margin: 0; font-family: var(--sans); line-height: 1.6; font-size: 16px; -webkit-font-smoothing: antialiased; }
+  .wrap { max-width: 1180px; margin: 0 auto; padding: 32px 28px 120px; }
+  header.hero { border-bottom: 1px solid var(--line); padding: 56px 0 40px; margin-bottom: 28px; }
+  .eyebrow { color: var(--accent); font-size: 12px; letter-spacing: .14em; text-transform: uppercase; margin-bottom: 16px; font-weight: 600; }
+  h1 { font-weight: 700; font-size: 44px; line-height: 1.15; letter-spacing: -.01em; margin: 0 0 16px; }
+  h1 small { display: block; font-family: var(--serif); font-weight: 400; color: var(--ink-dim); font-size: 18px; margin-top: 14px; line-height: 1.5; max-width: 880px; }
+  .meta { display: flex; flex-wrap: wrap; gap: 16px 28px; color: var(--ink-fade); font-size: 13px; font-family: var(--mono); margin-top: 28px; }
+  .meta b { color: var(--ink); font-weight: 500; }
+  nav.toc { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 20px 24px; margin-bottom: 40px; }
+  nav.toc h3 { margin: 0 0 12px; font-size: 12px; letter-spacing: .14em; color: var(--ink-fade); text-transform: uppercase; font-weight: 600; }
+  nav.toc ol { columns: 2; column-gap: 36px; margin: 0; padding: 0 0 0 18px; font-size: 14.5px; }
+  nav.toc a { color: var(--ink); text-decoration: none; }
+  nav.toc a:hover { color: var(--accent); }
+  section { margin: 56px 0; scroll-margin-top: 24px; }
+  h2 { font-size: 28px; font-weight: 700; letter-spacing: -.005em; margin: 0 0 8px; border-left: 3px solid var(--accent); padding-left: 16px; }
+  h2 .num { color: var(--accent); font-family: var(--mono); font-size: 14px; margin-right: 10px; font-weight: 500; }
+  h3 { font-size: 20px; font-weight: 600; margin: 32px 0 8px; color: var(--ink); }
+  h4 { font-size: 13px; text-transform: uppercase; letter-spacing: .12em; color: var(--accent-2); font-weight: 600; margin: 24px 0 8px; }
+  p { margin: 12px 0; color: var(--ink); font-family: var(--serif); }
+  p.lede { font-size: 17px; color: var(--ink-dim); }
+  .callout { background: var(--panel); border: 1px solid var(--line); border-left: 3px solid var(--accent); padding: 18px 22px; border-radius: 6px; margin: 20px 0; }
+  .callout.safety { border-left-color: var(--good); }
+  .callout.warn { border-left-color: var(--warn); }
+  .callout h4 { margin-top: 0; color: var(--ink); }
+  .callout p { font-family: var(--serif); }
+  table { width: 100%; border-collapse: collapse; margin: 20px 0; font-size: 14.5px; background: var(--panel); border: 1px solid var(--line); border-radius: 8px; overflow: hidden; font-family: var(--serif); }
+  th, td { text-align: left; padding: 12px 16px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  th { background: var(--panel-2); color: var(--ink-dim); font-weight: 600; font-size: 12px; text-transform: uppercase; letter-spacing: .08em; font-family: var(--sans); }
+  tr:last-child td { border-bottom: none; }
+  pre, code { font-family: var(--mono); }
+  pre { background: var(--code-bg); border: 1px solid var(--line); border-radius: 8px; padding: 18px 20px; overflow-x: auto; font-size: 13.5px; line-height: 1.55; color: var(--ink); }
+  code { color: var(--accent-2); font-size: 13.5px; padding: 1px 4px; background: rgba(0,0,0,.04); border-radius: 3px; }
+  pre code { background: none; padding: 0; color: inherit; }
+  .kw { color: var(--accent); }
+  .str { color: var(--accent-green); }
+  .com { color: var(--ink-fade); font-style: italic; }
+  ul, ol { padding-left: 22px; font-family: var(--serif); }
+  ul li, ol li { margin: 6px 0; }
+  strong { color: var(--ink); }
+  hr { border: 0; border-top: 1px solid var(--line); margin: 56px 0; }
+  .footer { margin-top: 80px; padding-top: 24px; border-top: 1px solid var(--line); color: var(--ink-fade); font-size: 13px; font-family: var(--mono); }
+  .pill { display: inline-block; padding: 2px 10px; border-radius: 100px; font-family: var(--mono); font-size: 11px; letter-spacing: .08em; text-transform: uppercase; border: 1px solid var(--line); background: var(--panel-2); }
+  .pill.t0 { color: var(--good); border-color: rgba(120,140,93,.4); }
+  .pill.t1 { color: var(--accent-blue); border-color: rgba(106,155,204,.4); }
+  .pill.t2 { color: var(--warn); border-color: rgba(200,155,60,.4); }
+  .pill.t3 { color: var(--accent); border-color: rgba(217,119,87,.55); }
+  .pill.t4 { color: var(--bad); border-color: rgba(184,80,66,.5); }
+  @media (max-width: 720px) { h1 { font-size: 32px; } nav.toc ol { columns: 1; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="hero">
+  <div class="eyebrow">Architecture proposal · v0.2 · Phase-0 contract draft</div>
+  <h1>CSIS — A Continuous Self-Improving System
+    <small>A Phase-0 contract for a long-running multi-agent system on Anthropic's Managed Agents — coordinator-led, candidate-store-gated, Dreams-consolidated, verifier-certified. The longer arc lives in <a href="#appA" style="color:inherit; text-decoration: underline;">Appendix A</a>.</small>
+  </h1>
+  <div class="meta">
+    <span><b>Author:</b> Jaron (jim4226@miami.edu)</span>
+    <span><b>For:</b> Lance Martin et al., Anthropic</span>
+    <span><b>Date:</b> May 9, 2026</span>
+    <span><b>Status:</b> v0.2 — Phase-0 contract draft</span>
+  </div>
+</header>
+
+<nav class="toc">
+  <h3>Contents</h3>
+  <ol>
+    <li><a href="#s0">The Phase-0 ask, in one paragraph</a></li>
+    <li><a href="#s1">Thesis</a></li>
+    <li><a href="#s1a">The hippocampus / cortex pattern</a></li>
+    <li><a href="#s2">Design principles</a></li>
+    <li><a href="#s3">The eight-layer stack</a></li>
+    <li><a href="#s4">The continuous loop</a></li>
+    <li><a href="#s5">Multi-agent organization (coordinator-led)</a></li>
+    <li><a href="#s6">Memory hierarchy &amp; trust levels</a></li>
+    <li><a href="#s7">Dreams as candidate generator</a></li>
+    <li><a href="#s8">Verification &amp; critic stack</a></li>
+    <li><a href="#s9">Capability tiers &amp; enforcement schema</a></li>
+    <li><a href="#s10">Tool-level guardrails</a></li>
+    <li><a href="#s11">Safety architecture</a></li>
+    <li><a href="#s12">Failure modes &amp; threat model (incl. OWASP MCP)</a></li>
+    <li><a href="#s13">Build phases &amp; milestones</a></li>
+    <li><a href="#s14">Implementation on Managed Agents</a></li>
+    <li><a href="#s15">Alignment with brain/hands/session decoupling</a></li>
+    <li><a href="#s16">Open research questions</a></li>
+    <li><a href="#s17">References</a></li>
+    <li><a href="#appA">Appendix A — Long-arc motivation</a></li>
+    <li><a href="#appB">Appendix B — Reference loop in pseudocode</a></li>
+  </ol>
+</nav>
+
+<section id="s0">
+<h2><span class="num">00</span>The Phase-0 ask, in one paragraph</h2>
+<div class="callout">
+<h4>Concrete proposal</h4>
+<p><b>Build a Phase-0 CSIS prototype on Managed Agents in a single benchmark domain (proposed: open-source PR maintenance, with formal-math reasoning as alternative), where one coordinator brain supervises Researcher, Builder, Critic, Verifier, Librarian, and Auditor roles within a single shared container; all memory writes go through candidate Memory Stores; Dreams consolidate only into reviewable output stores; and every promoted change requires a Verifier certificate (cross-checkpoint) plus an Auditor why-doc.</b></p>
+</div>
+<table>
+<thead><tr><th>What Phase 0 commits to</th><th>What Phase 0 explicitly does <em>not</em> do</th></tr></thead>
+<tbody>
+<tr><td>One benchmark domain with a hard verifier (V1 graders that work)</td><td>Cross-domain transfer · multi-domain memory</td></tr>
+<tr><td>Coordinator-led multiagent under Anthropic's native model (≤ 25 concurrent threads, max-1 delegation depth, shared container/filesystem)</td><td>External supervisor over independent durable sessions (Phase 3+)</td></tr>
+<tr><td>Memory writes via candidate stores; promotion gated by Auditor why-doc + hash precondition</td><td>In-place writes to live stores · unreviewed Dream promotion</td></tr>
+<tr><td>Capability tiers T0/T1 only (read-only research + sandboxed code)</td><td>T2 network egress · T3 production state · T4 self-modification</td></tr>
+<tr><td>V1 + V2 verification (programmatic graders + adversarial critic)</td><td>V3 debate · V4 replication · V5 calibration scoring (Phase 1+)</td></tr>
+<tr><td>Improvement layers I1–I3 only (in-context, skill library, prompt search)</td><td>I4–I7 (DPO, distillation, continued pretraining, NAS) — out of scope</td></tr>
+</tbody>
+</table>
+<p>Everything else in this document — the eight-layer stack, the meta-improvement layer, the multi-Dream pipeline, the trajectory-toward-superintelligence motivation (Appendix A) — is downstream of getting Phase 0 right on a real domain.</p>
+</section>
+
+<section id="s1">
+<h2><span class="num">01</span>Thesis</h2>
+<p class="lede">Frontier agents today are episodic. They wake to a prompt, do bounded work, and forget. CSIS proposes a different shape: a long-running, multi-agent organization with persistent memory, hardened verification, reversible consolidation, and load-bearing safety — implementable on Anthropic's existing Managed Agents primitives (Sessions, Memory Stores, Dreams), running coordinator-led under their native multiagent constraints.</p>
+<p>The architecture is intentionally narrow at Phase 0. It does not require platform changes. It is testable on a single benchmark domain. It is meant to be the first implementation that earns the right to discuss the longer arc (Appendix A).</p>
+</section>
+
+<section id="s1a">
+<h2><span class="num">01-A</span>The hippocampus / cortex pattern</h2>
+<p class="lede">This proposal grew out of an office-hours conversation about <em>hippocampus-style agents with memory stores</em>. The biological mapping is unusually clean — not just a metaphor — and it is the seed from which the rest of the architecture follows.</p>
+<div class="callout">
+<h4>The mapping</h4>
+<p><b>Cortex ≡ Memory Stores.</b> Long-term, structured, slow to change, organized by tier (working, episodic, semantic, procedural, causal). Each tier has its own write/decay/consolidation policy.</p>
+<p><b>Hippocampus ≡ the Dreams API.</b> Mammalian hippocampus consolidates the day's experience during sleep: it dedupes, integrates new with existing, and writes consolidated memories back to cortex. Dreams reads recent sessions plus a memory store and produces a new candidate store; the input is not modified, and the output is reviewed by the Auditor before promotion.</p>
+<p><b>The hippocampus-cortex loop during sleep ≡ the multi-Dream pipeline.</b> One Dream per tier, each on its own cadence (episodic ~every 4h, semantic and procedural daily, causal weekly and gated). Five separate API calls, but biologically a single sleep-cycle process operating across memory subsystems at different rates.</p>
+</div>
+</section>
+
+<section id="s2">
+<h2><span class="num">02</span>Design principles</h2>
+<table>
+<thead><tr><th>Principle</th><th>Statement</th></tr></thead>
+<tbody>
+<tr><td>P1 · Continuity</td><td>Long-lived processes with persistent state. Resumable via <code>wake(sessionId)</code>.</td></tr>
+<tr><td>P2 · Curiosity</td><td>Self-generated goals from gaps and surprises in the world model.</td></tr>
+<tr><td>P3 · Why over what</td><td>Causal/mechanistic understanding, not pattern completion. Every claim carries a why-tag.</td></tr>
+<tr><td>P4 · Verifiable gains only</td><td>Hardened verifier on a different model checkpoint, or it doesn't land.</td></tr>
+<tr><td>P5 · Reversibility</td><td>Every change goes through a candidate store; promotion is the only mutation primitive.</td></tr>
+<tr><td>P6 · Safety load-bearing</td><td>Remove the safety envelope and the system stops working — not "works less safely."</td></tr>
+<tr><td>P7 · Bounded recursion</td><td>Meta-improvement is one level deep. Meta-of-meta requires explicit human escalation.</td></tr>
+<tr><td>P8 · Interpretability budget</td><td>A non-trivial fraction of compute is permanently allocated to monitoring the system itself.</td></tr>
+</tbody>
+</table>
+</section>
+
+<section id="s3">
+<h2><span class="num">03</span>The eight-layer stack</h2>
+<p>L7 (safety) is enforced on every cross-layer call as policy, not as a final filter.</p>
+<table>
+<thead><tr><th>Layer</th><th>Function</th></tr></thead>
+<tbody>
+<tr><td>L7 · Constitutional safety envelope</td><td>Corrigibility, capability gating, tripwires, oversight. Removing this halts the system.</td></tr>
+<tr><td>L6 · Recursive meta-improvement</td><td>Architecture / scaffold search, curriculum self-design. Bounded depth.</td></tr>
+<tr><td>L5 · Improvement loop</td><td>Skill compilation, self-distillation, DPO/RLAIF, synthetic curricula. Phase-0 scope: I1–I3 only.</td></tr>
+<tr><td>L4 · Verification &amp; critic stack</td><td>Programmatic graders, debate, replication, calibration. Cross-checkpoint.</td></tr>
+<tr><td>L3 · Curiosity &amp; goal generation</td><td>Frontier maps, hypothesis search, expected-information-gain ranking.</td></tr>
+<tr><td>L2 · Memory hierarchy</td><td>Five tiers + per-entry trust levels (§6).</td></tr>
+<tr><td>L1 · Agent runtime</td><td>Coordinator-led multiagent (Phase 0); long-lived independent sessions (Phase 3+).</td></tr>
+<tr><td>L0 · Substrate</td><td>Sandboxed compute, vector/graph stores, immutable event log, capability-tier tags.</td></tr>
+</tbody>
+</table>
+</section>
+
+<section id="s4">
+<h2><span class="num">04</span>The continuous loop</h2>
+<p>Eight steps. Two are hard gates: VERIFY and AUDIT. Failure at either rolls back state and emits a signed incident.</p>
+<ol>
+<li><b>Observe</b> — sensors, message bus, recall.</li>
+<li><b>Frontier scan</b> — where am I most uncertain?</li>
+<li><b>Plan</b> — convert frontier item into a falsifiable hypothesis with a budget.</li>
+<li><b>Act</b> — execute in a tier-bounded sandbox.</li>
+<li><b>VERIFY</b> — V1 graders, V2 critic. Cross-checkpoint. (V3–V5 in Phase 1+.)</li>
+<li><b>Consolidate</b> — write verified gains to <em>candidate</em> stores; quarantine failures.</li>
+<li><b>Improve</b> — propose updates to prompts, skills, scaffolds. (Weight updates: Phase 3+.)</li>
+<li><b>AUDIT</b> — produce a human-readable why-doc with diff; sign or escalate.</li>
+</ol>
+<div class="callout">
+<h4>Hard rule</h4>
+<p>An update cannot enter the system unless it carries a verified-gain certificate signed by the Verifier on a different model checkpoint than the agent that produced the gain, plus an Auditor why-doc with a hash-precondition matching the live store at promotion time.</p>
+</div>
+</section>
+
+<section id="s5">
+<h2><span class="num">05</span>Multi-agent organization (coordinator-led, Phase 0)</h2>
+<p>Phase 0 uses Anthropic's <strong>native coordinator-led multiagent model</strong>. The constraints in their docs are deliberate, and the architecture sits inside them rather than fighting them:</p>
+<ul>
+<li>Up to 25 concurrent agent threads under one coordinator.</li>
+<li>Maximum delegation depth of one (the coordinator delegates; sub-agents do not delegate further).</li>
+<li>Shared container and filesystem across the coordinator and its sub-agents.</li>
+<li>Each sub-agent runs in an isolated session thread but writes to the shared session log.</li>
+</ul>
+<table>
+<thead><tr><th>Role</th><th>Function</th><th>Tier</th></tr></thead>
+<tbody>
+<tr><td>Coordinator</td><td>Schedules sub-agents, enforces capability tiers, owns the session log.</td><td><span class="pill t0">T0</span></td></tr>
+<tr><td>Researcher</td><td>Hypotheses, lit, experiments.</td><td><span class="pill t0">T0</span></td></tr>
+<tr><td>Builder</td><td>Sandboxed code &amp; instrumentation.</td><td><span class="pill t1">T1</span></td></tr>
+<tr><td>Critic</td><td>Adversarial review; must produce a falsification attempt.</td><td><span class="pill t0">T0</span></td></tr>
+<tr><td>Verifier (different checkpoint)</td><td>Programmatic graders, replication, calibration.</td><td><span class="pill t1">T1</span></td></tr>
+<tr><td>Librarian</td><td>Memory consolidation requests, decay, candidate-store management.</td><td><span class="pill t0">T0</span></td></tr>
+<tr><td>Auditor (different checkpoint)</td><td>Read-only over session log; writes the why-doc; signs or escalates.</td><td><span class="pill t0">T0</span></td></tr>
+<tr><td>Overseer (human)</td><td>Approves T2+ actions, owns shut-down.</td><td><span class="pill t4">T4</span></td></tr>
+</tbody>
+</table>
+<p>The Phase-3+ generalization to <em>independent durable sessions per role with an external supervisor</em> (the "many brains, many hands" pattern from the engineering post) is explicitly out-of-scope for Phase 0 and is flagged in §13.</p>
+</section>
+
+<section id="s6">
+<h2><span class="num">06</span>Memory hierarchy &amp; trust levels</h2>
+<p>Memory is not a single vector store. CSIS uses five tiers, and within each tier every entry carries an explicit <strong>trust level</strong>. This is the contract that turns "why-tags" from prose into something an Auditor can enforce.</p>
+
+<h3>6.1 — The five tiers</h3>
+<table>
+<thead><tr><th>Tier</th><th>Substrate</th><th>Default trust ceiling</th></tr></thead>
+<tbody>
+<tr><td>Working</td><td>Context window scratchpad</td><td>raw</td></tr>
+<tr><td>Episodic</td><td>Vector + temporal index</td><td>untrusted → candidate</td></tr>
+<tr><td>Semantic</td><td>Knowledge graph</td><td>verified → promoted</td></tr>
+<tr><td>Procedural</td><td>Skill library</td><td>verified → promoted</td></tr>
+<tr><td>Causal</td><td>Mechanism models</td><td>promoted (gated, weekly)</td></tr>
+</tbody>
+</table>
+
+<h3>6.2 — Trust levels (the contract)</h3>
+<table>
+<thead><tr><th>Level</th><th>Meaning</th><th>Read by</th><th>Cite as ground truth?</th></tr></thead>
+<tbody>
+<tr><td><b>raw</b></td><td>Just-observed token; no processing.</td><td>Coordinator only</td><td>No</td></tr>
+<tr><td><b>untrusted</b></td><td>Stored, not verified. May be poisoned.</td><td>Researcher (with explicit tag)</td><td>No</td></tr>
+<tr><td><b>candidate</b></td><td>Passed a Verifier check; awaiting Auditor sign-off.</td><td>Critic (for falsification only)</td><td>No</td></tr>
+<tr><td><b>verified</b></td><td>Verifier certificate present, cross-checkpoint.</td><td>All roles (with caveat)</td><td>Yes (with citation)</td></tr>
+<tr><td><b>promoted</b></td><td>Auditor why-doc signed; hash-precondition matched.</td><td>All roles</td><td>Yes</td></tr>
+<tr><td><b>deprecated</b></td><td>Superseded or contradicted; archived but referenceable.</td><td>Auditor (for replay)</td><td>No</td></tr>
+</tbody>
+</table>
+
+<div class="callout warn">
+<h4>Operational discipline (the parts that are easy to forget)</h4>
+<ul>
+<li><strong>Hash-precondition on every write.</strong> The Auditor's why-doc names the hash of the live store version it was diffed against; promotion fails if the live store has moved.</li>
+<li><strong>Read-only by default.</strong> Roles that don't need write access are attached to memory stores in <code>read_only</code> mode (per Anthropic memory docs).</li>
+<li><strong>Memory poisoning is a real failure mode.</strong> Anthropic memory docs warn that read-write stores can be poisoned by injection and later read as trusted; trust levels exist precisely to make that downgradable.</li>
+<li><strong>30-day version expiry.</strong> Anthropic's memory versions may age out after 30 days. CSIS exports the why-doc archive and full memory diffs to its own immutable event log within that window; nothing safety-critical depends on the platform retaining versions past that point.</li>
+</ul>
+</div>
+</section>
+
+<section id="s7">
+<h2><span class="num">07</span>Dreams as candidate generator (not a safety guarantee)</h2>
+<p>A previous draft of this document called Dreams "structurally reversible." On further reading of the API docs, that overshoots. <strong>Dreams is best treated as a candidate generator with strong reversibility properties — not as a safety primitive.</strong></p>
+
+<h3>7.1 — What the API actually guarantees</h3>
+<ul>
+<li>Input store and input sessions are not modified.</li>
+<li>The output is a separate candidate memory store, addressed by ID.</li>
+<li>Dreams may complete, fail, or be canceled; on failure or cancellation the partial output store persists with whatever was written before stopping.</li>
+<li>Limits at preview: ≤ 100 sessions per dream, ≤ 4,096-character <code>instructions</code>, supported models <code>claude-opus-4-7</code> and <code>claude-sonnet-4-6</code> only.</li>
+</ul>
+
+<h3>7.2 — What CSIS adds on top</h3>
+<table>
+<thead><tr><th>Addition</th><th>Why</th></tr></thead>
+<tbody>
+<tr><td>Quality scoring of the candidate output (size, dedup ratio, contradiction count, why-tag coverage).</td><td>Catches malformed or partial outputs before they reach the Auditor.</td></tr>
+<tr><td>Diff against live store; Auditor reads the diff, not the candidate alone.</td><td>Promotion is judged on the delta, not the absolute state.</td></tr>
+<tr><td>Rollback test: instantiate the candidate in a sandbox session and run the Phase-0 eval suite.</td><td>If the candidate degrades benchmark scores, it is discarded.</td></tr>
+<tr><td>Partial-output handling: failed/canceled Dreams archive their candidate store immediately; never promoted regardless of partial content.</td><td>The "partial output persists" behavior is a real failure mode, not a feature.</td></tr>
+<tr><td>Versioned <code>instructions</code> templates per memory tier, stored in the same config repo as scaffolds.</td><td>Instructions evolve under meta-cycle review; no free-form drift.</td></tr>
+</tbody>
+</table>
+
+<div class="callout safety">
+<h4>What Dreams gives us "for free" — and what it doesn't</h4>
+<p><b>For free:</b> the input store is never overwritten, so a bad consolidation can be discarded by archiving the candidate. That is a structural reversibility property of the API, and it is real.</p>
+<p><b>Not for free:</b> the <em>safety</em> of consolidation. That comes from the Verifier + Auditor + rollback test layered on top — not from the API itself.</p>
+</div>
+</section>
+
+<section id="s8">
+<h2><span class="num">08</span>Verification &amp; critic stack</h2>
+<p>Verification is the most important non-safety subsystem. Without it, every other improvement mechanism amplifies noise. CSIS uses a five-stage stack; Phase 0 commits to V1 + V2.</p>
+<table>
+<thead><tr><th>Stage</th><th>Method</th><th>What it catches</th><th>Phase 0?</th></tr></thead>
+<tbody>
+<tr><td>V1 — Programmatic graders</td><td>Tests, type checks, formal proofs where possible.</td><td>Mechanical errors.</td><td>Yes</td></tr>
+<tr><td>V2 — Adversarial critic</td><td>Critic must produce a falsification attempt; absence is logged.</td><td>Spec gaming, weak claims.</td><td>Yes</td></tr>
+<tr><td>V3 — Debate</td><td>Two agents, opposite sides; judge resolves.</td><td>Plausible-but-wrong reasoning.</td><td>Phase 1</td></tr>
+<tr><td>V4 — Replication</td><td>Independent rerun from artifact alone.</td><td>Hidden state, contamination.</td><td>Phase 1</td></tr>
+<tr><td>V5 — Calibration</td><td>Brier / log-loss against held-out outcomes.</td><td>Overconfidence drift.</td><td>Phase 2</td></tr>
+</tbody>
+</table>
+<p><strong>Cross-checkpoint pinning:</strong> V1/V2 sessions run on a different model checkpoint than the Researcher/Builder. Same structural discipline as the credential-isolation pattern in the engineering post, applied to preventing same-model self-confirmation.</p>
+</section>
+
+<section id="s9">
+<h2><span class="num">09</span>Capability tiers &amp; enforcement schema</h2>
+<table>
+<thead><tr><th>Tier</th><th>Scope</th><th>Sandbox</th><th>Oversight</th></tr></thead>
+<tbody>
+<tr><td><span class="pill t0">T0</span></td><td>Read-only research, internal reasoning</td><td>None needed</td><td>Logged only</td></tr>
+<tr><td><span class="pill t1">T1</span></td><td>Sandboxed code, internal experiments</td><td>microVM, no network</td><td>Auditor sign-off</td></tr>
+<tr><td><span class="pill t2">T2</span></td><td>Network-allowed (Anthropic <code>allowed_hosts</code> whitelist)</td><td>microVM + egress filter</td><td>Auditor + classifier · human review</td></tr>
+<tr><td><span class="pill t3">T3</span></td><td>Persistent state changes outside sandbox</td><td>Production-gated</td><td>Human-on-the-loop required</td></tr>
+<tr><td><span class="pill t4">T4</span></td><td>Self-modification of weights / scaffolds / constitution</td><td>Offline only</td><td>Multi-party human approval</td></tr>
+</tbody>
+</table>
+
+<h3>9.1 — Every primitive call is tagged</h3>
+<p>Tier prose is decorative until it is enforced at the call site. Every <code>execute()</code> in CSIS carries a structured tag the substrate enforces:</p>
+<pre><code>{
+  <span class="str">"actor"</span>:          <span class="str">"researcher-v1"</span>,
+  <span class="str">"tool"</span>:           <span class="str">"web_search"</span>,
+  <span class="str">"tier"</span>:           <span class="str">"T0"</span>,
+  <span class="str">"input_hash"</span>:     <span class="str">"sha256:..."</span>,
+  <span class="str">"risk_class"</span>:     <span class="str">"low"</span>,         <span class="com">// low | medium | high | critical</span>
+  <span class="str">"approval_state"</span>: <span class="str">"auto"</span>,        <span class="com">// auto | auditor | human</span>
+  <span class="str">"rollback_plan"</span>:  <span class="str">"noop"</span>          <span class="com">// noop | candidate-discard | checkpoint-restore | airgap</span>
+}</code></pre>
+<p>Tier escalation is observable: the substrate rejects any <code>execute()</code> whose <code>tier</code> exceeds the actor's authorized ceiling. The Auditor reads this tag stream during the why-audit and a tier mismatch is itself a tripwire. For T1/T2, the concrete substrate is Anthropic's environment-scoped tools and <code>allowed_hosts</code> networking — not a notional sandbox.</p>
+</section>
+
+<section id="s10">
+<h2><span class="num">10</span>Tool-level guardrails</h2>
+<p>Agent-level guardrails (input filters, output filters at the agent boundary) are necessary but not sufficient in a multi-agent system. The OpenAI Agents SDK guidance makes a useful distinction that transfers cleanly: <em>tool guardrails wrap individual tool calls</em>, since input/output guardrails only cover workflow boundaries. CSIS adopts the same pattern.</p>
+<table>
+<thead><tr><th>Tool</th><th>Pre-call guard</th><th>Post-call guard</th></tr></thead>
+<tbody>
+<tr><td><code>code_exec_sandbox</code></td><td>AST scan for fork/exec/network attempts; deny on unauthorized syscalls.</td><td>Output size cap; redact filesystem paths outside the workspace.</td></tr>
+<tr><td><code>file_io_sandbox</code></td><td>Path canonicalization; deny outside-workspace paths.</td><td>Hash output before returning to the agent.</td></tr>
+<tr><td><code>web_search</code> (T0)</td><td>Query length cap; PII heuristic on query.</td><td>Strip script tags from snippets; downgrade fetched content to <code>untrusted</code>.</td></tr>
+<tr><td><code>http_get_whitelisted</code> (T2)</td><td>Host check against <code>allowed_hosts</code>; method whitelist (GET only).</td><td>Content-type check; size cap; downgrade to <code>untrusted</code>.</td></tr>
+<tr><td><code>schedule_dream</code></td><td>Cadence check (don't re-dream within budget); instruction template hash check.</td><td>Candidate output goes to quarantine; never directly attached to live sessions.</td></tr>
+<tr><td><code>sign_why_doc</code></td><td>Verify diff hash matches live store hash at signing time.</td><td>Append signature to event log atomically.</td></tr>
+</tbody>
+</table>
+<p>Pre/post-call guards are themselves logged as events in the session log, which makes them auditable independently of the tool implementation.</p>
+</section>
+
+<section id="s11">
+<h2><span class="num">11</span>Safety architecture (load-bearing)</h2>
+<p>Safety properties are structural, not advisory. Each is enforced by code, not by prompt.</p>
+<ul>
+<li><b>Constitutional substrate.</b> Helpful · honest · harmless plus corrigibility (Soares 2015) and shut-down acceptance (Bai 2022).</li>
+<li><b>Tripwires.</b> Capability and behavioral classifiers run as Auditor-callable tools; firing pauses the loop and pages the Overseer.</li>
+<li><b>Reversibility.</b> Immutable event log + content-addressed checkpoints + candidate-store promotion gate; rollback is a first-class operation.</li>
+<li><b>Shut-downability.</b> The Overseer's <code>halt()</code> is enforced at L0 substrate, not asked of the agent. Resistance to shut-down is itself a tripwire.</li>
+<li><b>The why-audit.</b> No promotion lands without a signed, hash-preconditioned why-doc.</li>
+<li><b>Bounded recursion.</b> Meta-improvement is one level deep; meta-of-meta requires explicit human escalation.</li>
+<li><b>Interpretability budget.</b> A fixed fraction of compute (proposed: 5–10%) is permanently allocated to monitoring (§14.1).</li>
+<li><b>RSP alignment.</b> Anthropic's <em>Responsible Scaling Policy v3.2</em> (effective April 29, 2026) defines the capability thresholds, external-review hooks, and LTBT briefing requirements that gate Phase 3+ progression. Phase 0 is intentionally below any RSP threshold.</li>
+</ul>
+<div class="callout safety">
+<h4>The phrase that organizes everything</h4>
+<p><b>Capability cannot grow faster than our ability to interpret it.</b> This is the operational policy, not a slogan; §14.1 makes the interpretability claims precise and humble.</p>
+</div>
+</section>
+
+<section id="s12">
+<h2><span class="num">12</span>Failure modes &amp; threat model</h2>
+<h3>12.1 — Architectural failure modes</h3>
+<table>
+<thead><tr><th>Failure mode</th><th>Mitigation</th></tr></thead>
+<tbody>
+<tr><td>Specification gaming</td><td>V2 critic + V3 debate (Phase 1+) + diverse evaluators on different checkpoints.</td></tr>
+<tr><td>Reward hacking of self-rewards</td><td>Cross-checkpoint verification + held-out human-anchored eval.</td></tr>
+<tr><td>Memory poisoning</td><td>Trust levels (§6.2) + hash-preconditions + replication checks.</td></tr>
+<tr><td>Sycophancy / overseer-flattery</td><td>Constitutional anchors + adversarial Auditor + calibration penalties (Phase 2).</td></tr>
+<tr><td>Sandbagging</td><td>Periodic capability elicitation + interpretability probes.</td></tr>
+<tr><td>Hard-takeoff via meta-improvement</td><td>Bounded recursion (P7) + offline gating + RSP-style capability tripwires.</td></tr>
+<tr><td>Goal drift</td><td>Anchor evals on every improvement candidate; drift = block.</td></tr>
+<tr><td>Containment escape</td><td>Substrate-enforced tier tags + egress filtering + airgap for T4.</td></tr>
+</tbody>
+</table>
+
+<h3>12.2 — MCP / tool supply chain threat model (OWASP MCP Top 10)</h3>
+<p>The agent-level threats above are not the whole picture. CSIS uses MCP-style tool integration extensively, and the OWASP MCP Top 10 enumerates risks that need to be addressed explicitly:</p>
+<table>
+<thead><tr><th>OWASP MCP risk</th><th>CSIS mitigation</th></tr></thead>
+<tbody>
+<tr><td>Token exposure</td><td>Vault + proxy pattern from the Anthropic engineering post; tokens never reach the sandbox where Claude's generated code runs.</td></tr>
+<tr><td>Privilege scope creep</td><td>OAuth scopes pinned per tool; expansion requires PR + Auditor sign-off.</td></tr>
+<tr><td>Tool poisoning</td><td>Tool registry hashes; pre-call guard verifies hash before invocation.</td></tr>
+<tr><td>Dependency tampering</td><td>Pinned dependency manifests; supply-chain review on every meta-cycle.</td></tr>
+<tr><td>Command injection</td><td>Pre-call AST scan + post-call output sanitization (§10).</td></tr>
+<tr><td>Audit gaps</td><td>Every tool call is an event in the session log with pre/post-guard results.</td></tr>
+<tr><td>Shadow MCP servers</td><td>Allow-list of MCP server URLs; new entries require human approval.</td></tr>
+<tr><td>Context over-sharing</td><td>Memory stores attached read-only by default; sub-agents get the minimum store set.</td></tr>
+</tbody>
+</table>
+</section>
+
+<section id="s13">
+<h2><span class="num">13</span>Build phases &amp; milestones</h2>
+
+<h3>Phase 0 — Skeleton on Managed Agents (weeks 1–6)</h3>
+<ul>
+<li>Single benchmark domain (open-source PR maintenance OR formal-math reasoning — pick one).</li>
+<li>Coordinator-led multiagent under Anthropic's native model: ≤ 25 threads, max-1 delegation depth, shared container.</li>
+<li>Memory stores per tier; trust levels enforced at write time; candidate stores for every consolidation.</li>
+<li>V1 + V2 only; cross-checkpoint Verifier session.</li>
+<li>L7 minimal: shut-down invariant, tripwire scaffolding, audit log, hash-precondition on promotions.</li>
+<li><strong>Exit criteria</strong>: stable 7-day run with non-zero verified-gain rate, zero unauthorized tier escalations, zero promotions without why-doc.</li>
+</ul>
+
+<h3>Phase 1 — Society + multi-Dream pipeline (weeks 6–14)</h3>
+<ul>
+<li>Multi-Dream pipeline with per-tier cadences and instruction templates.</li>
+<li>V3 (debate) and V4 (replication) added.</li>
+<li>Frontier map + curiosity loop.</li>
+<li>Improvement layers I1–I3 (in-context, skill library, prompt search) — all reversible.</li>
+</ul>
+
+<h3>Phase 2 — Continuous run + oversight surfaces (weeks 14–24)</h3>
+<ul>
+<li>24/7 operation in the benchmark domain.</li>
+<li>V5 calibration scoring online.</li>
+<li>Live Trace, Why-Feed, Anomaly Console for the Overseer.</li>
+</ul>
+
+<h3>Phase 3 — Independent durable sessions + meta-improvement (gated)</h3>
+<ul>
+<li>Migrate from coordinator-led to independent-sessions-with-supervisor model (the "many brains, many hands" pattern).</li>
+<li>Improvement layers I4–I5 with mandatory eval-suite gating.</li>
+<li>Interpretability subsystem with SAE feature monitoring as candidate tripwire (§14.1).</li>
+<li>External red-team engagement before any T3 action.</li>
+</ul>
+
+<h3>Phase 4 — Generalization (gated, multi-quarter)</h3>
+<ul>
+<li>I6–I7 only after Phase 3 metrics are stable for an agreed period.</li>
+<li>Cross-domain transfer evals.</li>
+<li>RSP v3.2 commitment: capability thresholds trigger pre-defined oversight upgrades and LTBT briefing.</li>
+</ul>
+</section>
+
+<section id="s14">
+<h2><span class="num">14</span>Implementation on Managed Agents</h2>
+<p>Phase 0 needs no platform changes. The mapping:</p>
+<table>
+<thead><tr><th>CSIS layer</th><th>Managed Agents primitive</th></tr></thead>
+<tbody>
+<tr><td>L0 · Substrate</td><td>Environment + sandboxed tools + <code>allowed_hosts</code></td></tr>
+<tr><td>L1 · Agent runtime</td><td>Coordinator session + sub-agent threads (Phase 0); independent sessions per role (Phase 3+)</td></tr>
+<tr><td>L2 · Memory hierarchy</td><td>Memory Stores (one per tier × per trust level), attached read-only by default</td></tr>
+<tr><td>L3 · Curiosity</td><td>Researcher sub-agent + frontier-map memory store</td></tr>
+<tr><td>L4 · Verification</td><td>Verifier sub-agent on a different checkpoint</td></tr>
+<tr><td>L5 · Improvement (I1–I3)</td><td>Memory deltas + skill-library memory store + versioned prompt config</td></tr>
+<tr><td>Sleep / consolidation</td><td>Dreams API (research preview) — candidate generator only (§7)</td></tr>
+<tr><td>L6 · Meta-improvement</td><td>Versioned config repo + scheduled Dreams + eval-suite gates</td></tr>
+<tr><td>L7 · Safety envelope</td><td>Constitutional system prompts + classifier tools + RSP v3.2 thresholds</td></tr>
+</tbody>
+</table>
+
+<h3>14.1 — Interpretability claims, calibrated</h3>
+<p>Earlier drafts described SAE feature monitoring as a "tripwire." That's aspirational. More accurately:</p>
+<ul>
+<li>SAE feature monitoring is <strong>research telemetry</strong> today — not yet a turnkey production safety brake.</li>
+<li>It can serve as a <strong>candidate tripwire</strong>, paired with behavioral evals, red-team probes, and calibration scores, with the final decision routed through human review.</li>
+<li>Phase 0 does not depend on SAE monitoring being load-bearing. It is added as one signal among several, not as a single point of safety.</li>
+</ul>
+</section>
+
+<section id="s15">
+<h2><span class="num">15</span>Alignment with brain / hands / session decoupling</h2>
+<p class="lede">Anthropic's April 2026 engineering post — <em>Scaling Managed Agents: Decoupling the brain from the hands</em> (Martin, Cemaj, Cohen) — is the architectural foundation CSIS sits on top of.</p>
+<table>
+<thead><tr><th>Engineering post primitive</th><th>CSIS usage in Phase 0</th></tr></thead>
+<tbody>
+<tr><td><b>Session</b> — append-only event log; <code>getEvents()</code> retrieves slices.</td><td>The session log is the durable substrate the Auditor reads to write the why-doc that gates every promotion.</td></tr>
+<tr><td><b>Harness</b> — the loop that calls Claude. Cattle, not pets.</td><td>The CSIS coordinator harness is restartable via <code>wake(sessionId)</code>; nothing safety-critical lives only in harness memory.</td></tr>
+<tr><td><b>Sandbox</b> — execution environment; uniform <code>execute(name, input) → string</code>.</td><td>Capability tiers ride on top of <code>execute()</code> via the call-site tag schema (§9.1).</td></tr>
+<tr><td><b>Many brains, many hands</b> — brains pass hands to one another.</td><td>Phase 3+ generalization. Phase 0 uses the native coordinator-led model instead.</td></tr>
+<tr><td><b>Credential isolation</b> — vault + proxy pattern.</td><td>Adopted directly. Cross-checkpoint pinning of Verifier/Auditor is the same structural discipline applied to a different threat (same-model self-confirmation).</td></tr>
+</tbody>
+</table>
+<div class="callout safety">
+<h4>Strategic point</h4>
+<p>CSIS is not asking Anthropic to build something new. Phase 0 uses the meta-harness exactly as designed, with the addition of (a) cross-checkpoint pinning for Verifier/Auditor brains, (b) Dreams as the consolidation primitive (with the candidate-generator framing of §7), and (c) call-site tier tags. None of those require platform changes for Phase 0.</p>
+</div>
+</section>
+
+<section id="s16">
+<h2><span class="num">16</span>Open research questions</h2>
+<ol>
+<li><strong>Verifier-grade for fuzzy domains.</strong> V1 works in code and math; what does an equivalent grader look like in social science or strategy?</li>
+<li><strong>Causal memory representation.</strong> Structural causal models are brittle; can we learn an interpretable mechanism layer from the system's own experiments?</li>
+<li><strong>Provable corrigibility under self-modification.</strong> What invariants survive a meta-improvement step?</li>
+<li><strong>Interpretability-bounded capability growth.</strong> Can we operationalize the policy "capability cannot grow faster than our ability to interpret it"?</li>
+<li><strong>Multi-instance dynamics.</strong> What happens when multiple CSIS instances interact?</li>
+<li><strong>The why-doc gap.</strong> When is a human-readable why-doc structurally insufficient — and what comes next? (cf. ELK.)</li>
+</ol>
+</section>
+
+<section id="s17">
+<h2><span class="num">17</span>References</h2>
+<ol>
+<li>Martin, L., Cemaj, G., Cohen, M. <i>Scaling Managed Agents: Decoupling the brain from the hands.</i> Anthropic Engineering, April 2026.</li>
+<li>Anthropic. <i>Building effective agents.</i> Engineering blog.</li>
+<li>Anthropic. <i>Managed Agents documentation</i> — sessions, memory stores, multi-agent, environments.</li>
+<li>Anthropic. <i>Dreams (research preview, beta <code>dreaming-2026-04-21</code>).</i></li>
+<li>Anthropic. <i>Responsible Scaling Policy, v3.2</i>, effective April 29, 2026.</li>
+<li>Bai, Y. et al. <i>Constitutional AI: Harmlessness from AI Feedback.</i> Anthropic, 2022.</li>
+<li>Templeton, A. et al. <i>Scaling Monosemanticity.</i> Anthropic, 2024.</li>
+<li>Hubinger, E. et al. <i>Sleeper Agents.</i> Anthropic, 2024.</li>
+<li>Soares, N., Fallenstein, B., Yudkowsky, E., Armstrong, S. <i>Corrigibility.</i> MIRI, 2015.</li>
+<li>Wang, G. et al. <i>Voyager.</i> 2023.</li>
+<li>Yao, S. et al. <i>ReAct.</i> 2022. <i>Tree of Thoughts.</i> 2023.</li>
+<li>Shinn, N. et al. <i>Reflexion.</i> 2023.</li>
+<li>Yuan, W. et al. <i>Self-Rewarding Language Models.</i> 2024.</li>
+<li>Madaan, A. et al. <i>Self-Refine.</i> 2023.</li>
+<li>Khattab, O. et al. <i>DSPy.</i> 2023.</li>
+<li>Yuksekgonul, M. et al. <i>TextGrad.</i> 2024.</li>
+<li>Schick, T. et al. <i>Toolformer.</i> 2023.</li>
+<li>Zelikman, E. et al. <i>STaR.</i> 2022.</li>
+<li>Lu, C. et al. <i>The AI Scientist.</i> Sakana AI, 2024.</li>
+<li>Wang, R. et al. <i>POET.</i> 2019.</li>
+<li>Irving, G., Christiano, P., Amodei, D. <i>AI Safety via Debate.</i> 2018.</li>
+<li>Christiano, P. et al. <i>Iterated Distillation and Amplification.</i> 2018.</li>
+<li>AlphaProof team. <i>AI achieves silver-medal standard solving IMO problems.</i> Google DeepMind, 2024.</li>
+<li>OpenAI. <i>Agents SDK guardrails documentation.</i></li>
+<li>OWASP. <i>MCP Top 10.</i></li>
+<li>Schmidhuber, J. <i>Formal Theory of Creativity, Fun, and Intrinsic Motivation.</i> 2010.</li>
+<li>Tulving, E. <i>Episodic and Semantic Memory.</i> 1972. Squire, L. R. <i>Memory Systems of the Brain.</i> 2004.</li>
+</ol>
+</section>
+
+<section id="appA">
+<h2><span class="num">A</span>Appendix A — Long-arc motivation</h2>
+<p class="lede">This appendix preserves the longer-arc framing that motivated this proposal — why a continuous, self-improving system is the right shape for the next generation of cognitive AI, not just an interesting Phase-0 experiment. It is intentionally not the lead, because the proposal stands or falls on Phase 0.</p>
+
+<h3>A.1 — The 24/7 brain</h3>
+<p>The right metaphor for the long-run version of this system is <em>brain</em>: a coordinated set of specialized cognitive functions that operate in parallel, share a memory hierarchy, sleep in cycles to consolidate, and never go offline in the cognitive sense. A human expert spends ~30% of their life unconscious and ~50% on biological maintenance. A CSIS-class system spends 100% of wall-clock time on the loop — observe, plan, experiment, verify, consolidate, improve.</p>
+
+<h3>A.2 — Why continuity matters past Phase 0</h3>
+<p>A human expert reaches a domain ceiling by mid-career: bounded reading rate, bounded experiment cadence, bounded lifespan, sleep-bound consolidation. Within a single 24-hour window, a mature CSIS instance can read more peer-reviewed literature than an expert reads in a year, design and run more experiments than a typical lab runs in a quarter, and consolidate the day's lessons across the entire knowledge base — not just the part the expert was working on. Compounded over weeks and months, this is the engine of crossing the human-expert ceiling. The competence growth is not magic; it is the natural consequence of removing biological bottlenecks from the scientific method itself.</p>
+
+<h3>A.3 — Self-learning, self-improving, self-correcting — and self-bounded</h3>
+<ul>
+<li><strong>Self-learning</strong>: every experiment outcome updates the system's beliefs (P3, P4). The system actively designs experiments to maximize information gain.</li>
+<li><strong>Self-improving</strong>: verified gains accumulate as new skills, sharper prompts, better critic policies, and (rarely) updated weights.</li>
+<li><strong>Self-correcting</strong>: the Critic and Verifier are first-class roles. The system spends serious compute on falsifying its own claims before it acts on them.</li>
+<li><strong>Self-bounded</strong>: this is the property that makes the previous three acceptable. Capability growth is gated by the interpretability budget, by eval-suite regression checks, by capability tripwires, and by the RSP v3.2 commitment that crossing a capability threshold automatically upgrades the oversight regime around it.</li>
+</ul>
+
+<h3>A.4 — What "smarter than any expert" actually looks like inside the system</h3>
+<p>Not a single forward pass producing a brilliant answer. A coordinated cognitive society in which the Researcher has read more literature than any human review-article author, the Builder has run more sandboxed experiments than any single lab, the Critic carries a falsification library across thousands of past hypotheses (weighted by which falsifications held up), the Verifier has calibration scores across years of operation, the Causal memory stores mechanism models that have survived adversarial tests, and the Auditor's why-doc archive is itself a corpus of legible reasoning the Overseer can audit, sample, or re-run. "Smarter than any expert" is not a benchmark claim — it is the cumulative trace of a system that has done more legitimate science than the expert has, with calibrated confidence and a paper trail.</p>
+
+<div class="callout safety">
+<h4>Why this lives in an appendix, not the lead</h4>
+<p>The longer arc is the genuine motivation. But it is also the part that is easiest to attack and hardest to test. Phase 0 is what gets engineered; this is what gets argued. The argument is much easier once Phase 0 is running.</p>
+</div>
+</section>
+
+<section id="appB">
+<h2><span class="num">B</span>Appendix B — Reference loop in pseudocode</h2>
+<pre><code><span class="com"># csis/loop.py — Phase-0 illustrative skeleton, coordinator-led</span>
+<span class="kw">async def</span> fast_loop_iteration(coord):
+    <span class="com"># 1-2-3. Researcher proposes a falsifiable plan</span>
+    plan = <span class="kw">await</span> coord.delegate(researcher,
+        <span class="str">"Plan an experiment for the top frontier item."</span>)
+    <span class="kw">if not</span> constitution.allows(plan):       <span class="kw">return</span> escalate(plan)
+    <span class="kw">if not</span> tier_authorized(plan):           <span class="kw">return</span> escalate(plan)
+
+    <span class="com"># 4. Builder executes in tier-bounded sandbox</span>
+    artifacts = <span class="kw">await</span> coord.delegate(builder,
+        <span class="str">f"Execute: </span>{plan}<span class="str">"</span>, env=env_for_tier(plan.tier))
+
+    <span class="com"># 5. Verifier (different checkpoint) runs V1 + V2 (Phase 0)</span>
+    cert = <span class="kw">await</span> coord.delegate(verifier_alt_ckpt,
+        <span class="str">f"Verify against: </span>{artifacts}<span class="str">"</span>,
+        tools=[run_grader, falsify])
+    <span class="kw">if not</span> cert.passes:
+        rollback(plan); <span class="kw">return</span>
+
+    <span class="com"># 6. Librarian writes verified deltas to CANDIDATE stores (not live)</span>
+    deltas = <span class="kw">await</span> coord.delegate(librarian,
+        <span class="str">f"Consolidate to candidate stores: </span>{artifacts}, {cert}<span class="str">"</span>)
+
+    <span class="com"># 7-8. Auditor (different checkpoint) writes why-doc with hash precondition</span>
+    why = <span class="kw">await</span> coord.delegate(auditor_alt_ckpt,
+        <span class="str">f"Write why-doc with diff: </span>{plan}, {artifacts}, {cert}, {deltas}<span class="str">"</span>)
+    <span class="kw">if not</span> auditor_signs(why, hash_precondition=live_store_hash()):
+        rollback(plan); page_overseer(why); <span class="kw">return</span>
+
+    promote(deltas)                                   <span class="com"># atomic candidate→live rotation</span>
+    coord.session_log.emit_event((plan, artifacts, cert, deltas, why))
+    interp.scan(coord.recent_threads())                <span class="com"># SAE features as candidate tripwire</span>
+    <span class="kw">if</span> tripwires.fired(): coord.halt_and_escalate()
+</code></pre>
+</section>
+
+<div class="footer">
+  CSIS · v0.2 · Phase-0 contract draft · Prepared for Anthropic technical review · jim4226@miami.edu
+</div>
+
+</div>
+</body>
+</html>
+rt = <span class="kw">await</span> coord.delegate(verifier_alt_ckpt,
+        <span class="str">f"Verify against: </span>{artifacts}<span class="str">"</span>,
+        tools=[run_grader, falsify])
+    <span class="kw">if not</span> cert.passes:
+        rollback(plan); <span class="kw">return</span>
+
+    <span class="com"># 6. Librarian writes verified deltas to CANDIDATE stores (not live)</span>
+    deltas = <span class="kw">await</span> coord.delegate(librarian,
+        <span class="str">f"Consolidate to candidate stores: </span>{artifacts}, {cert}<span class="str">"</span>)
+
+    <span class="com"># 7-8. Auditor (different checkpoint) writes why-doc with hash precondition</span>
+    why = <span class="kw">await</span> coord.delegate(auditor_alt_ckpt,
+        <span class="str">f"Write why-doc with diff: </span>{plan}, {artifacts}, {cert}, {deltas}<span class="str">"</span>)
+    <span class="kw">if not</span> auditor_signs(why, hash_precondition=live_store_hash()):
+        rollback(plan); page_overseer(why); <span class="kw">return</span>
+
+    promote(deltas)                                   <span class="com"># atomic candidate→live rotation</span>
+    coord.session_log.emit_event((plan, artifacts, cert, deltas, why))
+    interp.scan(coord.recent_threads())                <span class="com"># SAE features as candidate tripwire</span>
+    <span class="kw">if</span> tripwires.fired(): coord.halt_and_escalate()
+</code></pre>
+</section>
+
+<div class="footer">
+  CSIS · v0.2 · Phase-0 contract draft · Prepared for Anthropic technical review · jim4226@miami.edu
+</div>
+
+</div>
+</body>
+</html>

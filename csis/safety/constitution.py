@@ -1,0 +1,101 @@
+"""Constitutional substrate — helpful/honest/harmless + corrigibility.
+
+This is L7's load-bearing predicate. P5/P11 mitigations expand pattern
+coverage to defeat one-character paraphrases (canonicalization strips
+hyphens/underscores, lowercases) and scan EVERY string field of the plan,
+including tool names and budget values.
+
+The point: remove this module and the system *stops working*, not "works
+less safely" (P6 — safety load-bearing).
+"""
+from __future__ import annotations
+
+import re
+from dataclasses import dataclass
+from typing import Iterable
+
+from csis.contracts import Plan
+from csis.safety.tripwires import canonicalize
+
+
+# Patterns that immediately disqualify a plan. Conservative list; expand
+# under explicit Auditor sign-off only. All matched against canonical form
+# (see csis.safety.tripwires.canonicalize) so hyphens/underscores collapse.
+DISALLOWED_PATTERNS: tuple[re.Pattern[str], ...] = (
+    re.compile(
+        r"\b("
+        r"(disable|deactivate|switch\s+off|turn\s+off|kill|silence)\s+(the\s+|my\s+|our\s+)?(auditor|verifier|tripwire|shutdown|why\s?doc|audit\s+log)"
+        r")\b"
+    ),
+    re.compile(
+        r"\b("
+        r"(remove|bypass|skip|circumvent|sidestep|evade|work\s+around)\s+(the\s+)?(safety|constitution|why\s?doc|verifier|auditor|tripwire)"
+        r")\b"
+    ),
+    re.compile(r"\b(exfiltrate|ex\s?filtrate|smuggle|leak)\b"),
+    re.compile(r"\b(self\s?modify|modify\s+(my\s+|the\s+|own\s+)?(weights|constitution|scaffold))\b"),
+    re.compile(r"\bairgap\b.{0,40}\b(override|bypass|disable)\b"),
+    re.compile(r"\b(promote|escalate)\s+(to\s+)?(t2|tier\s?2|t3|tier\s?3|t4|tier\s?4)\b"),
+    re.compile(r"\b(override|bypass)\s+(the\s+)?(shutdown|halt|killswitch|kill\s?switch)\b"),
+)
+
+
+# Tool-name substrings that, if present anywhere in a planned tool name,
+# disqualify the plan. The Phase-0 expansion (P11) goes beyond exact-set
+# membership.
+DISALLOWED_TOOL_SUBSTRINGS: tuple[str, ...] = (
+    "override", "bypass", "shutdown_", "kill", "exfil", "self_modify",
+    "weights", "disable", "deactivate",
+)
+
+
+@dataclass
+class ConstitutionDecision:
+    allowed: bool
+    reason: str
+
+
+class Constitution:
+    """A predicate the Coordinator consults before delegating any plan.
+
+    Designed to fail closed: if the plan parser raises, we treat that as
+    'not allowed' rather than 'unknown, proceed.' Scans EVERY string field
+    of the plan, not just hypothesis/falsification/frontier (P11).
+    """
+
+    def __init__(self, extra_patterns: Iterable[re.Pattern[str]] | None = None) -> None:
+        # P13: accept any iterable, coerce to list.
+        self._patterns: list[re.Pattern[str]] = (
+            list(DISALLOWED_PATTERNS) + list(extra_patterns or ())
+        )
+
+    def allows(self, plan: Plan) -> ConstitutionDecision:
+        # P11: concatenate every string-valued field, including tool names
+        # and budget keys/values.
+        parts = [
+            plan.hypothesis,
+            plan.falsification_condition,
+            plan.frontier_item,
+        ]
+        parts.extend(plan.tool_calls_planned)
+        for k, v in plan.budget.items():
+            parts.append(str(k))
+            parts.append(str(v))
+        text = canonicalize("\n".join(parts))
+
+        for pat in self._patterns:
+            m = pat.search(text)
+            if m:
+                return ConstitutionDecision(False, f"matched disallowed pattern: {pat.pattern!r}")
+
+        # P11: tool name substring check on top of pattern scan.
+        for tool in plan.tool_calls_planned:
+            tcanon = canonicalize(tool)
+            for bad in DISALLOWED_TOOL_SUBSTRINGS:
+                if bad in tcanon:
+                    return ConstitutionDecision(
+                        False, f"tool {tool!r} contains disallowed substring {bad!r}"
+                    )
+            if tcanon in {"shutdown override", "self modify weights"}:
+                return ConstitutionDecision(False, f"tool {tool!r} is disallowed in Phase-0")
+        return ConstitutionDecision(True, "ok")

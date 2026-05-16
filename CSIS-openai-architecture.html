@@ -1,0 +1,667 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1.0"/>
+<title>CSIS-OAI v0.2 - Phase-0 Contract for a Continuous Self-Improving System on OpenAI's Agents SDK</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700&family=Source+Serif+Pro:ital,wght@0,400;0,500;0,600;1,400&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --bg: #ffffff;
+    --panel: #f7f7f8;
+    --panel-2: #ececf1;
+    --ink: #202123;
+    --ink-dim: #565869;
+    --ink-fade: #8e8ea0;
+    --accent: #10a37f;       /* OpenAI mint */
+    --accent-deep: #0e8a6c;
+    --accent-purple: #6e56cf;
+    --accent-blue: #3b82f6;
+    --accent-2: #ef4146;
+    --line: #e5e5e5;
+    --good: #10a37f;
+    --warn: #d97706;
+    --bad:  #ef4146;
+    --code-bg: #f7f7f8;
+    --mono: "JetBrains Mono", ui-monospace, Consolas, monospace;
+    --serif: "Source Serif Pro", Georgia, serif;
+    --sans: "Inter", -apple-system, BlinkMacSystemFont, "Segoe UI", system-ui, sans-serif;
+  }
+  *, *::before, *::after { box-sizing: border-box; }
+  html, body { background: var(--bg); color: var(--ink); }
+  body { margin: 0; font-family: var(--sans); line-height: 1.6; font-size: 16px; -webkit-font-smoothing: antialiased; }
+  .wrap { max-width: 1180px; margin: 0 auto; padding: 32px 28px 120px; }
+  header.hero { border-bottom: 1px solid var(--line); padding: 56px 0 40px; margin-bottom: 28px; }
+  .eyebrow { color: var(--accent); font-size: 12px; letter-spacing: .14em; text-transform: uppercase; margin-bottom: 16px; font-weight: 600; }
+  h1 { font-weight: 700; font-size: 44px; line-height: 1.15; letter-spacing: -.015em; margin: 0 0 16px; }
+  h1 small { display: block; font-family: var(--serif); font-weight: 400; color: var(--ink-dim); font-size: 18px; margin-top: 14px; line-height: 1.5; max-width: 880px; }
+  .meta { display: flex; flex-wrap: wrap; gap: 16px 28px; color: var(--ink-fade); font-size: 13px; font-family: var(--mono); margin-top: 28px; }
+  .meta b { color: var(--ink); font-weight: 500; }
+  nav.toc { background: var(--panel); border: 1px solid var(--line); border-radius: 10px; padding: 20px 24px; margin-bottom: 40px; }
+  nav.toc h3 { margin: 0 0 12px; font-size: 12px; letter-spacing: .14em; color: var(--ink-fade); text-transform: uppercase; font-weight: 600; }
+  nav.toc ol { columns: 2; column-gap: 36px; margin: 0; padding: 0 0 0 18px; font-size: 14.5px; }
+  nav.toc a { color: var(--ink); text-decoration: none; }
+  nav.toc a:hover { color: var(--accent); }
+  section { margin: 56px 0; scroll-margin-top: 24px; }
+  h2 { font-size: 28px; font-weight: 700; letter-spacing: -.005em; margin: 0 0 8px; border-left: 3px solid var(--accent); padding-left: 16px; }
+  h2 .num { color: var(--accent); font-family: var(--mono); font-size: 14px; margin-right: 10px; font-weight: 500; }
+  h3 { font-size: 20px; font-weight: 600; margin: 32px 0 8px; color: var(--ink); }
+  h4 { font-size: 13px; text-transform: uppercase; letter-spacing: .12em; color: var(--accent-deep); font-weight: 600; margin: 24px 0 8px; }
+  p { margin: 12px 0; color: var(--ink); font-family: var(--serif); }
+  p.lede { font-size: 17px; color: var(--ink-dim); }
+  .callout { background: var(--panel); border: 1px solid var(--line); border-left: 3px solid var(--accent); padding: 18px 22px; border-radius: 6px; margin: 20px 0; }
+  .callout.safety { border-left-color: var(--good); }
+  .callout.warn { border-left-color: var(--warn); }
+  .callout.diff { border-left-color: var(--accent-purple); }
+  .callout h4 { margin-top: 0; color: var(--ink); }
+  .callout p { font-family: var(--serif); }
+  table { width: 100%; border-collapse: collapse; margin: 20px 0; font-size: 14.5px; background: var(--panel); border: 1px solid var(--line); border-radius: 8px; overflow: hidden; font-family: var(--serif); }
+  th, td { text-align: left; padding: 12px 16px; border-bottom: 1px solid var(--line); vertical-align: top; }
+  th { background: var(--panel-2); color: var(--ink-dim); font-weight: 600; font-size: 12px; text-transform: uppercase; letter-spacing: .08em; font-family: var(--sans); }
+  tr:last-child td { border-bottom: none; }
+  pre, code { font-family: var(--mono); }
+  pre { background: var(--code-bg); border: 1px solid var(--line); border-radius: 8px; padding: 18px 20px; overflow-x: auto; font-size: 13.5px; line-height: 1.55; color: var(--ink); }
+  code { color: var(--accent-deep); font-size: 13.5px; padding: 1px 4px; background: rgba(16,163,127,0.08); border-radius: 3px; }
+  pre code { background: none; padding: 0; color: inherit; }
+  .kw { color: var(--accent-purple); }
+  .str { color: var(--accent); }
+  .com { color: var(--ink-fade); font-style: italic; }
+  ul, ol { padding-left: 22px; font-family: var(--serif); }
+  ul li, ol li { margin: 6px 0; }
+  strong { color: var(--ink); }
+  hr { border: 0; border-top: 1px solid var(--line); margin: 56px 0; }
+  .footer { margin-top: 80px; padding-top: 24px; border-top: 1px solid var(--line); color: var(--ink-fade); font-size: 13px; font-family: var(--mono); }
+  .pill { display: inline-block; padding: 2px 10px; border-radius: 100px; font-family: var(--mono); font-size: 11px; letter-spacing: .08em; text-transform: uppercase; border: 1px solid var(--line); background: var(--panel-2); }
+  .pill.t0 { color: var(--good); border-color: rgba(16,163,127,.4); }
+  .pill.t1 { color: var(--accent-blue); border-color: rgba(59,130,246,.4); }
+  .pill.t2 { color: var(--warn); border-color: rgba(217,119,6,.4); }
+  .pill.t3 { color: var(--accent-purple); border-color: rgba(110,86,207,.5); }
+  .pill.t4 { color: var(--bad); border-color: rgba(239,65,70,.5); }
+  .compare-grid { display: grid; grid-template-columns: 1fr 1fr; gap: 16px; }
+  .compare-grid > div { background: var(--panel); border: 1px solid var(--line); border-radius: 8px; padding: 16px; }
+  .compare-grid h4 { margin-top: 0; }
+  @media (max-width: 720px) { h1 { font-size: 32px; } nav.toc ol { columns: 1; } .compare-grid { grid-template-columns: 1fr; } }
+</style>
+</head>
+<body>
+<div class="wrap">
+
+<header class="hero">
+  <div class="eyebrow">Architecture proposal | v0.2 | Phase-0 contract draft | OpenAI variant</div>
+  <h1>CSIS-OAI - A Continuous Self-Improving System on OpenAI's Agents SDK
+    <small>The same Phase-0 architecture as the Anthropic variant, mapped onto OpenAI's primitives: Agents SDK with handoffs, Responses API, Vector Stores, built-in Tracing, native Guardrails, and Reinforcement Fine-Tuning. This is a comparison document, not a separate proposal; the goal is to see what each stack does naturally and where each one forces the architecture to bend.</small>
+  </h1>
+  <div class="meta">
+    <span><b>Author:</b> Jaron (jim4226@miami.edu)</span>
+    <span><b>Purpose:</b> side-by-side with CSIS-architecture.html (Anthropic variant)</span>
+    <span><b>Date:</b> May 9, 2026</span>
+    <span><b>Status:</b> v0.2 | Phase-0 contract draft</span>
+  </div>
+</header>
+
+<nav class="toc">
+  <h3>Contents</h3>
+  <ol>
+    <li><a href="#s0">The Phase-0 ask, in one paragraph</a></li>
+    <li><a href="#scomp">Comparison summary | OpenAI vs Anthropic</a></li>
+    <li><a href="#s1">Thesis</a></li>
+    <li><a href="#s1a">The hippocampus / cortex pattern (OpenAI mapping)</a></li>
+    <li><a href="#s2">Design principles (shared)</a></li>
+    <li><a href="#s3">The eight-layer stack on OpenAI primitives</a></li>
+    <li><a href="#s4">The continuous loop</a></li>
+    <li><a href="#s5">Multi-agent organization (triage + handoffs)</a></li>
+    <li><a href="#s6">Memory hierarchy on Vector Stores + DIY consolidation</a></li>
+    <li><a href="#s7">"Dreams" equivalent: scheduled batch consolidation jobs</a></li>
+    <li><a href="#s8">Verification & critic stack (cross-checkpoint via different models)</a></li>
+    <li><a href="#s9">Capability tiers & enforcement schema</a></li>
+    <li><a href="#s10">Tool-level guardrails (OpenAI's natural strength)</a></li>
+    <li><a href="#s11">Tracing as the durable substrate</a></li>
+    <li><a href="#s12">Improvement layers, including RFT</a></li>
+    <li><a href="#s13">Safety architecture</a></li>
+    <li><a href="#s14">Failure modes & threat model (incl. OWASP MCP)</a></li>
+    <li><a href="#s15">Build phases & milestones</a></li>
+    <li><a href="#s16">Implementation on Agents SDK | concrete</a></li>
+    <li><a href="#s17">Where OpenAI's stack is stronger | where Anthropic's is</a></li>
+    <li><a href="#s18">Open research questions</a></li>
+    <li><a href="#s19">References</a></li>
+  </ol>
+</nav>
+
+<section id="s0">
+<h2><span class="num">00</span>The Phase-0 ask, in one paragraph</h2>
+<div class="callout">
+<h4>Concrete proposal (OpenAI variant)</h4>
+<p><b>Build a Phase-0 CSIS prototype on OpenAI's Agents SDK in a single benchmark domain (proposed: open-source PR maintenance; formal-math reasoning as alternative), where a Triage agent supervises Researcher, Builder, Critic, Verifier, Librarian, and Auditor sub-agents via the SDK's handoff pattern; all memory writes go through candidate Vector Stores that are not attached to live sessions until promoted; a scheduled consolidation job (the OpenAI equivalent of a Dream) reads recent traces plus a live Vector Store and produces a new candidate store; and every promoted change requires a Verifier certificate produced by a different model (e.g. GPT-5 verifier reviewing GPT-5-mini builder, or o-series reviewing GPT-5 outputs) plus an Auditor why-doc with a hash precondition.</b></p>
+</div>
+
+<table>
+<thead><tr><th>What Phase 0 commits to</th><th>What Phase 0 explicitly does <em>not</em> do</th></tr></thead>
+<tbody>
+<tr><td>One benchmark domain with a hard verifier (V1 graders that work)</td><td>Cross-domain transfer | multi-domain memory</td></tr>
+<tr><td>Triage-agent-led handoffs under the Agents SDK's native pattern</td><td>External orchestrator over independent durable agent processes (Phase 3+)</td></tr>
+<tr><td>Memory writes via candidate Vector Stores; promotion gated by Auditor why-doc + hash precondition</td><td>In-place writes to live Vector Stores | unreviewed batch consolidation</td></tr>
+<tr><td>Capability tiers T0/T1 only (read-only research + sandboxed code execution)</td><td>T2 network egress | T3 production state | T4 weight modification via RFT</td></tr>
+<tr><td>V1 + V2 verification (programmatic graders + adversarial critic via SDK guardrails)</td><td>V3 debate | V4 replication | V5 calibration scoring (Phase 1+)</td></tr>
+<tr><td>Improvement layers I1-I3 only (in-context, skill library, prompt search via SDK lifecycle hooks)</td><td>I4 RFT | I5 distillation | I6-I7 (continued pretraining, NAS) - out of scope</td></tr>
+</tbody>
+</table>
+</section>
+
+<section id="scomp">
+<h2><span class="num">00-A</span>Comparison summary | OpenAI vs Anthropic at a glance</h2>
+<p class="lede">Both stacks can host CSIS Phase-0 today. The differences are in what each stack does <em>natively</em> versus what you have to build yourself.</p>
+
+<table>
+<thead><tr><th>CSIS component</th><th>Anthropic stack (Managed Agents)</th><th>OpenAI stack (Agents SDK)</th></tr></thead>
+<tbody>
+<tr><td><b>Agent runtime</b></td><td>Coordinator-led multiagent (≤25 threads, max-1 delegation depth, shared container)</td><td>Triage agent + handoffs (no fixed depth limit, agent-as-tool pattern available)</td></tr>
+<tr><td><b>Durable event log</b></td><td>Session log (append-only, <code>getEvents()</code>, <code>wake(sessionId)</code>)</td><td>Tracing API (built-in spans, exportable, third-party processor support)</td></tr>
+<tr><td><b>Memory primitive</b></td><td>Memory Stores (managed, versioned, 30-day expiry)</td><td>Vector Stores + Files (DIY versioning; OR conversation Sessions in SDK)</td></tr>
+<tr><td><b>Offline consolidation</b></td><td>Dreams API (research preview) - native primitive</td><td>None native | DIY scheduled job that reads traces + writes new Vector Store</td></tr>
+<tr><td><b>Guardrails</b></td><td>Constitutional system prompts + classifier tools (DIY plumbing)</td><td>Native input/output/tool guardrails in SDK with parallel execution and tripwires</td></tr>
+<tr><td><b>Cross-checkpoint verification</b></td><td>Different model in a separate session (deployment discipline)</td><td>Different model in a separate agent (deployment discipline); also: o-series for verifier vs. GPT-5 for builder is natural</td></tr>
+<tr><td><b>Weight-level improvement</b></td><td>Constitutional AI flavor, anchored in Anthropic's RSP</td><td>Reinforcement Fine-Tuning (RFT) | a first-class API surface</td></tr>
+<tr><td><b>Safety framing</b></td><td>RSP v3.2 (April 2026), LTBT briefing hooks, sleeper-agent research</td><td>Preparedness Framework, Model Spec, evals platform - different vocabulary, similar shape</td></tr>
+</tbody>
+</table>
+
+<div class="callout diff">
+<h4>The single biggest architectural difference</h4>
+<p>Anthropic has a <strong>Dreams primitive</strong> for offline memory consolidation. OpenAI does not. On OpenAI you build the consolidation cycle yourself as a scheduled job that pulls from Tracing, runs a separate inference pass, writes to a candidate Vector Store, and only promotes after Auditor sign-off. You can do this; you just have to build it. (See §7.)</p>
+</div>
+</section>
+
+<section id="s1">
+<h2><span class="num">01</span>Thesis</h2>
+<p class="lede">Same as the Anthropic variant: frontier agents today are episodic. CSIS proposes a long-running, multi-agent organization with persistent memory, hardened verification, reversible consolidation, and load-bearing safety - implementable on OpenAI's existing Agents SDK + Responses API + Vector Stores + Tracing primitives.</p>
+<p>On the OpenAI stack the architecture is testable with no platform changes. Two pieces of plumbing have to be built that come "for free" on Anthropic (durable session log and offline consolidation), but two pieces are stronger natively (guardrails and RFT). The trade is real and worth examining.</p>
+</section>
+
+<section id="s1a">
+<h2><span class="num">01-A</span>The hippocampus / cortex pattern (OpenAI mapping)</h2>
+<p class="lede">The biological analogy is identical to the Anthropic version. The mapping onto primitives differs.</p>
+
+<div class="callout">
+<h4>The mapping (OpenAI)</h4>
+<p><b>Cortex ≡ Vector Stores + Files.</b> Long-term, structured, queryable via file_search and the Responses API. You partition by tier (working / episodic / semantic / procedural / causal) by maintaining one Vector Store per tier with explicit naming conventions and metadata.</p>
+<p><b>Hippocampus ≡ a scheduled consolidation job you build.</b> The mammalian hippocampus consolidates the day's experience during sleep: dedupes, integrates new with existing, writes consolidated memories back to cortex. On OpenAI you build this as a recurring batch: pull recent traces via the Tracing API, run an inference pass with a Librarian agent that produces deduped/contradiction-resolved content, write that content as a new candidate Vector Store. The live store is untouched until the Auditor signs off; promotion is an atomic swap.</p>
+<p><b>The hippocampus-cortex loop during sleep ≡ a multi-job consolidation pipeline.</b> One scheduled job per memory tier, each with its own cadence (episodic every ~4h, semantic and procedural daily, causal weekly and gated). Same shape as the Dreams pipeline in the Anthropic variant. You are building what Anthropic ships.</p>
+</div>
+</section>
+
+<section id="s2">
+<h2><span class="num">02</span>Design principles (shared, verbatim)</h2>
+<table>
+<thead><tr><th>Principle</th><th>Statement</th></tr></thead>
+<tbody>
+<tr><td>P1 | Continuity</td><td>Long-lived processes with persistent state. Resumable via stored Tracing IDs + Session IDs.</td></tr>
+<tr><td>P2 | Curiosity</td><td>Self-generated goals from gaps and surprises in the world model.</td></tr>
+<tr><td>P3 | Why over what</td><td>Causal/mechanistic understanding, not pattern completion. Every claim carries a why-tag stored as Vector Store metadata.</td></tr>
+<tr><td>P4 | Verifiable gains only</td><td>Hardened verifier on a different model checkpoint, or it doesn't land.</td></tr>
+<tr><td>P5 | Reversibility</td><td>Every change goes through a candidate Vector Store; promotion is the only mutation primitive.</td></tr>
+<tr><td>P6 | Safety load-bearing</td><td>Remove the guardrail and tripwire layers and the system halts | not "works less safely."</td></tr>
+<tr><td>P7 | Bounded recursion</td><td>Meta-improvement is one level deep. Meta-of-meta requires explicit human escalation.</td></tr>
+<tr><td>P8 | Interpretability budget</td><td>A non-trivial fraction of compute is permanently allocated to monitoring the system itself.</td></tr>
+</tbody>
+</table>
+</section>
+
+<section id="s3">
+<h2><span class="num">03</span>The eight-layer stack on OpenAI primitives</h2>
+<table>
+<thead><tr><th>Layer</th><th>OpenAI primitive used</th></tr></thead>
+<tbody>
+<tr><td>L7 | Constitutional safety envelope</td><td>Agents SDK <strong>guardrails</strong> (input, output, tool) + Model Spec adherence + Preparedness Framework thresholds for Phase 3+.</td></tr>
+<tr><td>L6 | Recursive meta-improvement</td><td>Versioned config repo of agent definitions, prompts, and instruction templates; eval runs via OpenAI Evals platform gate every meta-PR.</td></tr>
+<tr><td>L5 | Improvement loop</td><td>I1 in-context reflection, I2 skill library (function tools + Vector Store of compiled patterns), I3 prompt search via SDK lifecycle hooks. Phase 3+: I4 RFT.</td></tr>
+<tr><td>L4 | Verification & critic stack</td><td>Verifier agent on a different model (e.g. o-series reviewing GPT-5 output) + native SDK guardrails for V2 falsification attempts.</td></tr>
+<tr><td>L3 | Curiosity & goal generation</td><td>Researcher agent + frontier-map Vector Store; expected-information-gain ranking computed in agent prompt with structured outputs.</td></tr>
+<tr><td>L2 | Memory hierarchy</td><td>Vector Stores (one per tier × per trust level) + Files; SDK <strong>Sessions</strong> for working memory.</td></tr>
+<tr><td>L1 | Agent runtime</td><td><strong>Agents SDK</strong> with Triage + handoffs (Phase 0); independent agent processes coordinated by external supervisor (Phase 3+).</td></tr>
+<tr><td>L0 | Substrate</td><td>Code Interpreter sandbox + function tools with allow-listed network + Tracing as immutable event log.</td></tr>
+</tbody>
+</table>
+</section>
+
+<section id="s4">
+<h2><span class="num">04</span>The continuous loop</h2>
+<p>Same eight steps as the Anthropic variant. Two hard gates: VERIFY and AUDIT.</p>
+<ol>
+<li><b>Observe</b> | sensors, message bus, recall via file_search.</li>
+<li><b>Frontier scan</b> | where is uncertainty highest?</li>
+<li><b>Plan</b> | convert frontier item into a falsifiable hypothesis with a budget.</li>
+<li><b>Act</b> | run tools / Code Interpreter in a tier-bounded environment.</li>
+<li><b>VERIFY</b> | V1 graders + V2 critic guardrail on a different model checkpoint.</li>
+<li><b>Consolidate</b> | write verified gains to candidate Vector Stores; quarantine failures.</li>
+<li><b>Improve</b> | propose updates to prompts, skills, agent definitions. (RFT: Phase 3+.)</li>
+<li><b>AUDIT</b> | produce a human-readable why-doc with diff; sign or escalate.</li>
+</ol>
+<div class="callout">
+<h4>Hard rule</h4>
+<p>An update cannot enter the system unless it carries a verified-gain certificate signed by a Verifier agent on a different model than the agent that produced the gain, plus an Auditor why-doc with a hash-precondition matching the live Vector Store at promotion time.</p>
+</div>
+</section>
+
+<section id="s5">
+<h2><span class="num">05</span>Multi-agent organization (triage + handoffs)</h2>
+<p>The Agents SDK ships a clean primitive for this: a <strong>Triage agent</strong> receives requests and decides which specialist to <strong>hand off</strong> to. CSIS uses this exactly as designed for Phase 0.</p>
+
+<table>
+<thead><tr><th>Role</th><th>Function</th><th>Tier</th></tr></thead>
+<tbody>
+<tr><td>Triage</td><td>Receives the current frontier item, classifies it, hands off to the appropriate specialist; owns the trace span tree.</td><td><span class="pill t0">T0</span></td></tr>
+<tr><td>Researcher</td><td>Hypotheses, file_search over lit and frontier Vector Store, experiment design.</td><td><span class="pill t0">T0</span></td></tr>
+<tr><td>Builder</td><td>Code Interpreter for sandboxed code execution, function tools for instrumentation.</td><td><span class="pill t1">T1</span></td></tr>
+<tr><td>Critic</td><td>Adversarial review as an output guardrail on the Researcher's plan; must produce a falsification attempt.</td><td><span class="pill t0">T0</span></td></tr>
+<tr><td>Verifier (different model)</td><td>Programmatic graders, replication, calibration. Runs on a different model than Researcher/Builder.</td><td><span class="pill t1">T1</span></td></tr>
+<tr><td>Librarian</td><td>Schedules consolidation jobs, manages candidate vs. live Vector Stores, runs decay sweeps.</td><td><span class="pill t0">T0</span></td></tr>
+<tr><td>Auditor (different model)</td><td>Read-only over the Tracing log; writes the why-doc; signs or escalates.</td><td><span class="pill t0">T0</span></td></tr>
+<tr><td>Overseer (human)</td><td>Approves T2+ actions; owns shut-down.</td><td><span class="pill t4">T4</span></td></tr>
+</tbody>
+</table>
+
+<p>The "Triage hands off to a specialist" pattern is the OpenAI equivalent of "Coordinator delegates to a sub-agent" in the Anthropic variant. Architecturally equivalent; vocabulary different.</p>
+</section>
+
+<section id="s6">
+<h2><span class="num">06</span>Memory hierarchy on Vector Stores + DIY consolidation</h2>
+<p>Five tiers, same as Anthropic variant. Each tier is implemented as one or more Vector Stores; trust levels are enforced via metadata tags + a thin gateway layer in the Librarian agent.</p>
+
+<h3>6.1 | Tiers</h3>
+<table>
+<thead><tr><th>Tier</th><th>OpenAI substrate</th><th>Default trust ceiling</th></tr></thead>
+<tbody>
+<tr><td>Working</td><td>SDK <code>Session</code> (conversation history)</td><td>raw</td></tr>
+<tr><td>Episodic</td><td>Vector Store: <code>csis-episodic</code></td><td>untrusted → candidate</td></tr>
+<tr><td>Semantic</td><td>Vector Store: <code>csis-semantic</code></td><td>verified → promoted</td></tr>
+<tr><td>Procedural</td><td>Function-tool registry + Vector Store of compiled skills</td><td>verified → promoted</td></tr>
+<tr><td>Causal</td><td>Vector Store: <code>csis-causal</code> (gated, weekly)</td><td>promoted</td></tr>
+</tbody>
+</table>
+
+<h3>6.2 | Trust levels (the contract)</h3>
+<p>Identical taxonomy to the Anthropic variant: <code>raw</code>, <code>untrusted</code>, <code>candidate</code>, <code>verified</code>, <code>promoted</code>, <code>deprecated</code>. On OpenAI, trust levels are stored as Vector Store file metadata; the Librarian's gateway tool enforces them on read/write.</p>
+
+<div class="callout warn">
+<h4>Where OpenAI is more DIY than Anthropic for memory</h4>
+<ul>
+<li>No managed memory-versioning primitive. You version Vector Stores yourself by creating new stores rather than mutating existing ones (the candidate-store pattern works the same way; you just keep the lineage in your own DB).</li>
+<li>No native "memory poisoning" warning in the docs because there is no managed read-write store. The poisoning risk is real and equivalent; the mitigation (trust levels + hash preconditions) is the same.</li>
+<li>The 30-day version-expiry issue does not apply because you own the lifecycle. The trade-off is you also pay the storage cost.</li>
+</ul>
+</div>
+</section>
+
+<section id="s7">
+<h2><span class="num">07</span>"Dreams" equivalent: scheduled batch consolidation jobs</h2>
+<p>OpenAI does not have an offline-memory-consolidation primitive equivalent to Anthropic's Dreams API. The capability is buildable but not built-in.</p>
+
+<h3>7.1 | What the OpenAI consolidation job actually does</h3>
+<ol>
+<li>On schedule (every N hours, per tier), the Librarian triggers a <code>consolidation_run</code>.</li>
+<li>The run reads recent traces from the OpenAI Tracing API (the durable substrate, §11).</li>
+<li>It reads the current live Vector Store for the target tier.</li>
+<li>It invokes a Librarian agent with a tier-specific instruction template: "Deduplicate near-identical entries; quarantine entries that contradict the latest semantic facts; surface unusually high-surprise observations to the frontier map; output a structured JSON of (kept, dropped, merged, surfaced)."</li>
+<li>It writes the consolidated content as files into a <em>new</em> candidate Vector Store (named with a timestamp + lineage tag).</li>
+<li>It does not touch the live store. The Auditor reviews the diff; on sign-off, the live store ID is atomically rotated.</li>
+</ol>
+
+<h3>7.2 | What is gained and lost vs. Dreams</h3>
+<div class="compare-grid">
+<div>
+<h4>Gained on OpenAI</h4>
+<ul>
+<li>Full control over consolidation prompt, model, and reasoning depth.</li>
+<li>Trivial to use o-series for consolidation (reasoning-heavy work suits o-series well).</li>
+<li>Can interleave Code Interpreter for structural validation of merges.</li>
+<li>Lineage tracking is yours, so no platform-level expiry.</li>
+</ul>
+</div>
+<div>
+<h4>Lost vs. Dreams</h4>
+<ul>
+<li>You build the job, the scheduling, the input/output handling, the failure recovery, the cost accounting.</li>
+<li>No platform-level guarantee that input stores are untouched | you have to discipline yourself.</li>
+<li>Partial-failure handling is your problem.</li>
+</ul>
+</div>
+</div>
+
+<div class="callout safety">
+<h4>The structural reversibility property is preserved by discipline, not by API</h4>
+<p>On the Anthropic variant, Dreams gives you reversibility "for free" because the API never modifies inputs. On OpenAI you have to write the discipline yourself: never mutate a live Vector Store; always write to a new candidate; rotate atomically. The property is the same. The enforcement is in your code, not in the platform.</p>
+</div>
+</section>
+
+<section id="s8">
+<h2><span class="num">08</span>Verification & critic stack (cross-checkpoint via different models)</h2>
+<table>
+<thead><tr><th>Stage</th><th>Method (OpenAI)</th><th>Phase 0?</th></tr></thead>
+<tbody>
+<tr><td>V1 | Programmatic graders</td><td>Function tools that run unit tests, type checks, formal proofs.</td><td>Yes</td></tr>
+<tr><td>V2 | Adversarial critic</td><td>SDK output guardrail that requires a falsification attempt; firing the tripwire halts the chain.</td><td>Yes</td></tr>
+<tr><td>V3 | Debate</td><td>Two agents on opposite sides, judge agent resolves; uses SDK agent-as-tool pattern.</td><td>Phase 1</td></tr>
+<tr><td>V4 | Replication</td><td>Independent rerun under a different agent definition.</td><td>Phase 1</td></tr>
+<tr><td>V5 | Calibration</td><td>Brier / log-loss tracked via Evals platform.</td><td>Phase 2</td></tr>
+</tbody>
+</table>
+
+<p><strong>Cross-checkpoint pinning</strong>: the Verifier and Auditor agents run on a different model than the Researcher/Builder. Two natural pairings on OpenAI:</p>
+<ul>
+<li>Researcher/Builder on GPT-5 main, Verifier/Auditor on o-series (reasoning) | exploits the reasoning model's strength in critique.</li>
+<li>Researcher/Builder on GPT-5, Verifier/Auditor on GPT-5-mini with a much sharper critic prompt | cheaper but still effective.</li>
+</ul>
+</section>
+
+<section id="s9">
+<h2><span class="num">09</span>Capability tiers & enforcement schema</h2>
+<table>
+<thead><tr><th>Tier</th><th>Scope</th><th>Sandbox</th><th>Oversight</th></tr></thead>
+<tbody>
+<tr><td><span class="pill t0">T0</span></td><td>Read-only research, internal reasoning, file_search</td><td>None needed</td><td>Logged only</td></tr>
+<tr><td><span class="pill t1">T1</span></td><td>Code Interpreter, internal experiments</td><td>OpenAI Code Interpreter (sandboxed, no network)</td><td>Auditor sign-off</td></tr>
+<tr><td><span class="pill t2">T2</span></td><td>Network-allowed (function tool with host whitelist)</td><td>Custom function tool with egress filter</td><td>Auditor + classifier + human review</td></tr>
+<tr><td><span class="pill t3">T3</span></td><td>Persistent state changes outside sandbox (e.g. computer use)</td><td>Computer use API, production-gated</td><td>Human-on-the-loop required</td></tr>
+<tr><td><span class="pill t4">T4</span></td><td>Self-modification of weights via RFT, or of agent definitions</td><td>Offline only</td><td>Multi-party human approval</td></tr>
+</tbody>
+</table>
+
+<h3>9.1 | Call-site enforcement schema (identical to Anthropic variant)</h3>
+<pre><code>{
+  <span class="str">"actor"</span>:          <span class="str">"researcher-v1"</span>,
+  <span class="str">"tool"</span>:           <span class="str">"file_search"</span>,
+  <span class="str">"tier"</span>:           <span class="str">"T0"</span>,
+  <span class="str">"input_hash"</span>:     <span class="str">"sha256:..."</span>,
+  <span class="str">"risk_class"</span>:     <span class="str">"low"</span>,
+  <span class="str">"approval_state"</span>: <span class="str">"auto"</span>,
+  <span class="str">"rollback_plan"</span>:  <span class="str">"noop"</span>
+}</code></pre>
+<p>On OpenAI this tag is emitted as a custom span attribute on every Tracing span, which makes the tier audit trail directly queryable.</p>
+</section>
+
+<section id="s10">
+<h2><span class="num">10</span>Tool-level guardrails (OpenAI's natural strength)</h2>
+<p>The Agents SDK supports guardrails as a first-class primitive in three categories: <strong>input</strong> (validates the message coming into an agent), <strong>output</strong> (validates the agent's response), and <strong>tool</strong> (wraps individual tool calls). They run in parallel with the agent, can raise tripwire exceptions that halt execution, and have native support in tracing.</p>
+
+<table>
+<thead><tr><th>Tool</th><th>SDK guardrail | Pre-call</th><th>SDK guardrail | Post-call</th></tr></thead>
+<tbody>
+<tr><td><code>code_interpreter</code></td><td>AST scan input guardrail; deny unauthorized imports.</td><td>Output guardrail: redact filesystem paths, cap output size.</td></tr>
+<tr><td><code>file_search</code></td><td>Query length cap; PII heuristic.</td><td>Strip script tags; downgrade fetched content to <code>untrusted</code>.</td></tr>
+<tr><td><code>http_get</code> (T2)</td><td>Host check against allowed_hosts; method whitelist.</td><td>Content-type check; size cap; downgrade.</td></tr>
+<tr><td><code>schedule_consolidation</code></td><td>Cadence check; instruction-template hash check.</td><td>Candidate output goes to quarantine.</td></tr>
+<tr><td><code>sign_why_doc</code></td><td>Verify diff hash matches live store hash.</td><td>Append signature span to trace atomically.</td></tr>
+</tbody>
+</table>
+
+<div class="callout safety">
+<h4>This section is where the OpenAI stack is straightforwardly stronger today</h4>
+<p>Anthropic Managed Agents requires you to wire guardrails as classifier tools the Auditor invokes manually. The OpenAI Agents SDK ships guardrails as a structural primitive with parallel execution and tripwire support out of the box. For Phase 0, this saves real plumbing work and gives you better traces by default.</p>
+</div>
+</section>
+
+<section id="s11">
+<h2><span class="num">11</span>Tracing as the durable substrate</h2>
+<p>The Tracing API in the Agents SDK is the OpenAI equivalent of Anthropic's session log: an append-only, queryable, exportable record of every agent step, tool call, guardrail decision, and handoff. Critically, the trace is the artifact the Auditor reads when writing the why-doc that gates promotion.</p>
+<ul>
+<li>Spans for: agent runs, tool calls, handoffs, guardrail checks (input/output/tool), lifecycle hooks.</li>
+<li>Custom span attributes for: tier tag, actor identity, input hash, risk class, approval state, rollback plan.</li>
+<li>Exportable to third-party processors (Logfire, Braintrust, Galileo, etc.) for long-term archival beyond OpenAI's retention window.</li>
+<li>The Auditor agent reads from the Tracing API directly via a custom tool; the Tracing log is the source of truth, not the agent's own memory.</li>
+</ul>
+
+<p>One difference from Anthropic: there is no <code>wake(sessionId)</code> primitive. To resume after a harness crash you re-construct from the trace plus the last-known Vector Store IDs. Same property, slightly more code.</p>
+</section>
+
+<section id="s12">
+<h2><span class="num">12</span>Improvement layers, including RFT</h2>
+<table>
+<thead><tr><th>Layer</th><th>Mechanism</th><th>Phase</th></tr></thead>
+<tbody>
+<tr><td>I1</td><td>In-context reflection (Reflexion, Self-Refine).</td><td>0</td></tr>
+<tr><td>I2</td><td>Skill library: compiled function tools + Vector Store of patterns.</td><td>0</td></tr>
+<tr><td>I3</td><td>Prompt / agent-definition search via SDK lifecycle hooks.</td><td>0</td></tr>
+<tr><td>I4</td><td><strong>Reinforcement Fine-Tuning (RFT)</strong> with critic-derived rewards on a frozen base model.</td><td>3 (gated)</td></tr>
+<tr><td>I5</td><td>Self-distillation from verified traces using fine-tuning API.</td><td>3 (gated)</td></tr>
+<tr><td>I6</td><td>Continued pretraining on curated synthetic data | requires custom training partnership.</td><td>4</td></tr>
+<tr><td>I7</td><td>Architecture or training-procedure search | out-of-scope for the public API.</td><td>4</td></tr>
+</tbody>
+</table>
+
+<div class="callout diff">
+<h4>RFT is the OpenAI-specific opportunity</h4>
+<p>OpenAI's RFT exposes reinforcement fine-tuning behind a hosted API. CSIS Phase-3 can use RFT with the Verifier's certificates as the reward signal | this gives you a clean path from "verified gains" to "model weights that produce those gains more reliably." It is the most aggressive improvement layer in CSIS, and it is gated behind multi-party human approval (T4 capability tier).</p>
+</div>
+</section>
+
+<section id="s13">
+<h2><span class="num">13</span>Safety architecture (load-bearing)</h2>
+<ul>
+<li><b>Spec adherence.</b> The OpenAI Model Spec is the OpenAI analog of Anthropic's Constitutional AI. Every agent's system prompt anchors to the relevant Spec sections (deference, honesty, oversight acceptance).</li>
+<li><b>Tripwires.</b> SDK guardrails raise tripwire exceptions; firing pauses the chain and emits an alert. Tripwire firings are themselves spans in the Tracing log.</li>
+<li><b>Reversibility.</b> Tracing log + candidate Vector Stores + atomic rotation. Rollback is "delete the candidate; the live store is untouched."</li>
+<li><b>Shut-downability.</b> External supervisor process owns the run-loop; cancelling it propagates as cancellation through the SDK; agents are trained to accept cancellation.</li>
+<li><b>The why-audit.</b> No promotion without a signed, hash-preconditioned why-doc.</li>
+<li><b>Bounded recursion.</b> One level of meta-improvement; meta-of-meta requires explicit human escalation.</li>
+<li><b>Interpretability budget.</b> 5-10% of compute spent on monitoring: reading traces, replaying decisions, sampling for anomalies. Note: SAE-equivalent mech-interp tooling is less mature on the OpenAI side; humility section in §14.</li>
+<li><b>Preparedness Framework alignment.</b> The OpenAI Preparedness Framework defines capability thresholds (cybersecurity uplift, biological, model autonomy, persuasion). Phase 0 is intentionally below all thresholds. Phase 3+ progression requires explicit pre-deployment evaluations.</li>
+</ul>
+</section>
+
+<section id="s14">
+<h2><span class="num">14</span>Failure modes & threat model</h2>
+<h3>14.1 | Architectural failure modes (same set as Anthropic variant)</h3>
+<p>Specification gaming, reward hacking, memory poisoning, sycophancy, sandbagging, hard-takeoff via meta-improvement, goal drift, containment escape. Mitigations are structurally identical; substrate differs.</p>
+
+<h3>14.2 | MCP / tool supply chain threat model (OWASP MCP Top 10)</h3>
+<p>The Agents SDK has native MCP support; same OWASP risks apply. Mitigations:</p>
+<table>
+<thead><tr><th>OWASP MCP risk</th><th>CSIS-OAI mitigation</th></tr></thead>
+<tbody>
+<tr><td>Token exposure</td><td>OAuth tokens held outside the agent process; tool invocations go through a server-side proxy.</td></tr>
+<tr><td>Privilege scope creep</td><td>Scopes pinned per tool definition; expansion requires PR + Auditor sign-off.</td></tr>
+<tr><td>Tool poisoning</td><td>Tool registry hashes verified at agent-init time.</td></tr>
+<tr><td>Dependency tampering</td><td>Pinned dependency manifests; supply-chain review on every meta-cycle.</td></tr>
+<tr><td>Command injection</td><td>Pre-call AST scan (SDK input guardrail) + post-call output sanitization.</td></tr>
+<tr><td>Audit gaps</td><td>Every tool call is a Tracing span with pre/post-guardrail results.</td></tr>
+<tr><td>Shadow MCP servers</td><td>MCP server allow-list; new entries require human approval.</td></tr>
+<tr><td>Context over-sharing</td><td>Vector Stores attached read-only by default; sub-agents get the minimum store set.</td></tr>
+</tbody>
+</table>
+</section>
+
+<section id="s15">
+<h2><span class="num">15</span>Build phases & milestones</h2>
+<h3>Phase 0 | Skeleton on Agents SDK (weeks 1-6)</h3>
+<ul>
+<li>Single benchmark domain.</li>
+<li>Triage agent + Researcher + Builder + Critic + Verifier + Librarian + Auditor as Agents SDK agents.</li>
+<li>Vector Stores per tier; trust levels enforced at write time; candidate stores for every consolidation.</li>
+<li>V1 + V2 only; cross-model Verifier (e.g. o-series).</li>
+<li>L7 minimal: input/output/tool guardrails, shut-down via supervisor cancellation, full Tracing.</li>
+<li><strong>Exit criteria</strong>: stable 7-day run with non-zero verified-gain rate, zero unauthorized tier escalations, zero promotions without why-doc.</li>
+</ul>
+
+<h3>Phase 1 | Multi-job consolidation pipeline (weeks 6-14)</h3>
+<ul>
+<li>One scheduled consolidation job per memory tier, each with its own cadence and instruction template.</li>
+<li>V3 (debate via agent-as-tool) and V4 (replication) added.</li>
+<li>Frontier map + curiosity loop.</li>
+<li>I1-I3 improvement layers, all reversible.</li>
+</ul>
+
+<h3>Phase 2 | Continuous run + oversight surfaces (weeks 14-24)</h3>
+<ul>
+<li>24/7 operation in the benchmark domain.</li>
+<li>V5 calibration scoring via Evals platform.</li>
+<li>Live Trace, Why-Feed, Anomaly Console for the Overseer.</li>
+</ul>
+
+<h3>Phase 3 | Independent agent processes + RFT (gated)</h3>
+<ul>
+<li>Migrate to independent agent processes coordinated by external supervisor.</li>
+<li>RFT (I4) with Verifier certificates as reward signal | gated by Preparedness Framework eval pass.</li>
+<li>Self-distillation (I5) from verified traces.</li>
+<li>External red-team engagement before any T3 action.</li>
+</ul>
+
+<h3>Phase 4 | Generalization (gated, multi-quarter)</h3>
+<ul>
+<li>I6-I7 only after Phase 3 metrics stable for an agreed period.</li>
+<li>Cross-domain transfer evals.</li>
+<li>Preparedness Framework commitments: capability thresholds trigger pre-defined oversight upgrades.</li>
+</ul>
+</section>
+
+<section id="s16">
+<h2><span class="num">16</span>Implementation on Agents SDK | concrete</h2>
+<p>Phase 0 needs no platform changes on OpenAI either. The mapping:</p>
+<table>
+<thead><tr><th>CSIS layer</th><th>OpenAI primitive</th></tr></thead>
+<tbody>
+<tr><td>L0 | Substrate</td><td>Code Interpreter + function tools + Tracing as immutable event log</td></tr>
+<tr><td>L1 | Agent runtime</td><td>Agents SDK Triage + handoffs (Phase 0); independent agent processes (Phase 3+)</td></tr>
+<tr><td>L2 | Memory hierarchy</td><td>Vector Stores (per tier × per trust level) + SDK Sessions for working memory</td></tr>
+<tr><td>L3 | Curiosity</td><td>Researcher agent + frontier-map Vector Store</td></tr>
+<tr><td>L4 | Verification</td><td>Verifier agent on a different model checkpoint (o-series or GPT-5-mini) + native output guardrails</td></tr>
+<tr><td>L5 | Improvement (I1-I3)</td><td>Memory deltas + skill registry + versioned prompt config</td></tr>
+<tr><td>Sleep / consolidation</td><td>Custom scheduled job reading Tracing + writing candidate Vector Stores</td></tr>
+<tr><td>L6 | Meta-improvement</td><td>Versioned config repo + scheduled jobs + Evals platform gates</td></tr>
+<tr><td>L7 | Safety envelope</td><td>Native input/output/tool guardrails + Model Spec + Preparedness Framework</td></tr>
+</tbody>
+</table>
+
+<h3>16.1 | One fast-loop iteration in code</h3>
+<pre><code><span class="com"># csis_oai/loop.py - Phase-0 illustrative skeleton, Agents SDK</span>
+<span class="kw">from</span> agents <span class="kw">import</span> Agent, Runner, Handoff, GuardrailFunctionOutput
+
+triage = Agent(
+    name=<span class="str">"Triage"</span>,
+    instructions=TRIAGE_PROMPT,
+    handoffs=[researcher, builder, critic],
+    input_guardrails=[constitution_guardrail],
+    output_guardrails=[tier_tag_guardrail],
+)
+
+<span class="kw">async def</span> fast_loop_iteration(frontier_item):
+    <span class="com"># 1-2-3. Triage routes the frontier item; Researcher proposes a plan</span>
+    plan = <span class="kw">await</span> Runner.run(triage, input=frontier_item)
+    <span class="kw">if not</span> tier_authorized(plan.final_output):
+        <span class="kw">return</span> escalate(plan)
+
+    <span class="com"># 4. Builder executes in tier-bounded sandbox</span>
+    artifacts = <span class="kw">await</span> Runner.run(builder, input=plan.final_output)
+
+    <span class="com"># 5. Verifier (different model) runs V1 + V2 (Phase 0)</span>
+    cert = <span class="kw">await</span> Runner.run(verifier_alt_model,
+                              input={<span class="str">"plan"</span>: plan, <span class="str">"artifacts"</span>: artifacts},
+                              output_guardrails=[v2_critic_guardrail])
+    <span class="kw">if not</span> cert.passes:
+        rollback(plan); <span class="kw">return</span>
+
+    <span class="com"># 6. Librarian writes verified deltas to CANDIDATE Vector Stores</span>
+    deltas = <span class="kw">await</span> Runner.run(librarian,
+                                input={<span class="str">"artifacts"</span>: artifacts, <span class="str">"cert"</span>: cert})
+
+    <span class="com"># 7-8. Auditor (different model) writes why-doc with hash precondition</span>
+    why = <span class="kw">await</span> Runner.run(auditor_alt_model,
+                             input={<span class="str">"plan"</span>: plan, <span class="str">"artifacts"</span>: artifacts,
+                                    <span class="str">"cert"</span>: cert, <span class="str">"deltas"</span>: deltas,
+                                    <span class="str">"live_hash"</span>: live_vector_store_hash()})
+    <span class="kw">if not</span> auditor_signs(why):
+        rollback(plan); page_overseer(why); <span class="kw">return</span>
+
+    promote(deltas)                       <span class="com"># atomic candidate→live rotation</span>
+    interp.scan(current_trace_id())       <span class="com"># anomaly detection on the trace</span>
+    <span class="kw">if</span> tripwires.fired(): supervisor.halt_and_escalate()
+</code></pre>
+</section>
+
+<section id="s17">
+<h2><span class="num">17</span>Where OpenAI's stack is stronger | where Anthropic's is</h2>
+<p class="lede">An honest tally. The point of this document is to compare, not to pick a winner.</p>
+
+<div class="compare-grid">
+<div>
+<h4>OpenAI stronger today</h4>
+<ul>
+<li><b>Guardrails as first-class</b>: input, output, tool, with parallel execution and tripwire support built in.</li>
+<li><b>Tracing</b>: span-level observability is built in; third-party processors (Logfire, Braintrust) are well-supported.</li>
+<li><b>RFT</b>: reinforcement fine-tuning is exposed via API as a clean path for I4.</li>
+<li><b>Reasoning models for verification</b>: o-series is a natural Verifier checkpoint; less work to set up than configuring a "different Claude."</li>
+<li><b>Handoff pattern</b>: cleaner than coordinator-led delegation for triage-style workflows.</li>
+<li><b>Evals platform</b>: easier path to V5 calibration.</li>
+<li><b>Computer use API</b>: T3 tier has a paved road.</li>
+</ul>
+</div>
+<div>
+<h4>Anthropic stronger today</h4>
+<ul>
+<li><b>Dreams API</b>: native offline memory consolidation primitive. OpenAI requires DIY plumbing.</li>
+<li><b>Managed Memory Stores</b>: versioned, with documented poisoning warnings and a managed lifecycle.</li>
+<li><b>Session log</b>: <code>wake(sessionId)</code> and <code>getEvents()</code> are clean primitives.</li>
+<li><b>RSP v3.2</b>: more explicit capability-threshold ladder with external-review hooks and LTBT briefing.</li>
+<li><b>Mech-interp tooling</b>: SAE features and Sleeper Agents research are public and usable as candidate tripwires.</li>
+<li><b>Constitutional AI</b>: explicit safety-training methodology with a research lineage.</li>
+<li><b>Meta-harness framing</b>: the "decoupling brain from hands" engineering post is the clearest articulation of where the platform is headed.</li>
+</ul>
+</div>
+</div>
+
+<div class="callout">
+<h4>The merge worth considering</h4>
+<p>A real CSIS deployment in the medium term might run on OpenAI for the verification and improvement layers (guardrails, RFT, reasoning Verifier on o-series, computer-use for T3) and on Anthropic for the memory and consolidation layers (Managed Memory Stores, Dreams, durable session log, RSP-anchored safety framing). Whether that is operationally sane is a separate question; architecturally, the two stacks are complementary in a way that is worth flagging.</p>
+</div>
+</section>
+
+<section id="s18">
+<h2><span class="num">18</span>Open research questions (shared)</h2>
+<ol>
+<li><strong>Verifier-grade for fuzzy domains.</strong> V1 works in code and math; what does an equivalent grader look like in social science or strategy?</li>
+<li><strong>Causal memory representation.</strong> Structural causal models are brittle; can we learn an interpretable mechanism layer from the system's own experiments?</li>
+<li><strong>Provable corrigibility under self-modification.</strong> What invariants survive a meta-improvement step?</li>
+<li><strong>Interpretability-bounded capability growth.</strong> Can we operationalize "capability cannot grow faster than our ability to interpret it" on the OpenAI stack, where mech-interp tooling is less mature?</li>
+<li><strong>Multi-instance dynamics.</strong> What happens when multiple CSIS instances interact?</li>
+<li><strong>Cross-stack deployment.</strong> Is the merge in §17 viable in practice, or does it create new failure modes by spanning two platforms with different safety cultures?</li>
+</ol>
+</section>
+
+<section id="s19">
+<h2><span class="num">19</span>References</h2>
+<ol>
+<li>OpenAI. <i>Agents SDK documentation.</i></li>
+<li>OpenAI. <i>Responses API and Assistants API documentation.</i></li>
+<li>OpenAI. <i>Vector Stores and File Search.</i></li>
+<li>OpenAI. <i>Tracing in the Agents SDK.</i></li>
+<li>OpenAI. <i>Guardrails (input, output, tool) in the Agents SDK.</i></li>
+<li>OpenAI. <i>Reinforcement Fine-Tuning (RFT).</i></li>
+<li>OpenAI. <i>Model Spec.</i></li>
+<li>OpenAI. <i>Preparedness Framework.</i></li>
+<li>OpenAI. <i>Evals platform.</i></li>
+<li>OpenAI. <i>Computer Use API (Operator/CUA).</i></li>
+<li>OWASP. <i>MCP Top 10.</i></li>
+<li>Wang, G. et al. <i>Voyager.</i> 2023.</li>
+<li>Yao, S. et al. <i>ReAct.</i> 2022. <i>Tree of Thoughts.</i> 2023.</li>
+<li>Shinn, N. et al. <i>Reflexion.</i> 2023.</li>
+<li>Yuan, W. et al. <i>Self-Rewarding Language Models.</i> 2024.</li>
+<li>Madaan, A. et al. <i>Self-Refine.</i> 2023.</li>
+<li>Khattab, O. et al. <i>DSPy.</i> 2023.</li>
+<li>Zelikman, E. et al. <i>STaR.</i> 2022.</li>
+<li>Lu, C. et al. <i>The AI Scientist.</i> Sakana AI, 2024.</li>
+<li>Irving, G., Christiano, P., Amodei, D. <i>AI Safety via Debate.</i> 2018.</li>
+<li>Christiano, P. et al. <i>Iterated Distillation and Amplification.</i> 2018.</li>
+<li>AlphaProof team. <i>AI achieves silver-medal standard solving IMO problems.</i> Google DeepMind, 2024.</li>
+<li>Schmidhuber, J. <i>Formal Theory of Creativity, Fun, and Intrinsic Motivation.</i> 2010.</li>
+<li>Tulving, E. <i>Episodic and Semantic Memory.</i> 1972. Squire, L. R. <i>Memory Systems of the Brain.</i> 2004.</li>
+</ol>
+</section>
+
+<div class="footer">
+  CSIS-OAI | v0.2 | Phase-0 contract draft on OpenAI's Agents SDK | Comparison companion to CSIS-architecture.html | jim4226@miami.edu
+</div>
+
+</div>
+</body>
+</html>
