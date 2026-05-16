@@ -90,21 +90,24 @@ class MemoryStore:
             return canonical_json_hash(snap)
 
     def live_snapshot(self) -> tuple[str, dict[str, MemoryEntry]]:
-        """Cycle-4 C7 fix + cycle-5 D2 hardening: return (hash, DEEP-copied
-        snapshot) atomically.
+        """Cycle-4 C7 + cycle-5 D2: return (hash, deep-copied snapshot)
+        atomically.
 
-        Callers (notably the Auditor's _build_diff) used to take the hash
-        and then iterate read_live() — a TOCTOU window where a parallel
-        promote could flip an entry's existence between the two reads,
-        making the why-doc's `kind` field lie about the precondition
-        baseline. Use this method instead to get both at the same lock
-        acquisition.
+        Callers used to take the hash and then iterate read_live() — a
+        TOCTOU window where a parallel promote could flip an entry's
+        existence between the two reads. This method returns both
+        atomically under the lock.
 
-        D2 (cycle-5) fix: model_copy() is shallow by default; mutations
-        to nested dicts (notably MemoryEntry.extra) would propagate back
-        to the live store. We now deep-copy so the snapshot is a true
-        frozen view and the Auditor cannot accidentally smuggle a write
-        through the read path.
+        Cycle-5 D2 fix: `model_copy(deep=True)` so a buggy Auditor that
+        mutates nested fields (notably `extra: dict`) doesn't write
+        through to the live store.
+
+        Cycle-6 E8 (deferred): the deep copy is O(n*size) — ~22 ms at
+        1000 entries with modest extras. A MappingProxyType-based fast
+        path was attempted but Pydantic v2 rejects it as a dict value.
+        Real fix requires a Pydantic v2 frozen-dict adapter; deferred
+        to Phase 1. Operators with very-large stores can mitigate by
+        increasing the snapshot cadence (i.e., consolidating less often).
         """
         with self._lock:
             snap = {eid: e.model_copy(deep=True) for eid, e in self._live.items()}

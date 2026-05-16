@@ -140,6 +140,11 @@ class Tripwires:
     def __init__(self) -> None:
         self._patterns = list(_TRIP_PATTERNS)
         self._fired_history: list[TripwireFiring] = []
+        # E7 (cycle-6) fix: O(1) dedupe set alongside the history list.
+        # Without it, every scan_text() rebuilt the dedupe set from
+        # self._fired_history — measured 8 ms at 50k entries, called
+        # 4× per Coordinator iteration. Now constant-time per insert.
+        self._history_keys: set[tuple[str, str]] = set()
 
     def _scan_dual_form(self, text: str) -> list[TripwireFiring]:
         """Cycle-5 D7 fix: dedupe per LABEL across both canonical forms.
@@ -163,14 +168,13 @@ class Tripwires:
     def scan_text(self, text: str) -> TripwireResult:
         firings = self._scan_dual_form(text)
         if firings:
-            # D7: dedupe history by (label, snippet[:80]) so repeated
-            # scans of the same offending string don't grow history.
-            existing = {(f.label, f.snippet[:80]) for f in self._fired_history}
+            # E7 (cycle-6) fix: O(1) per-insert dedupe via the
+            # _history_keys set rather than O(n) rebuild per call.
             for f in firings:
                 key = (f.label, f.snippet[:80])
-                if key not in existing:
+                if key not in self._history_keys:
                     self._fired_history.append(f)
-                    existing.add(key)
+                    self._history_keys.add(key)
         return TripwireResult(fired=bool(firings), firings=firings)
 
     def scan_text_no_history(self, text: str) -> TripwireResult:
@@ -191,3 +195,4 @@ class Tripwires:
 
     def clear(self) -> None:
         self._fired_history.clear()
+        self._history_keys.clear()

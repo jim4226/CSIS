@@ -8,6 +8,7 @@ The Coordinator's core method is `run_iteration()` — the 8-step loop from
 """
 from __future__ import annotations
 
+import re
 import threading
 import time
 import uuid
@@ -123,7 +124,16 @@ class Coordinator:
 
         iteration_id = f"iter-{uuid.uuid4().hex}"  # P9: full uuid hex, not truncated
         result = IterationResult(iteration_id=iteration_id)
-        self.event_log.emit("coordinator", "iter.start", {"id": iteration_id, "frontier": frontier_item})
+        # E10 (cycle-6) fix: record any curiosity salt that's part of the
+        # frontier_item, so a replay tool can reconstruct the exact prompt
+        # that was generated. Salts appear in gap-driven frontier items as
+        # "[salt=NNNN]"; extract them if present.
+        salt_match = re.search(r"\[salt=(\d+)\]", frontier_item)
+        self.event_log.emit("coordinator", "iter.start", {
+            "id": iteration_id,
+            "frontier": frontier_item,
+            "salt": int(salt_match.group(1)) if salt_match else None,
+        })
 
         # P6: scan the frontier item BEFORE inviting the LLM to plan on it.
         # A poisoned frontier item could otherwise reach the Researcher's
