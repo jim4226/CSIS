@@ -88,6 +88,21 @@ class MemoryStore:
             snap = {eid: e.model_dump() for eid, e in sorted(self._live.items())}
             return canonical_json_hash(snap)
 
+    def live_snapshot(self) -> tuple[str, dict[str, MemoryEntry]]:
+        """Cycle-4 C7 fix: return (hash, frozen_copy) atomically.
+
+        Callers (notably the Auditor's _build_diff) used to take the hash
+        and then iterate read_live() — a TOCTOU window where a parallel
+        promote could flip an entry's existence between the two reads,
+        making the why-doc's `kind` field lie about the precondition
+        baseline. Use this method instead to get both at the same lock
+        acquisition.
+        """
+        with self._lock:
+            snap = {eid: e.model_copy() for eid, e in self._live.items()}
+            h = canonical_json_hash({eid: e.model_dump() for eid, e in sorted(snap.items())})
+            return h, snap
+
     def candidate_hash(self) -> str:
         with self._lock:
             snap = {eid: e.model_dump() for eid, e in sorted(self._candidate.items())}

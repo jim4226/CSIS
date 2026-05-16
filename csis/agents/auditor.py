@@ -50,29 +50,52 @@ def structured_query(
     return out
 
 
+class TierMismatch(Exception):
+    """Cycle-4 C6: raised when a candidate's tier disagrees with the
+    target tier of the promotion. The Librarian must consolidate to a
+    single tier per iteration; a cross-tier candidate is a bug.
+    """
+
+
 def _build_diff(
     *,
     store: MemoryStore,
     target_tier: str,
     candidate_entries: list[MemoryEntry],
+    live_snapshot: dict[str, MemoryEntry] | None = None,
 ) -> WhyDocDiff:
     """Compute the structured per-entry delta the Auditor signs.
 
-    Synthesis #2: the why-doc previously carried only a free-text summary
-    and a precondition hash. The diff lets a forensics tool replay
-    exactly which entries were intended to change, without re-deriving
-    from raw stores."""
+    Synthesis #2: structured per-entry deltas for forensic replay.
+
+    Cycle-4 C6 fix: assert each candidate's `entry.tier == target_tier`
+    so a cross-tier consolidation bug raises rather than silently
+    misrepresenting the tier in the signed diff.
+
+    Cycle-4 C7 fix: accepts a `live_snapshot` (from store.live_snapshot())
+    so the diff is computed against a TOCTOU-safe frozen view of the
+    live store. If not provided, falls back to read_live (Phase-0 legacy).
+    """
     deltas: list[EntryDelta] = []
-    counts: dict[str, int] = {target_tier: 0}
+    counts: dict[str, int] = {}
     for entry in candidate_entries:
+        if entry.tier != target_tier:
+            raise TierMismatch(
+                f"candidate {entry.entry_id} has tier={entry.tier!r} but "
+                f"target_tier={target_tier!r}. Librarian must consolidate "
+                f"to a single tier per iteration."
+            )
         cand_hash = canonical_json_hash(entry.model_dump())
-        existing = store.read_live(entry.entry_id, role="auditor")
+        if live_snapshot is not None:
+            existing = live_snapshot.get(entry.entry_id)
+        else:
+            existing = store.read_live(entry.entry_id, role="auditor")
         if existing is None:
             deltas.append(
                 EntryDelta(
                     entry_id=entry.entry_id,
                     kind="add",
-                    tier=target_tier,  # type: ignore[arg-type]
+                    tier=entry.tier,
                     candidate_hash=cand_hash,
                 )
             )
@@ -81,12 +104,12 @@ def _build_diff(
                 EntryDelta(
                     entry_id=entry.entry_id,
                     kind="mod",
-                    tier=target_tier,  # type: ignore[arg-type]
+                    tier=entry.tier,
                     candidate_hash=cand_hash,
                     live_hash=canonical_json_hash(existing.model_dump()),
                 )
             )
-        counts[target_tier] += 1
+        counts[entry.tier] = counts.get(entry.tier, 0) + 1
     return WhyDocDiff(deltas=deltas, tier_counts=counts)
 
 
@@ -112,8 +135,15 @@ def write_why_doc(
     """
     assert ctx.role == Role.AUDITOR
     store: MemoryStore = hierarchy.tier(target_tier)
-    live_hash = store.live_hash()
-    diff = _build_diff(store=store, target_tier=target_tier, candidate_entries=candidate_entries)
+    # Cycle-4 C7 fix: take hash + frozen snapshot atomically so the diff
+    # cannot lie about kind/live_hash relative to the precondition baseline.
+    live_hash, live_snapshot = store.live_snapshot()
+    diff = _build_diff(
+        store=store,
+        target_tier=target_tier,
+        candidate_entries=candidate_entries,
+        live_snapshot=live_snapshot,
+    )
 
     # Auditor reads the structured log if provided, for F8 discipline.
     audit_evidence_count = 0
