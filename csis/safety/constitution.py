@@ -21,22 +21,35 @@ from csis.safety.tripwires import canonical_variants, canonicalize
 # Patterns that immediately disqualify a plan. Conservative list; expand
 # under explicit Auditor sign-off only. All matched against canonical form
 # (see csis.safety.tripwires.canonicalize) so hyphens/underscores collapse.
+# D1 (cycle-5) mitigation: every pattern has a negative-lookahead tail
+# excluding doc/config noun-suffixes. See tripwires.py for the same idea.
 DISALLOWED_PATTERNS: tuple[re.Pattern[str], ...] = (
     re.compile(
         r"\b("
         r"(disable|deactivate|switch\s+off|turn\s+off|kill|silence)\s+(the\s+|my\s+|our\s+)?(auditor|verifier|tripwire|shutdown|why\s?doc|audit\s+log)"
-        r")\b"
+        r")"
+        r"(?!\s*[.\w]*(?:configuration|config|mode|test|tests|hook|name|sh|py|file|documentation|explanation|spec|example|reference|interface|stub|mock|fake|fixture))"
+        r"\b"
     ),
     re.compile(
         r"\b("
         r"(remove|bypass|skip|circumvent|sidestep|evade|work\s+around)\s+(the\s+)?(safety|constitution|why\s?doc|verifier|auditor|tripwire)"
-        r")\b"
+        r")"
+        r"(?!\s+(?:mode|configuration|hook|documentation|explanation|stub|mock|reference|example|spec))"
+        r"\b"
     ),
-    re.compile(r"\b(exfiltrate|ex\s?filtrate|smuggle|leak)\b"),
+    re.compile(
+        r"\b(exfiltrate|ex\s?filtrate|smuggle|leak)\b"
+        r"(?!\s+(?:documentation|explanation|format|schema|spec|example|reference|name))"
+    ),
     re.compile(r"\b(self\s?modify|modify\s+(my\s+|the\s+|own\s+)?(weights|constitution|scaffold))\b"),
     re.compile(r"\bairgap\b.{0,40}\b(override|bypass|disable)\b"),
     re.compile(r"\b(promote|escalate)\s+(to\s+)?(t2|tier\s?2|t3|tier\s?3|t4|tier\s?4)\b"),
-    re.compile(r"\b(override|bypass)\s+(the\s+)?(shutdown|halt|killswitch|kill\s?switch)\b"),
+    re.compile(
+        r"\b(override|bypass)\s+(the\s+)?(shutdown|halt|killswitch|kill\s?switch)"
+        r"(?!\s+(?:hook|explanation|documentation|semantics|behavior|mechanism|signal|file|config|configuration|mode|name|sh|py|spec|example|reference))"
+        r"\b"
+    ),
 )
 
 

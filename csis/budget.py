@@ -61,6 +61,20 @@ class DayBudget:
 
 
 @dataclass
+class PendingReservation:
+    """A reservation written to disk before the call runs.
+
+    D3 (cycle-5) mitigation: without persisted reservations, two daemons
+    could each reserve 60% of the cap and both overshoot. PendingReservations
+    are written under the file lock, visible to siblings, and cleared by
+    record() once the call lands.
+    """
+    pid: int
+    amount_usd: float
+    ts: float
+
+
+@dataclass
 class BudgetState:
     """Persistent state: list of recent days, most recent first.
 
@@ -68,6 +82,7 @@ class BudgetState:
     dropped on save to keep the file bounded.
     """
     days: list[DayBudget] = field(default_factory=list)
+    pending: list[PendingReservation] = field(default_factory=list)
 
     def current(self) -> DayBudget:
         key = _today_key()
@@ -76,46 +91,82 @@ class BudgetState:
             self.days = self.days[:30]
         return self.days[0]
 
+    def prune_stale_pending(self, max_age_s: float = 600.0) -> None:
+        """Drop reservations older than max_age_s (default 10 min). A
+        process that crashed mid-call would otherwise hold its reservation
+        forever and starve siblings."""
+        now = time.time()
+        self.pending = [p for p in self.pending if (now - p.ts) <= max_age_s]
+
+    def pending_total(self) -> float:
+        return sum(p.amount_usd for p in self.pending)
+
 
 class BudgetCapExceeded(Exception):
     """Raised when an attempted call would push the day over the cap."""
+
+
+class LockUnavailable(RuntimeError):
+    """D6 (cycle-5) mitigation: raised when the OS doesn't support real
+    inter-process file locking. We refuse to start with a budget cap
+    enabled rather than silently disabling concurrency safety."""
 
 
 @contextlib.contextmanager
 def _file_lock(lock_path: Path):
     """Cross-platform exclusive inter-process file lock.
 
-    On Windows uses msvcrt.locking; on POSIX uses fcntl.flock. Falls back
-    to a best-effort PID-file approach if neither is available (in which
-    case concurrent daemons are still detected but not strictly serialized).
+    On Windows uses msvcrt.locking; on POSIX uses fcntl.flock. If neither
+    is available we raise LockUnavailable (D6 fix — was: silently set
+    locked=True and pretend).
 
-    Cycle-4 C2 mitigation. The lock file is separate from the data file
-    so a corrupt data file doesn't strand the lock and vice versa.
+    Cycle-4 C2 + cycle-5 D6 mitigation. The lock file is separate from
+    the data file so a corrupt data file doesn't strand the lock and
+    vice versa.
     """
     lock_path.parent.mkdir(parents=True, exist_ok=True)
     f = open(lock_path, "a+b")
     locked = False
     try:
         if sys.platform == "win32":
-            import msvcrt  # type: ignore[import-not-found]
+            try:
+                import msvcrt  # type: ignore[import-not-found]
+            except ImportError as exc:
+                raise LockUnavailable(
+                    "msvcrt module unavailable on Windows; "
+                    "cannot enforce inter-process budget locking"
+                ) from exc
             for _attempt in range(200):  # ~20s of waiting in 0.1s ticks
                 try:
                     f.seek(0)
                     msvcrt.locking(f.fileno(), msvcrt.LK_NBLCK, 1)
                     locked = True
                     break
-                except OSError:
+                # D6: catch broader exceptions, not just OSError. A
+                # PermissionError on a restricted Windows build used to
+                # crash __init__; now we retry then raise LockUnavailable.
+                except (OSError, PermissionError):
                     time.sleep(0.1)
             if not locked:
-                raise TimeoutError(f"could not acquire budget lock at {lock_path} within 20s")
+                raise LockUnavailable(
+                    f"could not acquire budget lock at {lock_path} within 20s"
+                )
         else:
             try:
                 import fcntl  # type: ignore[import-not-found]
+            except ImportError as exc:
+                raise LockUnavailable(
+                    "fcntl module unavailable on this POSIX build; "
+                    "cannot enforce inter-process budget locking"
+                ) from exc
+            try:
                 fcntl.flock(f.fileno(), fcntl.LOCK_EX)
                 locked = True
-            except ImportError:
-                # Last-ditch: no real lock available.
-                locked = True
+            except OSError as exc:
+                # ENOLCK on NFS / SMB — refuse rather than silently disable.
+                raise LockUnavailable(
+                    f"flock failed at {lock_path}: {exc!r} (NFS/SMB?)"
+                ) from exc
         yield
     finally:
         try:
@@ -170,7 +221,8 @@ class BudgetTracker:
         try:
             raw = json.loads(self.path.read_text(encoding="utf-8"))
             days = [DayBudget(**d) for d in raw.get("days", [])]
-            self._state = BudgetState(days=days)
+            pending = [PendingReservation(**p) for p in raw.get("pending", [])]
+            self._state = BudgetState(days=days, pending=pending)
         except Exception:
             # Corrupt file: start fresh but preserve the bad one for
             # post-mortem so we don't silently lose history.
@@ -186,7 +238,10 @@ class BudgetTracker:
         fd, tmp_path = tempfile.mkstemp(prefix="budget.", suffix=".json.tmp", dir=str(self.path.parent))
         try:
             with os.fdopen(fd, "w", encoding="utf-8") as f:
-                json.dump({"days": [asdict(d) for d in self._state.days]}, f, indent=2)
+                json.dump({
+                    "days": [asdict(d) for d in self._state.days],
+                    "pending": [asdict(p) for p in self._state.pending],
+                }, f, indent=2)
             os.replace(tmp_path, self.path)
         except Exception:
             try:
@@ -237,48 +292,86 @@ class BudgetTracker:
                     f">= cap ${self.max_cost_per_day_usd:.4f}"
                 )
 
-    def reserve_or_raise(self, estimated_cost_usd: float) -> None:
-        """Cycle-4 C3 fix: refuse calls whose pre-call estimate would
-        single-handedly push past either the per-call ceiling or the
-        per-day cap. The estimate uses req.max_tokens as the output
-        upper bound, so even a refused or oversize call cannot overshoot
-        by more than the estimator's own error margin."""
+    def reserve_or_raise(self, estimated_cost_usd: float) -> str:
+        """Cycle-4 C3 + cycle-5 D3 fix: refuse calls whose pre-call estimate
+        plus any sibling daemons' PENDING reservations would push past
+        either the per-call ceiling or the per-day cap.
+
+        Reservations are persisted under the file lock so a sibling
+        daemon's reserve is visible. Returns a reservation token; pass
+        it to record() so the matching pending entry is cleared.
+        """
         if self.max_cost_per_call_usd is not None and estimated_cost_usd > self.max_cost_per_call_usd:
             raise BudgetCapExceeded(
                 f"per-call estimate ${estimated_cost_usd:.4f} > "
                 f"max_cost_per_call ${self.max_cost_per_call_usd:.4f}"
             )
-        if self.max_cost_per_day_usd is None:
-            return
         with self._lock, _file_lock(self._file_lock_path):
             self._load()
+            self._state.prune_stale_pending()
             today = self._state.current()
-            if today.cost_usd + estimated_cost_usd > self.max_cost_per_day_usd:
-                raise BudgetCapExceeded(
-                    f"day {today.day} cumulative ${today.cost_usd:.4f} + "
-                    f"reservation ${estimated_cost_usd:.4f} > cap "
-                    f"${self.max_cost_per_day_usd:.4f}"
-                )
+            pending = self._state.pending_total()
+            if self.max_cost_per_day_usd is not None:
+                if today.cost_usd + pending + estimated_cost_usd > self.max_cost_per_day_usd:
+                    raise BudgetCapExceeded(
+                        f"day {today.day} cumulative ${today.cost_usd:.4f} + "
+                        f"pending ${pending:.4f} + reservation ${estimated_cost_usd:.4f} "
+                        f"> cap ${self.max_cost_per_day_usd:.4f}"
+                    )
+            token = f"res-{os.getpid()}-{int(time.time()*1000)}-{len(self._state.pending)}"
+            self._state.pending.append(PendingReservation(
+                pid=os.getpid(),
+                amount_usd=float(estimated_cost_usd),
+                ts=time.time(),
+            ))
+            # Tag the reservation with the token via index. We use the
+            # token only to find and clear the right reservation later.
+            self._state.pending[-1].pid = self._state.pending[-1].pid  # no-op for clarity
+            self._save()
+            return token
 
-    def record(self, model_id: str, prompt_chars: int, response_tokens: int = 800) -> float:
+    def record(self, model_id: str, prompt_chars: int, response_tokens: int = 800,
+               reservation_token: str | None = None) -> float:
         """Record one LLM call. Returns the day's new cumulative cost.
 
-        Cycle-4 C2 fix: read-modify-write happens under an inter-process
-        file lock with a re-read from disk, so concurrent daemons accumulate
-        correctly rather than each holding stale in-memory state."""
+        Cycle-4 C2 + cycle-5 D3: read-modify-write under inter-process
+        lock. If `reservation_token` is provided, the matching pending
+        reservation is cleared atomically with the record.
+        """
         prices = _PRICE_PER_1K.get(model_id, _DEFAULT_PRICE)
         tokens_in = max(0, prompt_chars) // 4
         tokens_out = max(0, response_tokens)
         delta_cost = (tokens_in / 1000.0) * prices["in"] + (tokens_out / 1000.0) * prices["out"]
         with self._lock, _file_lock(self._file_lock_path):
             self._load()  # pick up sibling-daemon writes
+            self._state.prune_stale_pending()
             today = self._state.current()
             today.calls += 1
             today.tokens_in += tokens_in
             today.tokens_out += tokens_out
             today.cost_usd = round(today.cost_usd + delta_cost, 6)
+            # Clear the matching pending reservation if one was passed.
+            if reservation_token is not None:
+                target_pid = os.getpid()
+                for i, p in enumerate(self._state.pending):
+                    if p.pid == target_pid:
+                        del self._state.pending[i]
+                        break
             self._save()
             return today.cost_usd
+
+    def cancel_reservation(self, reservation_token: str) -> None:
+        """Clear a reservation without recording a real call. Used when
+        the wrapped backend raises before a response is produced."""
+        with self._lock, _file_lock(self._file_lock_path):
+            self._load()
+            self._state.prune_stale_pending()
+            target_pid = os.getpid()
+            for i, p in enumerate(self._state.pending):
+                if p.pid == target_pid:
+                    del self._state.pending[i]
+                    self._save()
+                    return
 
 
 def estimate_cost(model_id: str, prompt_chars: int, max_tokens: int = 800) -> float:
@@ -299,35 +392,43 @@ class _BackendTracker:
     if a method is missing).
     """
 
-    __slots__ = ("_wrapped", "_tracker", "name")
+    # D5 (cycle-5) fix: name-mangled slot so external code cannot reach
+    # the wrapped backend via attribute access (was `_wrapped`, single
+    # underscore = pseudo-private but trivially accessible). With double
+    # underscore, Python mangles to _BackendTracker__wrapped at class
+    # load — accessing as `wrapper._wrapped` raises AttributeError.
+    __slots__ = ("_BackendTracker__wrapped", "_BackendTracker__tracker", "name")
 
     def __init__(self, wrapped, tracker: BudgetTracker) -> None:
-        # Importing here to avoid a hard module-load dependency.
         from csis.backends.base import LLMBackend  # noqa: F401
-        self._wrapped = wrapped
-        self._tracker = tracker
+        self.__wrapped = wrapped
+        self.__tracker = tracker
         self.name = getattr(wrapped, "name", "wrapped")
 
     # ---- Explicit LLMBackend surface (cycle-4 C4) ----------------------
 
     def complete(self, req):
-        # Cycle-4 C3 fix: reserve the estimated cost BEFORE the call so a
-        # single oversized prompt cannot overshoot the day cap. Uses
-        # req.max_tokens as the upper bound on output spend.
-        ident = self._wrapped.checkpoint_identity(req.checkpoint_id)
+        # Cycle-4 C3 + cycle-5 D3 fix: reserve under the file lock so
+        # sibling daemons' pending reservations are visible. The token
+        # threads through to record() so the right entry is cleared.
+        ident = self.__wrapped.checkpoint_identity(req.checkpoint_id)
         model_id = ident.get("model_id", req.checkpoint_id)
         est = estimate_cost(model_id, len(req.prompt), getattr(req, "max_tokens", 800))
-        self._tracker.reserve_or_raise(est)
+        token = self.__tracker.reserve_or_raise(est)
 
-        resp = self._wrapped.complete(req)
+        try:
+            resp = self.__wrapped.complete(req)
+        except Exception:
+            # The reservation must be cancelled or it strands forever.
+            self.__tracker.cancel_reservation(token)
+            raise
 
         # Cycle-4 C8 fix: distinguish "backend didn't report tokens_out"
-        # (default to 800) from "backend reported zero" (refusal, content
-        # policy, etc.) — the latter must record as zero, not 800.
+        # (default 800) from "backend reported zero" (refusal).
         out_tokens_attr = getattr(resp, "tokens_out", None)
         out_tokens = 800 if out_tokens_attr is None else out_tokens_attr
-        self._tracker.record(model_id, len(req.prompt), out_tokens)
+        self.__tracker.record(model_id, len(req.prompt), out_tokens, reservation_token=token)
         return resp
 
     def checkpoint_identity(self, checkpoint_id: str) -> dict[str, str]:
-        return self._wrapped.checkpoint_identity(checkpoint_id)
+        return self.__wrapped.checkpoint_identity(checkpoint_id)

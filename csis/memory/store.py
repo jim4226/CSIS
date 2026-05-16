@@ -89,7 +89,8 @@ class MemoryStore:
             return canonical_json_hash(snap)
 
     def live_snapshot(self) -> tuple[str, dict[str, MemoryEntry]]:
-        """Cycle-4 C7 fix: return (hash, frozen_copy) atomically.
+        """Cycle-4 C7 fix + cycle-5 D2 hardening: return (hash, DEEP-copied
+        snapshot) atomically.
 
         Callers (notably the Auditor's _build_diff) used to take the hash
         and then iterate read_live() — a TOCTOU window where a parallel
@@ -97,9 +98,15 @@ class MemoryStore:
         making the why-doc's `kind` field lie about the precondition
         baseline. Use this method instead to get both at the same lock
         acquisition.
+
+        D2 (cycle-5) fix: model_copy() is shallow by default; mutations
+        to nested dicts (notably MemoryEntry.extra) would propagate back
+        to the live store. We now deep-copy so the snapshot is a true
+        frozen view and the Auditor cannot accidentally smuggle a write
+        through the read path.
         """
         with self._lock:
-            snap = {eid: e.model_copy() for eid, e in self._live.items()}
+            snap = {eid: e.model_copy(deep=True) for eid, e in self._live.items()}
             h = canonical_json_hash({eid: e.model_dump() for eid, e in sorted(snap.items())})
             return h, snap
 

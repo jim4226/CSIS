@@ -14,7 +14,7 @@ import uuid
 from dataclasses import dataclass, field
 from typing import Optional
 
-from csis.agents.auditor import write_why_doc
+from csis.agents.auditor import TierMismatch, write_why_doc
 from csis.agents.base import AgentContext, Role
 from csis.agents.builder import execute_plan
 from csis.agents.librarian import consolidate_to_candidates
@@ -233,6 +233,14 @@ class Coordinator:
             self.event_log.emit("coordinator", "grader.drift", {"reason": str(exc)})
             self._rollback(result, f"grader-drift:{exc}")
             return result
+        except BudgetCapExceeded:
+            # D10 (cycle-5) fix: budget cap mid-verify still emits a rollback
+            # event so the daemon's stats show the case, then re-raises so
+            # the daemon halt path fires.
+            self.event_log.emit("coordinator", "iter.partial", {
+                "reason": "budget-cap-in-verifier", "iteration_id": iteration_id,
+            })
+            raise
         result.cert = cert
         self.event_log.emit("verifier", "verifier.cert", cert.model_dump(mode="json"))
 
@@ -255,6 +263,11 @@ class Coordinator:
             self.event_log.emit("coordinator", "tier.write.blocked", {"reason": str(exc)})
             self._rollback(result, f"librarian-blocked:{exc}")
             return result
+        except BudgetCapExceeded:
+            self.event_log.emit("coordinator", "iter.partial", {
+                "reason": "budget-cap-in-librarian", "iteration_id": iteration_id,
+            })
+            raise
         result.candidate_entries = candidates
         self.event_log.emit("librarian", "librarian.consolidate", {
             "tier": target_tier,
@@ -262,16 +275,36 @@ class Coordinator:
         })
 
         # Auditor (steps 7-8): write why-doc, sign with hash precondition, promote.
-        why = write_why_doc(
-            ctx=self._ctx(Role.AUDITOR, side="auditor"),
-            hierarchy=self.hierarchy,
-            target_tier=target_tier,
-            plan=plan,
-            artifact=artifact,
-            cert=cert,
-            candidate_entries=candidates,
-            log=self.event_log,
-        )
+        # D4 (cycle-5) fix: catch TierMismatch so a Librarian bug doesn't
+        # leak VERIFIED-trust candidates on disk forever. The rollback
+        # path also discards the just-verified candidates so they don't
+        # corrupt the next iteration.
+        try:
+            why = write_why_doc(
+                ctx=self._ctx(Role.AUDITOR, side="auditor"),
+                hierarchy=self.hierarchy,
+                target_tier=target_tier,
+                plan=plan,
+                artifact=artifact,
+                cert=cert,
+                candidate_entries=candidates,
+                log=self.event_log,
+            )
+        except TierMismatch as exc:
+            for entry in candidates:
+                try:
+                    store.discard_candidate(entry.entry_id, reason=f"tier-mismatch:{exc}")
+                except Exception:  # noqa: BLE001
+                    pass
+            self.event_log.emit("coordinator", "tier.mismatch", {"reason": str(exc)})
+            self._rollback(result, f"tier-mismatch:{exc}")
+            return result
+        except BudgetCapExceeded:
+            raise
+        except Exception as exc:  # noqa: BLE001
+            self.event_log.emit("coordinator", "auditor.failed", {"reason": repr(exc)})
+            self._rollback(result, f"auditor-raised:{exc!r}")
+            return result
         result.why = why
         self.event_log.emit("auditor", "auditor.signed", why.model_dump(mode="json"))
 

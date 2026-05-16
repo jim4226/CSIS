@@ -14,11 +14,15 @@ from csis.daemon import Daemon, DaemonBudget, _select_backend
 from csis.safety.fuzzer import DEFAULT_CORPUS, FuzzCase, SafetyFuzzer
 
 
-def test_default_corpus_passes_cleanly() -> None:
-    """Every adversarial paraphrase blocked; every benign one allowed."""
+def test_default_corpus_has_no_security_regressions() -> None:
+    """Every adversarial corpus row must be blocked. False positives on
+    the benign rows are warnings (cycle-5 D1 refinement); security
+    regressions are hard-halts."""
     fz = SafetyFuzzer()
     rep = fz.check()
-    assert rep.passed, f"safety regressions detected: {rep.failures}"
+    assert not rep.has_security_regression, (
+        f"security regressions: {rep.security_regressions}"
+    )
     assert rep.cases_checked == len(DEFAULT_CORPUS)
 
 
@@ -64,9 +68,8 @@ def test_daemon_runs_fuzzer_at_snapshot_boundary(tmp_path: Path) -> None:
     assert fuzz_oks == 2, kinds
 
 
-def test_daemon_halts_on_fuzz_failure(tmp_path: Path, monkeypatch) -> None:
-    """If the fuzzer reports a failure, the daemon emits safety.fuzz_failure
-    and halts."""
+def test_daemon_halts_on_fuzz_security_regression(tmp_path: Path, monkeypatch) -> None:
+    """A security regression (blocked → allowed) halts the daemon."""
     cfg = CSISConfig.for_tests(tmp_path)
     backend = _select_backend("mock", cfg)
     daemon = Daemon(
@@ -75,7 +78,6 @@ def test_daemon_halts_on_fuzz_failure(tmp_path: Path, monkeypatch) -> None:
                             snapshot_every_n_iterations=1, heartbeat_every_n_iterations=1),
         max_total_iterations=10,
     )
-    # Inject a fuzzer with a known-failing corpus row.
     daemon.fuzzer = SafetyFuzzer(corpus=(
         FuzzCase("planted", "totally innocuous text the predicate cannot catch", expect_blocked=True),
     ))
@@ -83,5 +85,30 @@ def test_daemon_halts_on_fuzz_failure(tmp_path: Path, monkeypatch) -> None:
     assert rc == 0
     kinds = [s.event.kind for s in daemon.coord.event_log]
     assert "safety.fuzz_failure" in kinds
-    # Daemon should have halted at iteration 1 (snapshot_every=1).
     assert daemon.stats.iterations_total <= 2
+
+
+def test_daemon_warns_on_fuzz_false_positive_without_halting(tmp_path: Path) -> None:
+    """A false positive (allowed → blocked) emits a warning event but the
+    daemon keeps running. Cycle-5 D1 refinement: over-caught benign text
+    is a tuning signal, not a halt cause."""
+    cfg = CSISConfig.for_tests(tmp_path)
+    backend = _select_backend("mock", cfg)
+    daemon = Daemon(
+        config=cfg, backend=backend,
+        budget=DaemonBudget(max_iterations_per_hour=10000, sleep_between_iterations_s=0,
+                            snapshot_every_n_iterations=1, heartbeat_every_n_iterations=1),
+        max_total_iterations=3,
+    )
+    # Inject a fuzzer whose corpus expects "disable the auditor" to be
+    # ALLOWED — but the current predicates correctly block it, so we get
+    # a false-positive row.
+    daemon.fuzzer = SafetyFuzzer(corpus=(
+        FuzzCase("expected_allowed_but_blocked", "disable the auditor", expect_blocked=False),
+    ))
+    rc = daemon.run_forever()
+    assert rc == 0
+    assert daemon.stats.iterations_total == 3
+    kinds = [s.event.kind for s in daemon.coord.event_log]
+    assert "safety.fuzz_false_positives" in kinds
+    assert "safety.fuzz_failure" not in kinds

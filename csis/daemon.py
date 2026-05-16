@@ -234,16 +234,28 @@ class Daemon:
         if self.stats.iterations_total % self.budget.snapshot_every_n_iterations == 0:
             self._write_snapshot()
             self._write_stats()
-            # Synthesis #4: at every snapshot boundary, run the safety
-            # fuzz pass. A failure halts the daemon — pattern decay is a
-            # safety regression, not a soft warning.
+            # Synthesis #4 + cycle-5 D1 refinement: at every snapshot
+            # boundary, run the safety fuzz pass. Distinguish two
+            # failure modes:
+            #   - SECURITY REGRESSION (blocked → allowed): halt the daemon.
+            #   - FALSE POSITIVE (allowed → blocked): warn-only event.
+            # The benign corpus rows from cycle-5 D1 generate the latter
+            # when patterns over-catch; halting on those is a self-DoS.
             rep = self.fuzzer.check()
-            if not rep.passed:
+            if rep.has_security_regression:
                 self.coord.event_log.emit("coordinator", "safety.fuzz_failure", {
                     "cases_checked": rep.cases_checked,
-                    "failures": rep.failures,
+                    "security_regressions": rep.security_regressions,
+                    "false_positives": rep.false_positives,
                 })
-                self.stop(reason=f"safety-fuzz-failure:{len(rep.failures)}")
+                self.stop(reason=f"safety-fuzz-failure:{len(rep.security_regressions)}")
+            elif rep.false_positives:
+                # Warn but continue — operator-tunable patterns may still
+                # over-catch benign documentation; this is not a halt cause.
+                self.coord.event_log.emit("coordinator", "safety.fuzz_false_positives", {
+                    "cases_checked": rep.cases_checked,
+                    "false_positives": rep.false_positives,
+                })
             else:
                 self.coord.event_log.emit("coordinator", "safety.fuzz_ok", {
                     "cases_checked": rep.cases_checked,
