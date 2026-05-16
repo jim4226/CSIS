@@ -29,7 +29,8 @@ param(
     [double]$SleepS = 1.0,
     [int]$SnapshotEvery = 25,
     [string]$Domain = "",
-    [string]$RepoPath = ""
+    [string]$RepoPath = "",
+    [switch]$StartNow  # synthesis gap #7: skip the interactive prompt for unattended setup
 )
 
 $ErrorActionPreference = "Stop"
@@ -84,9 +85,15 @@ Write-Host "[install_service] verify with: sc.exe query $ServiceName"
 Write-Host "[install_service] watch heartbeat: Get-Content .\brain\daemon.heartbeat"
 Write-Host "[install_service] stop gracefully: New-Item -ItemType File .\STOP"
 Write-Host ""
-Write-Host "Start now? (y/n)"
-$reply = Read-Host
-if ($reply -eq "y" -or $reply -eq "Y") {
+if ($StartNow) {
+    Write-Host "[install_service] -StartNow set; starting now without prompt."
     & sc.exe start $ServiceName
     & sc.exe query $ServiceName
+} else {
+    Write-Host "Start now? (y/n)  (or re-run with -StartNow for unattended install)"
+    $reply = Read-Host
+    if ($reply -eq "y" -or $reply -eq "Y") {
+        & sc.exe start $ServiceName
+        & sc.exe query $ServiceName
+    }
 }

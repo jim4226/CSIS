@@ -58,9 +58,16 @@ class SignedEvent(BaseModel):
         return h.hexdigest()
 
 
-_ALLOWED_ACTORS: frozenset[str] = frozenset(
-    {"coordinator", "researcher", "builder", "critic", "verifier", "librarian", "auditor", "overseer", "substrate"}
-)
+def _load_allowed_actors() -> frozenset[str]:
+    """Lazy import to avoid a substrate <- agents cycle at module load.
+
+    Synthesis gap #4 fix: the allow-list now lives next to the Role enum
+    (csis.agents.base.ALLOWED_EMIT_ACTORS). EventLog imports it lazily so
+    the substrate layer doesn't depend on the agents layer at import time
+    — only at the first emit() call, by which time everything is loaded.
+    """
+    from csis.agents.base import ALLOWED_EMIT_ACTORS
+    return ALLOWED_EMIT_ACTORS
 
 
 class UnknownActorError(Exception):
@@ -102,10 +109,10 @@ class EventLog:
 
         Raises UnknownActorError if `actor` is not in the Phase-0 allow-list
         (P7 mitigation)."""
-        if actor not in _ALLOWED_ACTORS:
+        if actor not in _load_allowed_actors():
             raise UnknownActorError(
                 f"actor={actor!r} not in Phase-0 allow-list; "
-                f"update csis.substrate.event_log._ALLOWED_ACTORS to add new roles."
+                f"add to csis.agents.base.ALLOWED_EMIT_ACTORS to introduce a new role."
             )
         with self._lock:
             event = Event(

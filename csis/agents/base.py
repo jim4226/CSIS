@@ -27,6 +27,16 @@ class Role(str, Enum):
     AUDITOR = "auditor"
 
 
+# Single source of truth for the substrate's allow-list of event-log emit
+# actors. Synthesis gap #4: previously this lived as a hardcoded frozenset
+# inside csis.substrate.event_log; lifting it next to the Role enum means
+# adding a new role updates the allow-list in the same edit.
+ALLOWED_EMIT_ACTORS: frozenset[str] = frozenset(
+    {r.value for r in Role}
+    | {"overseer", "substrate"}  # non-Role actors that may still emit
+)
+
+
 SYSTEM_PROMPTS: dict[Role, str] = {
     Role.COORDINATOR: (
         "You are the Coordinator. Schedule sub-agents, enforce capability tiers, "

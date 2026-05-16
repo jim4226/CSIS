@@ -102,8 +102,16 @@ class Curiosity:
         target_tier, min_count = min(candidates.items(), key=lambda kv: kv[1])
         if min_count > 10:
             return None  # tier is well-populated; let seed rotation drive
+        # Synthesis gap #6 fix: inject a small entropy term so the prompt
+        # varies even when (tier, count) is stable. Without this, the daemon
+        # under empty hierarchies produces the same prompt every iteration,
+        # which hashes to the same mock-backend seed → false 100% promote rate.
+        salt = self._rng.randrange(0, 10_000)
         return FrontierItem(
-            text=f"gap-driven: tier={target_tier} has only {min_count} promoted entries; produce one more",
+            text=(
+                f"gap-driven: tier={target_tier} has only {min_count} promoted entries; "
+                f"produce one more [salt={salt}]"
+            ),
             source="gap-driven",
             priority=3,
         )
