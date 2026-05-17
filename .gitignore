@@ -45,3 +45,16 @@ secrets/
 
 # --- Pytest temp dirs ----------------------------------------------------
 pytest_temp/
+
+# --- Local-only drafts (not for public repo) -----------------------------
+# Distribution drafts (HN/Reddit posts, social preview, subreddit research)
+# live locally so they're reusable but stay off the public repo.
+docs/marketing/
+
+# Budget tracker state from running scripts/burst.py or scripts/demo_pr_scenario.py.
+brain/burst.budget.json
+brain/burst.budget.json.lock
+brain/demo_pr.budget.json
+brain/demo_pr.budget.json.lock
+brain/loop.budget.json
+brain/loop.budget.json.lock
