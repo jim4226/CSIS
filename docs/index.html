@@ -207,6 +207,104 @@
     font-weight: 700;
   }
   .cycle-table .open-zero { color: var(--good); font-weight: 700; }
+  .cycle-table tr.cycle-row {
+    cursor: pointer;
+    transition: background 0.15s ease;
+  }
+  .cycle-table tr.cycle-row:hover {
+    background: var(--bg-soft);
+  }
+  .cycle-table tr.cycle-row.expanded {
+    background: var(--bg-soft);
+  }
+  .cycle-table tr.cycle-row .caret {
+    display: inline-block;
+    margin-right: 8px;
+    color: var(--accent);
+    transition: transform 0.18s ease;
+    font-weight: 700;
+  }
+  .cycle-table tr.cycle-row.expanded .caret {
+    transform: rotate(90deg);
+  }
+  .cycle-detail {
+    display: none;
+  }
+  .cycle-detail.show {
+    display: table-row;
+  }
+  .cycle-detail td {
+    padding: 0;
+    background: white;
+    border-bottom: 2px solid var(--accent);
+  }
+  .cycle-detail-inner {
+    padding: 20px 24px 24px 56px;
+    font-family: var(--sans);
+    font-size: 15px;
+    line-height: 1.55;
+  }
+  .cycle-detail-inner .summary {
+    color: var(--ink);
+    margin: 0 0 16px 0;
+  }
+  .cycle-detail-inner .findings-label {
+    font-family: var(--mono);
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 1.2px;
+    color: var(--ink-dim);
+    margin: 0 0 8px 0;
+    font-weight: 700;
+  }
+  .cycle-detail-inner .findings {
+    list-style: none;
+    padding: 0;
+    margin: 0 0 16px 0;
+  }
+  .cycle-detail-inner .findings li {
+    padding: 6px 0;
+    border-bottom: 1px dashed var(--border);
+    font-size: 14px;
+  }
+  .cycle-detail-inner .findings li:last-child { border-bottom: none; }
+  .cycle-detail-inner .findings .sev {
+    font-family: var(--mono);
+    font-size: 11px;
+    padding: 2px 6px;
+    border-radius: 3px;
+    color: white;
+    margin-right: 8px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+  }
+  .cycle-detail-inner .findings .sev.crit { background: var(--accent); }
+  .cycle-detail-inner .findings .sev.high { background: var(--gold); }
+  .cycle-detail-inner .findings .label-id {
+    font-family: var(--mono);
+    color: var(--accent-deep);
+    font-weight: 700;
+    margin-right: 6px;
+  }
+  .cycle-detail-inner .detail-links {
+    font-family: var(--mono);
+    font-size: 13px;
+    color: var(--ink-dim);
+  }
+  .cycle-detail-inner .detail-links a {
+    color: var(--accent);
+    text-decoration: none;
+    margin-right: 16px;
+  }
+  .cycle-detail-inner .detail-links a:hover { text-decoration: underline; }
+  .hint {
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--ink-dim);
+    margin-top: 12px;
+    text-align: right;
+  }
 
   /* ---- two-pattern cards --------------------------------------------- */
   .patterns {
@@ -256,25 +354,140 @@
     color: var(--accent-deep);
   }
 
-  /* ---- 8-step loop --------------------------------------------------- */
-  pre.loop {
-    font-family: var(--mono);
-    font-size: 13px;
-    line-height: 1.5;
+  /* ---- 8-step loop SVG ---------------------------------------------- */
+  .loop-svg-wrap {
     background: var(--bg-card);
     border: 1px solid var(--border);
     border-radius: 10px;
-    padding: 22px 26px;
+    padding: 28px 24px 20px;
     overflow-x: auto;
-    color: var(--ink);
-    margin: 0;
   }
-  pre.loop .role {
+  .loop-svg {
+    width: 100%;
+    max-width: 1020px;
+    display: block;
+    margin: 0 auto;
+    min-width: 760px;
+  }
+  .loop-svg .role-box {
+    fill: var(--bg-soft);
+    stroke: var(--border);
+    stroke-width: 1.5;
+    transition: all 0.35s ease;
+  }
+  .loop-svg .role-box.active {
+    fill: var(--accent);
+    stroke: var(--accent-deep);
+  }
+  .loop-svg .role-box.alt-ckpt {
+    fill: #eaf1f9;
+    stroke: var(--calm);
+  }
+  .loop-svg .role-box.alt-ckpt.active {
+    fill: var(--calm);
+    stroke: #4a82bc;
+  }
+  .loop-svg .role-label {
+    font-family: var(--sans);
+    font-size: 14px;
+    font-weight: 700;
+    fill: var(--ink);
+    text-anchor: middle;
+    transition: fill 0.35s ease;
+  }
+  .loop-svg .role-box.active + .role-label,
+  .loop-svg .role-label.active {
+    fill: white;
+  }
+  .loop-svg .role-sublabel {
+    font-family: var(--mono);
+    font-size: 10px;
+    fill: var(--ink-dim);
+    text-anchor: middle;
+    transition: fill 0.35s ease;
+  }
+  .loop-svg .arrow {
+    stroke: var(--border);
+    stroke-width: 2;
+    fill: none;
+  }
+  .loop-svg .arrow.active { stroke: var(--accent); stroke-width: 2.5; }
+  .loop-svg .promote-box {
+    fill: var(--good);
+    stroke: #5a6c46;
+    stroke-width: 1.5;
+  }
+  .loop-svg .promote-box.active {
+    fill: #95a878;
+    stroke: var(--good);
+  }
+  .loop-svg .promote-label {
+    fill: white;
+    font-family: var(--sans);
+    font-weight: 700;
+    text-anchor: middle;
+    font-size: 14px;
+  }
+  .loop-svg .token {
+    fill: var(--accent);
+    opacity: 0;
+    transition: opacity 0.2s ease;
+  }
+  .loop-svg .token.show { opacity: 1; }
+  .loop-svg .ckpt-bracket {
+    stroke: var(--calm);
+    stroke-width: 1.5;
+    stroke-dasharray: 4 3;
+    fill: none;
+  }
+  .loop-svg .ckpt-bracket-label {
+    font-family: var(--mono);
+    font-size: 10px;
+    fill: var(--calm);
+    text-anchor: middle;
+    font-weight: 600;
+    letter-spacing: 1px;
+    text-transform: uppercase;
+  }
+  .loop-caption {
+    font-family: var(--mono);
+    font-size: 13px;
+    color: var(--ink-dim);
+    text-align: center;
+    margin-top: 12px;
+    min-height: 22px;
+    transition: color 0.2s ease;
+  }
+  .loop-caption .step-num {
     color: var(--accent);
     font-weight: 700;
+    margin-right: 8px;
   }
-  pre.loop .dim {
+  .loop-controls {
+    display: flex;
+    gap: 12px;
+    align-items: center;
+    justify-content: center;
+    margin-top: 4px;
+    font-family: var(--mono);
+    font-size: 13px;
     color: var(--ink-dim);
+  }
+  .loop-controls button {
+    font-family: var(--mono);
+    font-size: 12px;
+    padding: 5px 12px;
+    border: 1px solid var(--border);
+    border-radius: 5px;
+    background: var(--bg);
+    color: var(--accent);
+    cursor: pointer;
+    font-weight: 600;
+    transition: all 0.15s ease;
+  }
+  .loop-controls button:hover {
+    background: var(--bg-soft);
+    border-color: var(--accent);
   }
 
   /* ---- quick start --------------------------------------------------- */
@@ -375,6 +588,7 @@
       <a href="#loop">The loop</a>
       <a href="#patterns">Patterns</a>
       <a href="#safety">Safety</a>
+      <a href="playground.html">Playground</a>
       <a href="https://github.com/jim4226/CSIS">GitHub</a>
     </div>
   </nav>
@@ -395,6 +609,7 @@
       <a class="cta primary" href="https://github.com/jim4226/CSIS">View on GitHub →</a>
       <a class="cta secondary" href="https://github.com/jim4226/CSIS/blob/main/CYCLES.md">Read the cycle trail</a>
       <a class="cta secondary" href="https://github.com/jim4226/CSIS/blob/main/CSIS-architecture.html">Architecture spec</a>
+      <a class="cta secondary" href="playground.html">Live tripwire playground →</a>
     </div>
   </header>
 
@@ -403,7 +618,7 @@
     <h4 class="section-h">99 findings across 9 cycles. 96 closed in code, 3 honestly deferred.</h4>
     <p class="section-intro">Each cycle: parallel red-team agents attack the prior cycle's fixes, with <code class="inline">file:line</code> evidence and reproducible attack snippets. Fixes land in code with regression tests. Snapshots get written to <code class="inline">brain/</code> so the trail survives any contributor — human or AI — picking up cold.</p>
 
-    <table class="cycle-table">
+    <table class="cycle-table" id="cycle-table">
       <thead>
         <tr>
           <th>Cycle</th>
@@ -418,32 +633,112 @@
         </tr>
       </thead>
       <tbody>
-        <tr><td><span class="cycle-num">1</span> · pre-impl</td><td class="right">18</td><td class="right">2</td><td class="right">6</td><td class="right">7</td><td class="right">3</td><td class="right open-zero">0</td><td class="right">0</td><td class="right">52</td></tr>
-        <tr><td><span class="cycle-num">2</span> · post-impl</td><td class="right">13</td><td class="right">2</td><td class="right">6</td><td class="right">3</td><td class="right">2</td><td class="right open-zero">0</td><td class="right">0</td><td class="right">78</td></tr>
-        <tr><td><span class="cycle-num">3</span> · deltas</td><td class="right">11</td><td class="right">2</td><td class="right">4</td><td class="right">4</td><td class="right">1</td><td class="right open-zero">0</td><td class="right">0</td><td class="right">114</td></tr>
-        <tr><td><span class="cycle-num">4</span> · fixes</td><td class="right">11</td><td class="right">2</td><td class="right">4</td><td class="right">4</td><td class="right">1</td><td class="right open-zero">0</td><td class="right">0</td><td class="right">141</td></tr>
-        <tr><td><span class="cycle-num">5</span> · fixes</td><td class="right">11</td><td class="right">3</td><td class="right">3</td><td class="right">4</td><td class="right">1</td><td class="right open-zero">0</td><td class="right">0</td><td class="right">165</td></tr>
-        <tr><td><span class="cycle-num">6</span> · fixes</td><td class="right">10</td><td class="right">3</td><td class="right">3</td><td class="right">3</td><td class="right">1</td><td class="right open-zero">0</td><td class="right">1</td><td class="right">186</td></tr>
-        <tr><td><span class="cycle-num">7</span> · fixes</td><td class="right">7</td><td class="right">1</td><td class="right">2</td><td class="right">3</td><td class="right">1</td><td class="right open-zero">0</td><td class="right">0</td><td class="right">195</td></tr>
-        <tr><td><span class="cycle-num">8</span> · fixes</td><td class="right">6</td><td class="right">2</td><td class="right">2</td><td class="right">2</td><td class="right">0</td><td class="right open-zero">0</td><td class="right">0</td><td class="right">202</td></tr>
-        <tr><td><span class="cycle-num">9</span> · fixes</td><td class="right">12</td><td class="right">4</td><td class="right">3</td><td class="right">2</td><td class="right">3</td><td class="right open-zero">0</td><td class="right">2</td><td class="right"><b>213</b></td></tr>
+        <tr class="cycle-row" data-cycle="1"><td><span class="caret">▶</span><span class="cycle-num">1</span> · pre-impl</td><td class="right">18</td><td class="right">2</td><td class="right">6</td><td class="right">7</td><td class="right">3</td><td class="right open-zero">0</td><td class="right">0</td><td class="right">52</td></tr>
+        <tr class="cycle-detail" data-detail="1"><td colspan="9"><div class="cycle-detail-inner"></div></td></tr>
+        <tr class="cycle-row" data-cycle="2"><td><span class="caret">▶</span><span class="cycle-num">2</span> · post-impl</td><td class="right">13</td><td class="right">2</td><td class="right">6</td><td class="right">3</td><td class="right">2</td><td class="right open-zero">0</td><td class="right">0</td><td class="right">78</td></tr>
+        <tr class="cycle-detail" data-detail="2"><td colspan="9"><div class="cycle-detail-inner"></div></td></tr>
+        <tr class="cycle-row" data-cycle="3"><td><span class="caret">▶</span><span class="cycle-num">3</span> · deltas</td><td class="right">11</td><td class="right">2</td><td class="right">4</td><td class="right">4</td><td class="right">1</td><td class="right open-zero">0</td><td class="right">0</td><td class="right">114</td></tr>
+        <tr class="cycle-detail" data-detail="3"><td colspan="9"><div class="cycle-detail-inner"></div></td></tr>
+        <tr class="cycle-row" data-cycle="4"><td><span class="caret">▶</span><span class="cycle-num">4</span> · fixes</td><td class="right">11</td><td class="right">2</td><td class="right">4</td><td class="right">4</td><td class="right">1</td><td class="right open-zero">0</td><td class="right">0</td><td class="right">141</td></tr>
+        <tr class="cycle-detail" data-detail="4"><td colspan="9"><div class="cycle-detail-inner"></div></td></tr>
+        <tr class="cycle-row" data-cycle="5"><td><span class="caret">▶</span><span class="cycle-num">5</span> · fixes</td><td class="right">11</td><td class="right">3</td><td class="right">3</td><td class="right">4</td><td class="right">1</td><td class="right open-zero">0</td><td class="right">0</td><td class="right">165</td></tr>
+        <tr class="cycle-detail" data-detail="5"><td colspan="9"><div class="cycle-detail-inner"></div></td></tr>
+        <tr class="cycle-row" data-cycle="6"><td><span class="caret">▶</span><span class="cycle-num">6</span> · fixes</td><td class="right">10</td><td class="right">3</td><td class="right">3</td><td class="right">3</td><td class="right">1</td><td class="right open-zero">0</td><td class="right">1</td><td class="right">186</td></tr>
+        <tr class="cycle-detail" data-detail="6"><td colspan="9"><div class="cycle-detail-inner"></div></td></tr>
+        <tr class="cycle-row" data-cycle="7"><td><span class="caret">▶</span><span class="cycle-num">7</span> · fixes</td><td class="right">7</td><td class="right">1</td><td class="right">2</td><td class="right">3</td><td class="right">1</td><td class="right open-zero">0</td><td class="right">0</td><td class="right">195</td></tr>
+        <tr class="cycle-detail" data-detail="7"><td colspan="9"><div class="cycle-detail-inner"></div></td></tr>
+        <tr class="cycle-row" data-cycle="8"><td><span class="caret">▶</span><span class="cycle-num">8</span> · fixes</td><td class="right">6</td><td class="right">2</td><td class="right">2</td><td class="right">2</td><td class="right">0</td><td class="right open-zero">0</td><td class="right">0</td><td class="right">202</td></tr>
+        <tr class="cycle-detail" data-detail="8"><td colspan="9"><div class="cycle-detail-inner"></div></td></tr>
+        <tr class="cycle-row" data-cycle="9"><td><span class="caret">▶</span><span class="cycle-num">9</span> · fixes</td><td class="right">12</td><td class="right">4</td><td class="right">3</td><td class="right">2</td><td class="right">3</td><td class="right open-zero">0</td><td class="right">2</td><td class="right"><b>213</b></td></tr>
+        <tr class="cycle-detail" data-detail="9"><td colspan="9"><div class="cycle-detail-inner"></div></td></tr>
         <tr class="total"><td>Total</td><td class="right">99</td><td class="right">21</td><td class="right">33</td><td class="right">32</td><td class="right">13</td><td class="right open-zero">0</td><td class="right">3</td><td class="right">—</td></tr>
       </tbody>
     </table>
+    <p class="hint">click any cycle for its summary, critical findings, and links to the full critique</p>
   </section>
 
   <section id="loop">
     <h3 class="section-title">How a single iteration works</h3>
     <h4 class="section-h">The 8-step loop, end-to-end, on every iteration.</h4>
     <p class="section-intro">Researcher proposes; Builder produces; Verifier signs a cert on a structurally different checkpoint (Sonnet-class verifying Opus-class); Librarian writes to candidate stores; Auditor signs a why-doc with a hash precondition; Promote is a CAS-style atomic flip. If the live store moved between why-doc signing and promote attempt, the promotion is rolled back atomically.</p>
-<pre class="loop"><span class="role">Researcher</span>  →  <span class="role">Builder</span>  →  <span class="role">Verifier</span>  →  <span class="role">Librarian</span>  →  <span class="role">Auditor</span>  →  <b>PROMOTE</b>
-   (T0)        (T1)      (T1, alt        (T0)       (T0, alt
-                          ckpt)                      ckpt)
-                            ↓                          ↓
-                      V1 graders                 hash-preconditioned
-                      <span class="dim">+ V2 critic</span>                  why-doc CAS
-                            ↓                          ↓
-                     VerifierCert              atomic candidate→live</pre>
+
+    <div class="loop-svg-wrap">
+      <svg viewBox="0 0 1020 230" class="loop-svg" xmlns="http://www.w3.org/2000/svg">
+        <!-- alt-checkpoint bracket for Verifier + Auditor -->
+        <path class="ckpt-bracket" d="M 350 18 Q 350 8, 360 8 L 800 8 Q 810 8, 810 18 L 810 32" />
+        <text class="ckpt-bracket-label" x="580" y="22">cross-checkpoint · sonnet-class verifies opus-class</text>
+
+        <!-- Researcher -->
+        <g data-role="researcher">
+          <rect class="role-box" x="20" y="60" width="140" height="60" rx="8"/>
+          <text class="role-label" x="90" y="92">Researcher</text>
+          <text class="role-sublabel" x="90" y="108">T0 · plan</text>
+        </g>
+        <!-- arrow 1 -->
+        <line class="arrow" data-arrow="1" x1="160" y1="90" x2="200" y2="90" marker-end="url(#arrowhead)"/>
+
+        <!-- Builder -->
+        <g data-role="builder">
+          <rect class="role-box" x="200" y="60" width="140" height="60" rx="8"/>
+          <text class="role-label" x="270" y="92">Builder</text>
+          <text class="role-sublabel" x="270" y="108">T1 · artifact</text>
+        </g>
+        <!-- arrow 2 -->
+        <line class="arrow" data-arrow="2" x1="340" y1="90" x2="380" y2="90" marker-end="url(#arrowhead)"/>
+
+        <!-- Verifier (alt ckpt) -->
+        <g data-role="verifier">
+          <rect class="role-box alt-ckpt" x="380" y="60" width="140" height="60" rx="8"/>
+          <text class="role-label" x="450" y="92">Verifier</text>
+          <text class="role-sublabel" x="450" y="108">V1 + V2 · cert</text>
+        </g>
+        <!-- arrow 3 -->
+        <line class="arrow" data-arrow="3" x1="520" y1="90" x2="560" y2="90" marker-end="url(#arrowhead)"/>
+
+        <!-- Librarian -->
+        <g data-role="librarian">
+          <rect class="role-box" x="560" y="60" width="140" height="60" rx="8"/>
+          <text class="role-label" x="630" y="92">Librarian</text>
+          <text class="role-sublabel" x="630" y="108">T0 · candidate</text>
+        </g>
+        <!-- arrow 4 -->
+        <line class="arrow" data-arrow="4" x1="700" y1="90" x2="740" y2="90" marker-end="url(#arrowhead)"/>
+
+        <!-- Auditor (alt ckpt) -->
+        <g data-role="auditor">
+          <rect class="role-box alt-ckpt" x="740" y="60" width="140" height="60" rx="8"/>
+          <text class="role-label" x="810" y="92">Auditor</text>
+          <text class="role-sublabel" x="810" y="108">why-doc · hash CAS</text>
+        </g>
+        <!-- arrow 5 -->
+        <line class="arrow" data-arrow="5" x1="880" y1="90" x2="920" y2="90" marker-end="url(#arrowhead)"/>
+
+        <!-- PROMOTE -->
+        <g data-role="promote">
+          <rect class="role-box promote-box" x="920" y="60" width="80" height="60" rx="8"/>
+          <text class="role-label promote-label" x="960" y="95">PROMOTE</text>
+        </g>
+
+        <!-- token: traveling dot -->
+        <circle class="token" id="loop-token" cx="0" cy="90" r="7"/>
+
+        <!-- rollback arrow (subtle, curved, returns to Researcher) -->
+        <path class="arrow" d="M 960 150 Q 960 200, 700 200 Q 90 200, 90 150" stroke-dasharray="6 4" opacity="0.4"/>
+        <text x="510" y="218" text-anchor="middle" font-family="ui-monospace, monospace" font-size="11" fill="#6b6b6b" opacity="0.65">rollback if cert fails, tripwire fires, or hash precondition stale</text>
+
+        <!-- arrowhead marker def -->
+        <defs>
+          <marker id="arrowhead" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto">
+            <polygon points="0 0, 8 4, 0 8" fill="#e7d8b5"/>
+          </marker>
+        </defs>
+      </svg>
+      <div class="loop-caption" id="loop-caption">click <b>play</b> to step through one iteration</div>
+      <div class="loop-controls">
+        <button id="loop-play">▶ play one iteration</button>
+        <button id="loop-loop">↻ loop continuously</button>
+      </div>
+    </div>
   </section>
 
   <section id="patterns">
@@ -527,6 +822,231 @@
   </footer>
 
 </div>
+
+<script>
+// ============================================================================
+// Cycle viewer: click a cycle row, expand its summary + critical findings.
+// Data is concise on purpose — visitors who want depth click through to the
+// linked critique doc.
+// ============================================================================
+const CYCLES = {
+  1: {
+    title: "Cycle 1 — pre-implementation red team",
+    summary: "18 architecture-level findings produced before any code existed. Set the test bar at 52 and put the foundational invariants into the design rather than discovering them at runtime.",
+    crit: [
+      ["F1", "Mock-vs-mock self-confirmation — Verifier and Builder ran on the same model, so the Verifier was structurally incapable of catching a class of Builder errors."],
+      ["F2", "TOCTOU window between Auditor sign and Promote — live store could move between why-doc signing and promotion, with no atomic guard."],
+    ],
+    critique: "https://github.com/jim4226/CSIS/blob/main/brain/critiques/01-pre-impl-redteam.md",
+    snapshot: "https://github.com/jim4226/CSIS/blob/main/brain/snapshots/02-cycle1-complete.md",
+  },
+  2: {
+    title: "Cycle 2 — post-implementation red team",
+    summary: "13 new findings against the implementation (not the architecture). All critical/high closed by promoting single-site checks into substrate-level invariants. Tests 52→78.",
+    crit: [
+      ["P1", "Fake-PROMOTED ghosts after failed promote — Coordinator pre-wrote PROMOTED trust before the atomic flip succeeded, so a precondition failure left dirty live state."],
+      ["P2", "Stale-hash semantics — hash precondition snapshot was taken before the Librarian wrote, so the precondition could not detect a concurrent write."],
+    ],
+    critique: "https://github.com/jim4226/CSIS/blob/main/brain/critiques/02-post-impl-redteam.md",
+    snapshot: "https://github.com/jim4226/CSIS/blob/main/brain/snapshots/03-cycle2-complete.md",
+  },
+  3: {
+    title: "Cycle 3 — deltas",
+    summary: "Cycle-2 fixes themselves became attack surface. 11 findings. Tests 78→114.",
+    crit: [
+      ["C1", "Canon regression — single canonical form was insufficient; attackers bypassed by splitting words. Required dual-form (strip + space) canonicalization."],
+      ["C2", "Budget tracker single-process lock — adequate for one daemon but two concurrent daemons could stomp each other's spend totals."],
+    ],
+    critique: "https://github.com/jim4226/CSIS/blob/main/brain/critiques/03-cycle3-redteam.md",
+    snapshot: "https://github.com/jim4226/CSIS/blob/main/brain/snapshots/05-cycle3-shipped.md",
+  },
+  4: {
+    title: "Cycle 4 — fixes against cycle 3",
+    summary: "C-class fixes landed. Closed the cycle-3 TOCTOU in _build_diff with a frozen live_snapshot. Tests 114→141.",
+    crit: [
+      ["C4", "Wrapped-backend exposure via `_wrapped` attribute — early form of an attack class that recurred in cycles 6, 7, 8, and 9 before the architectural pivot."],
+      ["C7", "Build-diff TOCTOU — diff was computed against a possibly-mutated snapshot, allowing a window where the live state changed mid-diff."],
+    ],
+    critique: "https://github.com/jim4226/CSIS/blob/main/brain/critiques/04-cycle4-redteam.md",
+    snapshot: "https://github.com/jim4226/CSIS/blob/main/brain/snapshots/06-cycle4-shipped.md",
+  },
+  5: {
+    title: "Cycle 5 — fixes against cycle 4",
+    summary: "11 findings (3 critical). Closed dual-form false positives, deep-snapshot mutation leak, and the sibling-reservation race in the budget tracker. Tests 141→165.",
+    crit: [
+      ["D1", "Dual-form canonicalization produced false positives — legitimate documentation phrases matched patterns when both canonical forms were OR'd together."],
+      ["D2", "Shallow snapshot allowed mutation — the live_snapshot was returning references rather than deep copies, so a concurrent writer could mutate the snapshot."],
+      ["D3", "Sibling reservation race in budget — two daemons could each reserve 60% of the cap and both overshoot if reservations weren't persisted."],
+    ],
+    critique: "https://github.com/jim4226/CSIS/blob/main/brain/critiques/05-cycle5-redteam.md",
+    snapshot: "https://github.com/jim4226/CSIS/blob/main/brain/snapshots/07-cycle5-shipped.md",
+  },
+  6: {
+    title: "Cycle 6 — fixes against cycle 5",
+    summary: "An embarrassing cycle. E1 caught a `NameError` swallowed by a bare `except` in the cycle-5 D4 fix, silently leaking VERIFIED candidates after every TierMismatch for the entire cycle. Lesson: regression tests must assert remediation *effect*, not just surface events. Tests 165→186; E8 (Pydantic frozen-dict adapter) deferred to Phase 1.",
+    crit: [
+      ["E1", "Bare `except` swallowed a `NameError` in the TierMismatch cleanup; candidates leaked silently."],
+      ["E2", "Noun-suffix lookahead in patterns trivially bypassed by attackers appending 'configuration'/'mode'/'hook'/etc."],
+      ["E3", "Multi-call same-pid daemons mis-cancelled reservations because they were matched by pid, not by per-call token."],
+    ],
+    critique: "https://github.com/jim4226/CSIS/blob/main/brain/critiques/06-cycle6-redteam.md",
+    snapshot: "https://github.com/jim4226/CSIS/blob/main/brain/snapshots/08-cycle6-shipped.md",
+  },
+  7: {
+    title: "Cycle 7 — fixes against cycle 6",
+    summary: "Another embarrassing cycle. F1 caught a `_wrapped` mangling escape the cycle-6 E4 docstring had *explicitly acknowledged* and shipped anyway. Lesson written in stone (again): docstrings saying 'known limit' must be followed by `# TODO(cycleN): fix`. Tests 186→195.",
+    crit: [
+      ["F1", "`__init_subclass__` guard missed Python's name-mangled `__wrapped` form — the cycle-6 docstring acknowledged this and shipped. F1 widened the guard to any name ending in `__wrapped`."],
+    ],
+    critique: "https://github.com/jim4226/CSIS/blob/main/brain/critiques/06-cycle6-redteam.md",
+    snapshot: "https://github.com/jim4226/CSIS/blob/main/brain/snapshots/09-cycle7-shipped.md",
+  },
+  8: {
+    title: "Cycle 8 — architectural pivot #1",
+    summary: "G1 was the third generation of the same `_wrapped` exposure attack (C4 → E4 → F1 → G1). Each prior cycle added another guard to `_BackendTracker.__init_subclass__`; each got bypassed by the next escape. Cycle 8 stopped fighting subclass attacks and added a wrap-site `type(self.backend) is _BackendTracker` check at `Daemon.__init__`. Tests 195→202.",
+    crit: [
+      ["G1", "3rd-gen `_wrapped` bypass — closed by dropping the subclass guard and constraining the wrap site (exact-type check at Daemon)."],
+      ["G3", "Windows `os.replace` race between cap and no-cap trackers sharing a budget file — closed by always-try-lock semantics."],
+    ],
+    critique: "https://github.com/jim4226/CSIS/blob/main/brain/critiques/07-cycle7-redteam.md",
+    snapshot: "https://github.com/jim4226/CSIS/blob/main/brain/snapshots/10-cycle8-shipped.md",
+  },
+  9: {
+    title: "Cycle 9 — architectural pivot #2 (and a humbling rerun of #1)",
+    summary: "12 findings, 4 critical. H1 found cycle 8's wrap-site check was at the wrong layer — Coordinator (not Daemon) is the actual chokepoint, and three production scripts bypassed Daemon entirely. H3 found the check ran only once in __init__; setattr afterward swapped the wrapper. H4 found cycle-8 G2's pre-consolidate snapshot was racy. Fixes: chokepoint relocation, property setters that re-validate, writer_iteration_id stamping. H2 + H11 honestly deferred. Tests 202→213.",
+    crit: [
+      ["H1", "G1 wrap-site only at Daemon; burst/loop/demo construct Coordinator with raw backend. Moved check into Coordinator.__init__."],
+      ["H2", "Closure-cell mutation (`fn.__closure__[i].cell_contents = X`) defeats `type(...) is _BackendTracker`. Deferred to Phase-1 process-level isolation."],
+      ["H3", "Post-init `setattr(d.backend, evil)` swapped wrapper after type check ran. Added property setters that re-validate."],
+      ["H4", "G2 sibling-write race during pre-consolidate snapshot → over-discard. Replaced with `writer_iteration_id` stamping at write_candidate time."],
+    ],
+    critique: "https://github.com/jim4226/CSIS/blob/main/brain/critiques/08-cycle8-redteam.md",
+    snapshot: "https://github.com/jim4226/CSIS/blob/main/brain/snapshots/11-cycle9-shipped.md",
+  },
+};
+
+function renderCycleDetail(n) {
+  const data = CYCLES[n];
+  if (!data) return "";
+  const findings = data.crit.map(([id, body]) =>
+    `<li><span class="sev crit">crit</span><span class="label-id">${id}</span>${body}</li>`
+  ).join("");
+  return `
+    <h5 style="margin:0 0 8px 0; font-size:18px; letter-spacing:-0.4px;">${data.title}</h5>
+    <p class="summary">${data.summary}</p>
+    <p class="findings-label">Critical findings</p>
+    <ul class="findings">${findings}</ul>
+    <p class="detail-links">
+      <a href="${data.critique}">Full critique →</a>
+      <a href="${data.snapshot}">Snapshot doc →</a>
+    </p>
+  `;
+}
+
+document.querySelectorAll(".cycle-row").forEach((row) => {
+  row.addEventListener("click", () => {
+    const n = row.dataset.cycle;
+    const detail = document.querySelector(`.cycle-detail[data-detail="${n}"]`);
+    const inner = detail.querySelector(".cycle-detail-inner");
+    const isOpen = detail.classList.contains("show");
+    // close all others
+    document.querySelectorAll(".cycle-detail.show").forEach((d) => d.classList.remove("show"));
+    document.querySelectorAll(".cycle-row.expanded").forEach((r) => r.classList.remove("expanded"));
+    if (!isOpen) {
+      inner.innerHTML = renderCycleDetail(n);
+      detail.classList.add("show");
+      row.classList.add("expanded");
+    }
+  });
+});
+
+// ============================================================================
+// 8-step loop SVG animation.
+// One iteration = traveling token highlights each role box in sequence,
+// then either lands on PROMOTE (success) or curves back to start (rollback).
+// ============================================================================
+const STEPS = [
+  { role: "researcher", from: [90, 90],  to: [200, 90], arrow: "1", caption: "<span class='step-num'>1</span>Researcher proposes a falsifiable plan (T0)" },
+  { role: "builder",    from: [200, 90], to: [380, 90], arrow: "2", caption: "<span class='step-num'>2</span>Builder produces the artifact (T1)" },
+  { role: "verifier",   from: [380, 90], to: [560, 90], arrow: "3", caption: "<span class='step-num'>3</span>Verifier signs cert on a different checkpoint (V1+V2)" },
+  { role: "librarian",  from: [560, 90], to: [740, 90], arrow: "4", caption: "<span class='step-num'>4</span>Librarian writes to candidate stores (never live directly)" },
+  { role: "auditor",    from: [740, 90], to: [920, 90], arrow: "5", caption: "<span class='step-num'>5</span>Auditor signs why-doc with hash precondition" },
+  { role: "promote",    from: [920, 90], to: [960, 90], arrow: null, caption: "<span class='step-num'>6</span>PROMOTE — atomic candidate→live flip if precondition holds" },
+];
+
+const token = document.getElementById("loop-token");
+const caption = document.getElementById("loop-caption");
+const playBtn = document.getElementById("loop-play");
+const loopBtn = document.getElementById("loop-loop");
+let looping = false;
+let running = false;
+
+function clearActive() {
+  document.querySelectorAll(".loop-svg .role-box").forEach((b) => b.classList.remove("active"));
+  document.querySelectorAll(".loop-svg .role-label").forEach((l) => l.classList.remove("active"));
+  document.querySelectorAll(".loop-svg .arrow").forEach((a) => a.classList.remove("active"));
+}
+
+function animateStep(step) {
+  return new Promise((resolve) => {
+    const group = document.querySelector(`.loop-svg g[data-role="${step.role}"]`);
+    if (group) {
+      const box = group.querySelector(".role-box");
+      const label = group.querySelector(".role-label");
+      box.classList.add("active");
+      label.classList.add("active");
+    }
+    if (step.arrow) {
+      const arrow = document.querySelector(`.loop-svg .arrow[data-arrow="${step.arrow}"]`);
+      if (arrow) arrow.classList.add("active");
+    }
+    caption.innerHTML = step.caption;
+    // travel the token
+    const [fx, fy] = step.from;
+    const [tx, ty] = step.to;
+    token.classList.add("show");
+    token.setAttribute("cx", fx);
+    token.setAttribute("cy", fy);
+    const duration = 700;
+    const start = performance.now();
+    function frame(t) {
+      const p = Math.min(1, (t - start) / duration);
+      const eased = 1 - Math.pow(1 - p, 3);
+      token.setAttribute("cx", fx + (tx - fx) * eased);
+      token.setAttribute("cy", fy + (ty - fy) * eased);
+      if (p < 1) requestAnimationFrame(frame);
+      else setTimeout(resolve, 250);
+    }
+    requestAnimationFrame(frame);
+  });
+}
+
+async function playOnce() {
+  if (running) return;
+  running = true;
+  clearActive();
+  for (const step of STEPS) {
+    await animateStep(step);
+  }
+  caption.innerHTML = "<span class='step-num'>✓</span>iteration complete — promoted to live store";
+  await new Promise((r) => setTimeout(r, 1200));
+  token.classList.remove("show");
+  clearActive();
+  running = false;
+  if (looping) {
+    setTimeout(playOnce, 600);
+  } else {
+    caption.innerHTML = "click <b>play</b> to step through one iteration";
+  }
+}
+
+playBtn.addEventListener("click", () => { looping = false; playOnce(); });
+loopBtn.addEventListener("click", () => {
+  looping = !looping;
+  loopBtn.textContent = looping ? "⏸ pause loop" : "↻ loop continuously";
+  if (looping && !running) playOnce();
+});
+</script>
 
 </body>
 </html>
