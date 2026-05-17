@@ -198,7 +198,7 @@ Two options on Windows:
 2. **NSSM (Non-Sucking Service Manager).** Run it as a true Windows service:
    ```
    nssm install CSIS python -u -m csis.daemon
-   nssm set CSIS AppDirectory C:\Users\jaron\OneDrive\Pictures\Desktop\Superintellegnce
+   nssm set CSIS AppDirectory <path-to-csis-repo>
    nssm start CSIS
    ```
 
