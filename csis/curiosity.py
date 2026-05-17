@@ -118,7 +118,7 @@ class Curiosity:
     def _gap_driven(self, hierarchy: MemoryHierarchy) -> FrontierItem | None:
         # Count promoted entries per tier; bias toward the smallest non-skill tier.
         counts: dict[str, int] = {}
-        for name in ("working", "episodic", "semantic", "procedural", "causal"):
+        for name in hierarchy.__class__.tier_names():  # H12 (cycle-9)
             store = hierarchy.tier(name)
             counts[name] = sum(1 for _ in store.iter_live(role="auditor"))
         # Skip working (volatile) and causal (gated weekly).

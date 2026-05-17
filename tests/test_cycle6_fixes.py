@@ -19,6 +19,8 @@ from csis.safety.constitution import Constitution
 from csis.safety.tripwires import Tripwires
 from csis.substrate.capability import CapabilityTier
 
+from tests._helpers import wrap_for_test
+
 
 # ---- E1 — TierMismatch handler actually discards ------------------------
 
@@ -55,7 +57,7 @@ def test_E1_tier_mismatch_actually_discards_candidates(tmp_path: Path) -> None:
         '{"attempt":"b","falsified":false},'
         '{"attempt":"c","falsified":false}]')
 
-    coord = Coordinator(config=cfg, backend=backend)
+    coord = Coordinator(config=cfg, backend=wrap_for_test(backend, tmp_path))
     original = coord_mod.consolidate_to_candidates
 
     def bad(*args, **kwargs):

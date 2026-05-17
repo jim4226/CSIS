@@ -127,17 +127,17 @@ class Daemon:
             max_cost_per_day_usd=max_cost_per_day_usd,
             max_cost_per_call_usd=max_cost_per_call_usd,
         )
-        self.backend = _BackendTracker(backend, self.budget_tracker)
-        # Cycle-8 G1 architectural pivot: the wrap site is the security
-        # boundary, not the subclass surface. Exact type-equality (not
-        # isinstance) defeats any subclass-based bypass — including
-        # post-hoc setattr, metaclasses, and Python name-mangling tricks
-        # that defeated cycles 4/6/7 guards.
-        if type(self.backend) is not _BackendTracker:
+        wrapped = _BackendTracker(backend, self.budget_tracker)
+        # Cycle-8 G1: wrap-site exact-type check (defeats subclass-shaped
+        # bypasses). Cycle-9 H1+H3: Coordinator demands a _BackendTracker
+        # too (the real chokepoint), and the property setter blocks
+        # post-init swap. The Daemon's check is now belt-and-suspenders.
+        if type(wrapped) is not _BackendTracker:
             raise TypeError(
                 f"daemon backend must be exactly _BackendTracker, "
-                f"not a subclass or impostor. got: {type(self.backend).__name__!r}"
+                f"not a subclass or impostor. got: {type(wrapped).__name__!r}"
             )
+        self._backend = wrapped
         self.budget = budget or DaemonBudget()
         self.max_total_iterations = max_total_iterations
         # If a Domain is provided, swap in its grader registry + curiosity.
@@ -146,7 +146,7 @@ class Daemon:
         if domain is not None:
             registry = domain.graders()
             curiosity = domain.curiosity()
-        self.coord = Coordinator(config=config, backend=self.backend, registry=registry)
+        self.coord = Coordinator(config=config, backend=self._backend, registry=registry)
         self.curiosity = curiosity
         self.domain = domain
         self.stats = DaemonStats()
@@ -165,6 +165,23 @@ class Daemon:
         self._stats_path = config.brain_root / "daemon.stats.json"
         self._stop_file = Path(config.event_log_path).parent.parent / STOP_FILE_NAME
         self._stopped = threading.Event()
+
+    # H3 (cycle-9): backend is a property + setter. Post-init reassignment
+    # must go through the setter, which re-validates exact-type. Defeats
+    # `d.backend = EvilBackend()` and the subclass-overrides-__init__
+    # attack from the cycle-9 G1G3 red team.
+    @property
+    def backend(self):
+        return self._backend
+
+    @backend.setter
+    def backend(self, value):
+        if type(value) is not _BackendTracker:
+            raise TypeError(
+                f"Daemon.backend cannot be reassigned to a non-_BackendTracker "
+                f"value. Got: {type(value).__name__!r}."
+            )
+        self._backend = value
 
     # ---- lifecycle ------------------------------------------------------
 
@@ -290,6 +307,12 @@ class Daemon:
                     })
                     self._last_false_positive_signature = signature
             else:
+                # H9 (cycle-9): reset the dedupe signature on green snapshots
+                # so an FP set that disappears then recurs emits a fresh
+                # event. Cycle-8 G6 dedupe was correct for "FP set stable
+                # across snapshots" but silently treated FP=A → ok → FP=A
+                # as a no-change (same signature as last non-green).
+                self._last_false_positive_signature = ()
                 self.coord.event_log.emit("coordinator", "safety.fuzz_ok", {
                     "cases_checked": rep.cases_checked,
                 })

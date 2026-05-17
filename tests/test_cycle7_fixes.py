@@ -15,6 +15,8 @@ from csis.memory.store import MemoryHierarchy
 from csis.safety.constitution import Constitution
 from csis.safety.tripwires import Tripwires
 
+from tests._helpers import wrap_for_test
+
 
 # ---- F1 — __init_subclass__ catches mangled __wrapped --------------------
 
@@ -88,7 +90,7 @@ def test_F2_tier_mismatch_does_not_over_discard_legitimate_candidates(tmp_path: 
     backend.script("critic", cfg.auditor_checkpoint,
         '[{"attempt":"a","falsified":false},{"attempt":"b","falsified":false},{"attempt":"c","falsified":false}]')
 
-    coord = Coordinator(config=cfg, backend=backend)
+    coord = Coordinator(config=cfg, backend=wrap_for_test(backend, tmp_path))
 
     # Pre-seed semantic with a LEGITIMATE candidate that happens to share
     # an entry_id with what the buggy Librarian will produce.
@@ -167,7 +169,7 @@ def test_F4_salt_logged_from_frontier_item_not_regex(tmp_path: Path) -> None:
         '{"plan_id":"p","frontier_item":"x","hypothesis":"x",'
         '"falsification_condition":"y","budget":{"time_s":1,"tokens":10},'
         '"tier":"T0","tool_calls_planned":[]}')
-    coord = Coordinator(config=cfg, backend=backend)
+    coord = Coordinator(config=cfg, backend=wrap_for_test(backend, tmp_path))
 
     # Frontier text contains a misleading [salt=999] but NO salt is passed.
     coord.run_iteration(

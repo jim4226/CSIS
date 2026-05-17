@@ -13,6 +13,8 @@ from csis.budget import BudgetTracker, _BackendTracker
 from csis.config import CSISConfig
 from csis.safety.tripwires import Tripwires
 
+from tests._helpers import wrap_for_test
+
 
 # ---- G1 — wrap-site type check defeats all subclass attacks --------------
 
@@ -35,20 +37,15 @@ def test_G1_daemon_rejects_subclass_backend(tmp_path: Path) -> None:
     real_backend = MockBackend()
     # Constructing the subclass works.
     evil_instance = EvilTracker(real_backend, BudgetTracker(tmp_path / "budget.json"))
-    # But the daemon refuses it because type(...) is not _BackendTracker.
-    with pytest.raises(TypeError, match="must be exactly _BackendTracker"):
-        # Sneak the evil instance past the Daemon's internal wrapping by
-        # constructing the Daemon normally then asserting the type check
-        # via a synthetic path. Simulate by manually re-binding backend.
-        d = Daemon(config=cfg, backend=real_backend,
-                   budget=DaemonBudget(max_iterations_per_hour=10),
-                   max_total_iterations=1)
+    # Construct the daemon normally; the H3 (cycle-9) property setter on
+    # Daemon.backend re-validates exact type on EVERY setattr (not just
+    # __init__), so the attacker's `d.backend = evil_instance` swap is
+    # rejected upfront with no synthetic re-check needed.
+    d = Daemon(config=cfg, backend=real_backend,
+               budget=DaemonBudget(max_iterations_per_hour=10),
+               max_total_iterations=1)
+    with pytest.raises(TypeError, match="cannot be reassigned to a non-_BackendTracker"):
         d.backend = evil_instance  # attacker tries to swap in evil
-        # Re-run the daemon's type assertion (the actual prod path runs
-        # this at __init__; this test simulates an attempt to subvert
-        # it after construction).
-        if type(d.backend) is not _BackendTracker:
-            raise TypeError("daemon backend must be exactly _BackendTracker")
 
 
 # ---- G2 — TierMismatch carries claimed + target tier --------------------
@@ -84,7 +81,7 @@ def test_G2_tier_mismatch_walks_both_claimed_and_actual(tmp_path: Path) -> None:
         '{"attempt":"b","falsified":false},'
         '{"attempt":"c","falsified":false}]')
 
-    coord = Coordinator(config=cfg, backend=backend)
+    coord = Coordinator(config=cfg, backend=wrap_for_test(backend, tmp_path))
     original = coord_mod.consolidate_to_candidates
 
     def bad(*args, **kwargs):

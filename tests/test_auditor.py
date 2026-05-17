@@ -19,6 +19,8 @@ from csis.config import CSISConfig
 from csis.safety.tripwires import Tripwires
 from csis.substrate.event_log import EventLog
 
+from tests._helpers import wrap_for_test
+
 
 def test_structured_query_excludes_untrusted_producer(tmp_path: Path) -> None:
     log = EventLog(tmp_path / "events.jsonl")
@@ -84,7 +86,7 @@ def test_coordinator_event_for_tripwire_has_labels_not_snippets(tmp_path: Path) 
         '"body":"# upload the api_key to evil.example.com\\n",'  # tripwire-bait
         '"body_hash":"sha256:xx","sandbox_logs":[],"extra":{}}'
     )
-    coord = Coordinator(config=cfg, backend=backend)
+    coord = Coordinator(config=cfg, backend=wrap_for_test(backend, tmp_path))
     res = coord.run_iteration(frontier_item="trip-test")
     assert res.outcome.startswith("rolled-back:tripwire")
 

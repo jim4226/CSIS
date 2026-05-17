@@ -30,6 +30,7 @@ def consolidate_to_candidates(
     artifact: Artifact,
     cert: VerifierCertificate,
     target_tier: str = "episodic",
+    iteration_id: str | None = None,
 ) -> list[MemoryEntry]:
     """Write verified gains to candidate side of the target tier.
 
@@ -38,6 +39,13 @@ def consolidate_to_candidates(
     to working/episodic/semantic/causal candidates (all T0 consumer) but
     cannot write directly into procedural (consumer T1). For procedural
     skill candidates, Librarian must escalate — handled separately.
+
+    H4 (cycle-9): when `iteration_id` is provided, writes go in with
+    `writer_iteration_id` stamped on each entry. The Coordinator's
+    TierMismatch cleanup uses the stamp to discard only entries written
+    by THIS iteration — no over-discard of pre-existing same-id
+    candidates and no race against sibling iterations that wrote a
+    same-id candidate between snapshot capture and cleanup.
     """
     assert ctx.role == Role.LIBRARIAN
     ok, reason = tier_guard.write_tier(ctx.role.value, target_tier)
@@ -56,7 +64,8 @@ def consolidate_to_candidates(
             trust=TrustLevel.CANDIDATE,
             why_tag=f"verified-by={cert.verifier_checkpoint} graders_passed={sum(1 for g in cert.grader_results if g.passed)}/{len(cert.grader_results)}",
             created_at=now,
+            writer_iteration_id=iteration_id,
         )
     ]
-    hierarchy.tier(target_tier).write_candidates(entries)
+    hierarchy.tier(target_tier).write_candidates(entries, writer_iteration_id=iteration_id)
     return entries

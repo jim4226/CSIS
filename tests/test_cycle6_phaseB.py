@@ -11,6 +11,8 @@ from csis.memory.store import MemoryHierarchy
 from csis.memory.trust import TrustLevel
 from csis.safety.tripwires import Tripwires
 
+from tests._helpers import wrap_for_test
+
 
 # ---- E7 — O(1) history dedupe ------------------------------------------
 
@@ -100,7 +102,7 @@ def test_E10_curiosity_salt_appears_in_iter_start(tmp_path: Path) -> None:
         '{"plan_id":"p","frontier_item":"x","hypothesis":"x",'
         '"falsification_condition":"y","budget":{"time_s":1,"tokens":10},'
         '"tier":"T0","tool_calls_planned":[]}')
-    coord = Coordinator(config=cfg, backend=backend)
+    coord = Coordinator(config=cfg, backend=wrap_for_test(backend, tmp_path))
 
     # Cycle-7 F4 update: salt is now passed as a parameter, not extracted
     # from the frontier_item text.
@@ -128,7 +130,7 @@ def test_E10_iter_start_salt_none_when_absent(tmp_path: Path) -> None:
         '{"plan_id":"p","frontier_item":"x","hypothesis":"x",'
         '"falsification_condition":"y","budget":{"time_s":1,"tokens":10},'
         '"tier":"T0","tool_calls_planned":[]}')
-    coord = Coordinator(config=cfg, backend=backend)
+    coord = Coordinator(config=cfg, backend=wrap_for_test(backend, tmp_path))
 
     coord.run_iteration(frontier_item="a non-salted frontier item")
 

@@ -18,6 +18,8 @@ from csis.budget import (
 from csis.config import CSISConfig
 from csis.contracts import MemoryEntry, Plan
 from csis.memory.store import MemoryHierarchy
+
+from tests._helpers import wrap_for_test
 from csis.memory.trust import TrustLevel
 from csis.safety.constitution import Constitution
 from csis.safety.tripwires import Tripwires
@@ -186,7 +188,7 @@ def test_D4_tier_mismatch_in_auditor_triggers_clean_rollback(tmp_path: Path) -> 
         '{"attempt":"b","falsified":false},'
         '{"attempt":"c","falsified":false}]')
 
-    coord = Coordinator(config=cfg, backend=backend)
+    coord = Coordinator(config=cfg, backend=wrap_for_test(backend, tmp_path))
 
     # Monkey-patch the Coordinator's local reference (from-import at module
     # load means patching the librarian module attr doesn't help).

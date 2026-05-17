@@ -168,7 +168,8 @@ def _make_coord(tmp_path):
         '[{"attempt":"a","falsified":false},'
         '{"attempt":"b","falsified":false},'
         '{"attempt":"c","falsified":false}]')
-    return Coordinator(config=cfg, backend=backend)
+    from tests._helpers import wrap_for_test
+    return Coordinator(config=cfg, backend=wrap_for_test(backend, tmp_path))
 
 
 def test_C11_serial_iterations_have_distinct_diff_baselines(tmp_path: Path) -> None:

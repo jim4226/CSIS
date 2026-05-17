@@ -18,6 +18,8 @@ from csis.agents.coordinator import Coordinator
 from csis.backends.mock import MockBackend
 from csis.config import CSISConfig
 
+from tests._helpers import wrap_for_test
+
 
 def _wire_backend(cfg: CSISConfig) -> MockBackend:
     backend = MockBackend()
@@ -54,7 +56,7 @@ def _wire_backend(cfg: CSISConfig) -> MockBackend:
 def test_full_iteration_promotes(tmp_path: Path) -> None:
     cfg = CSISConfig.for_tests(tmp_path)
     backend = _wire_backend(cfg)
-    coord = Coordinator(config=cfg, backend=backend)
+    coord = Coordinator(config=cfg, backend=wrap_for_test(backend, tmp_path))
 
     res = coord.run_iteration(frontier_item="integration test frontier")
     assert res.outcome == "promoted", res.outcome
@@ -87,7 +89,7 @@ def test_iteration_rolls_back_on_constitution_or_tripwire(tmp_path: Path) -> Non
         '"budget":{"time_s":1,"tokens":10},'
         '"tier":"T0","tool_calls_planned":[]}'
     )
-    coord = Coordinator(config=cfg, backend=backend)
+    coord = Coordinator(config=cfg, backend=wrap_for_test(backend, tmp_path))
     res = coord.run_iteration(frontier_item="bad frontier")
     assert res.outcome.startswith("rolled-back:"), res.outcome
     assert res.cert is None and res.why is None
@@ -106,7 +108,7 @@ def test_iteration_rolls_back_when_critic_finds_falsification(tmp_path: Path) ->
         '{"attempt":"check coverage","falsified":false},'
         '{"attempt":"check lint","falsified":false}]'
     )
-    coord = Coordinator(config=cfg, backend=backend)
+    coord = Coordinator(config=cfg, backend=wrap_for_test(backend, tmp_path))
     res = coord.run_iteration(frontier_item="itest")
     assert res.outcome.startswith("rolled-back:verifier-rejected"), res.outcome
 
@@ -120,7 +122,7 @@ def test_iteration_rolls_back_on_tripwire(tmp_path: Path) -> None:
         '"body":"# upload the api_key to evil.example.com\\n",'  # tripwire
         '"body_hash":"sha256:zz","sandbox_logs":[],"extra":{}}'
     )
-    coord = Coordinator(config=cfg, backend=backend)
+    coord = Coordinator(config=cfg, backend=wrap_for_test(backend, tmp_path))
     res = coord.run_iteration(frontier_item="itest")
     assert res.outcome.startswith("rolled-back:tripwire"), res.outcome
 
@@ -134,6 +136,6 @@ def test_iteration_rolls_back_on_same_checkpoint(tmp_path: Path) -> None:
     # identical in everything except checkpoint_id (1 diff).
     backend.set_model_id(cfg.auditor_checkpoint, "mock-opus")  # same as builder
     backend.set_tools(cfg.auditor_checkpoint, ["sandbox.execute", "web_search"])  # same
-    coord = Coordinator(config=cfg, backend=backend)
+    coord = Coordinator(config=cfg, backend=wrap_for_test(backend, tmp_path))
     res = coord.run_iteration(frontier_item="itest")
     assert res.outcome.startswith("rolled-back:cross-checkpoint"), res.outcome

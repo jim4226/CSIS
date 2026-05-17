@@ -222,6 +222,10 @@ class BudgetTracker:
         self.prune_stale_pending_s = prune_stale_pending_s
         self._lock = threading.Lock()
         self._file_lock_path = self.path.with_suffix(self.path.suffix + ".lock")
+        # H5 (cycle-9) write-ahead-log path. Each line is one JSON record
+        # waiting to be drained into _state by the next successful
+        # record() call.
+        self._wal_path = self.path.with_suffix(self.path.suffix + ".wal")
         self._state = BudgetState()
         # E5 (cycle-6) fix: only require the lock when a cap is set.
         # Mock daemons with no cap can run on systems without fcntl/msvcrt
@@ -274,11 +278,105 @@ class BudgetTracker:
                 pass
             raise
 
+    # H5 (cycle-9) WAL helpers --------------------------------------------
+
+    def _append_wal(self, entry: dict) -> None:
+        """Atomic append of one record to the WAL file. Used by record()
+        when the inter-process lock times out so the call cost isn't lost.
+        Append-only, one JSON object per line, durable via file.flush
+        + os.fsync.
+        """
+        self.path.parent.mkdir(parents=True, exist_ok=True)
+        line = json.dumps(entry) + "\n"
+        # Open with 'a' so concurrent appenders interleave whole lines
+        # (POSIX: write of <PIPE_BUF chars is atomic; Windows: handled
+        # by the OS file lock pattern below). The WAL is intentionally
+        # NOT under _file_lock — its whole purpose is to record when
+        # the file lock is unavailable.
+        with open(self._wal_path, "a", encoding="utf-8") as f:
+            f.write(line)
+            f.flush()
+            try:
+                os.fsync(f.fileno())
+            except (OSError, AttributeError):
+                pass  # best-effort durability
+
+    def _drain_wal_into_state(self) -> None:
+        """Called inside the locked record() path. Read every WAL entry,
+        apply it to _state, then atomically replace the WAL with empty.
+        Idempotent w.r.t. duplicate drain attempts because the file is
+        truncated after a successful drain."""
+        if not self._wal_path.exists():
+            return
+        try:
+            raw = self._wal_path.read_text(encoding="utf-8")
+        except Exception:
+            return
+        if not raw.strip():
+            return
+        applied_any = False
+        for line in raw.splitlines():
+            line = line.strip()
+            if not line:
+                continue
+            try:
+                rec = json.loads(line)
+            except Exception:
+                continue  # corrupt line — skip; recovery is best-effort
+            today = self._state.current()
+            today.calls += 1
+            today.tokens_in += int(rec.get("tokens_in", 0))
+            today.tokens_out += int(rec.get("tokens_out", 0))
+            today.cost_usd = round(today.cost_usd + float(rec.get("delta_cost", 0.0)), 6)
+            tok = rec.get("reservation_token")
+            if tok is not None:
+                for i, p in enumerate(self._state.pending):
+                    if p.token == tok:
+                        del self._state.pending[i]
+                        break
+            applied_any = True
+        if applied_any:
+            # Truncate the WAL only after _save (atomic) commits the
+            # applied records. _save runs after we return.
+            try:
+                self._wal_path.unlink()
+            except Exception:
+                # If we can't unlink, the next drain will redundantly
+                # re-apply — but the data file _save below will then
+                # double-count. To be safe, truncate to empty instead
+                # of unlink so concurrent appenders aren't surprised.
+                try:
+                    self._wal_path.write_text("", encoding="utf-8")
+                except Exception:
+                    pass
+
     # ---- read ----------------------------------------------------------
+
+    def _wal_sum_cost(self) -> float:
+        """H5 (cycle-9): sum of `delta_cost` across all WAL records that
+        haven't been drained yet. Called from cost-read paths so the
+        daemon's cap check sees in-flight spend even before the WAL is
+        drained by the next successful record()."""
+        if not self._wal_path.exists():
+            return 0.0
+        total = 0.0
+        try:
+            for line in self._wal_path.read_text(encoding="utf-8").splitlines():
+                line = line.strip()
+                if not line:
+                    continue
+                try:
+                    rec = json.loads(line)
+                    total += float(rec.get("delta_cost", 0.0))
+                except Exception:
+                    continue
+        except Exception:
+            pass
+        return total
 
     def today_cost_usd(self) -> float:
         with self._lock:
-            return self._state.current().cost_usd
+            return self._state.current().cost_usd + self._wal_sum_cost()
 
     def today_calls(self) -> int:
         with self._lock:
@@ -380,12 +478,49 @@ class BudgetTracker:
         Cycle-4 C2 + cycle-5 D3 + cycle-6 E3: read-modify-write under
         inter-process lock; reservation cleared by TOKEN (not pid) so
         same-pid concurrent calls don't mis-cancel each other.
+
+        H5 (cycle-9): if `_maybe_locked` raises `LockUnavailable`
+        (the 20s msvcrt timeout fired under sibling contention) the
+        record is appended to a write-ahead-log file. The next
+        successful record() drains the WAL so no spend is lost. Without
+        this, a slow real-LLM call followed by a contended lock would
+        complete the call but never bill it — `today_cost_usd` stays $0
+        and the daemon's cap never triggers (cycle-9 H5).
         """
         prices = _PRICE_PER_1K.get(model_id, _DEFAULT_PRICE)
         tokens_in = max(0, prompt_chars) // 4
         tokens_out = max(0, response_tokens)
         delta_cost = (tokens_in / 1000.0) * prices["in"] + (tokens_out / 1000.0) * prices["out"]
+        try:
+            return self._record_inside_lock(
+                tokens_in, tokens_out, delta_cost, reservation_token,
+            )
+        except LockUnavailable:
+            # H5: persist the record to a WAL file. The WAL is append-
+            # only with one JSON record per line so it can be drained
+            # piecewise by any subsequent successful record() call.
+            self._append_wal({
+                "tokens_in": tokens_in,
+                "tokens_out": tokens_out,
+                "delta_cost": delta_cost,
+                "reservation_token": reservation_token,
+                "ts": time.time(),
+            })
+            # Don't re-raise: the call cost is now persistently
+            # recorded (in the WAL); the daemon caller proceeds.
+            return float("nan")
+
+    def _record_inside_lock(
+        self,
+        tokens_in: int,
+        tokens_out: int,
+        delta_cost: float,
+        reservation_token: str | None,
+    ) -> float:
         with self._lock, self._maybe_locked():
+            # H5: drain any WAL entries deposited by previous contended
+            # records before applying this one.
+            self._drain_wal_into_state()
             self._load()  # pick up sibling-daemon writes
             self._state.prune_stale_pending(self.prune_stale_pending_s)
             today = self._state.current()
@@ -441,6 +576,23 @@ class _BackendTracker:
     Subclasses that try to re-introduce a `_wrapped` attribute (the cycle-6
     E4 attack) raise TypeError at class definition time via
     __init_subclass__.
+
+    THREAT-MODEL NOTE (H2 cycle-9). The closure-cell pattern can be
+    defeated by an attacker with code-execution rights inside the
+    daemon process: `fn.__closure__[i].cell_contents = EvilBackend()`
+    swaps the wrapped backend while `type(self) is _BackendTracker`
+    still passes. The cycle-9 G1G3 critique demonstrated this live with
+    100 unmetered real-backend calls.
+
+    Phase-0 acceptance: any in-process attacker with code-execution
+    rights can defeat any in-process guard (slot+freeze patterns can
+    be bypassed via `object.__setattr__`; the closure pattern via
+    `cell_contents=`). The wrapped-backend invariant is for *honest
+    code paths that forget to wrap* (cycle-9 H1 found three:
+    burst.py, demo_pr_scenario.py, csis/loop.py — all now wrap
+    explicitly). For adversarial in-process attackers, the answer is
+    process-level isolation (separate sandbox, separate identity, OS
+    capability tokens), not in-process guards. Tracked for Phase 1.
     """
 
     def __init_subclass__(cls, **kwargs):

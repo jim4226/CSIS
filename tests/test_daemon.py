@@ -122,7 +122,8 @@ def test_daemon_skill_promotion_path_direct(tmp_path: Path) -> None:
         '{"attempt":"b","falsified":false},'
         '{"attempt":"c","falsified":false}]',
     )
-    coord = Coordinator(config=cfg, backend=backend)
+    from tests._helpers import wrap_for_test
+    coord = Coordinator(config=cfg, backend=wrap_for_test(backend, tmp_path))
     res = coord.run_iteration(frontier_item="skill test")
     assert res.outcome == "promoted", res.outcome
     assert res.artifact and res.artifact.kind == "skill"

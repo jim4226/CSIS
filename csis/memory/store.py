@@ -121,16 +121,29 @@ class MemoryStore:
 
     # ---- candidate-side writes -----------------------------------------
 
-    def write_candidate(self, entry: MemoryEntry) -> None:
+    def write_candidate(self, entry: MemoryEntry, *, writer_iteration_id: str | None = None) -> None:
         """Add or update a candidate entry. No trust-upgrade restriction on
-        the candidate side — that's what candidate is for."""
+        the candidate side — that's what candidate is for.
+
+        H4 (cycle-9): if `writer_iteration_id` is provided, it is stamped
+        onto a model_copy of `entry` so the TierMismatch cleanup can
+        identify entries written by a specific iteration (race-free vs.
+        cycle-8's pre-consolidate snapshot which failed if a sibling
+        iteration wrote the same entry_id mid-window).
+        """
         with self._lock:
+            if writer_iteration_id is not None:
+                entry = entry.model_copy(update={"writer_iteration_id": writer_iteration_id})
             self._candidate[entry.entry_id] = entry
             self._flush()
 
-    def write_candidates(self, entries: Iterable[MemoryEntry]) -> None:
+    def write_candidates(
+        self, entries: Iterable[MemoryEntry], *, writer_iteration_id: str | None = None
+    ) -> None:
         with self._lock:
             for entry in entries:
+                if writer_iteration_id is not None:
+                    entry = entry.model_copy(update={"writer_iteration_id": writer_iteration_id})
                 self._candidate[entry.entry_id] = entry
             self._flush()
 
@@ -281,6 +294,15 @@ class MemoryStore:
         with self._lock:
             return set(self._candidate.keys())
 
+    def candidates_snapshot(self) -> list[MemoryEntry]:
+        """H4 (cycle-9) API surface: snapshot list of every current candidate
+        entry under lock. The Coordinator's TierMismatch cleanup uses this
+        to filter by writer_iteration_id (race-free vs. cycle-8's
+        snapshot-diff approach). Returns a new list so callers can iterate
+        safely after the lock releases."""
+        with self._lock:
+            return list(self._candidate.values())
+
     def deprecate_live(self, entry_id: str, *, reason: str) -> None:
         """Mark a live entry deprecated. Terminal; cannot be undone here."""
         with self._lock:
@@ -363,3 +385,11 @@ class MemoryHierarchy(BaseModel):
 
     def tier(self, name: str) -> MemoryStore:
         return getattr(self, name)
+
+    @classmethod
+    def tier_names(cls) -> tuple[str, ...]:
+        """H12 (cycle-9): single source of truth for the tier names.
+        Callers that need to iterate all tiers should use this instead
+        of hardcoding the 5-tuple, so adding a 6th tier in the future
+        doesn't silently skip cleanup/snapshot paths."""
+        return tuple(cls.model_fields.keys())

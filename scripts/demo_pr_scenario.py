@@ -32,6 +32,7 @@ if str(_REPO_ROOT) not in sys.path:
 
 from csis.agents.coordinator import Coordinator
 from csis.backends.mock import MockBackend
+from csis.budget import BudgetTracker, _BackendTracker
 from csis.config import CSISConfig
 
 
@@ -146,7 +147,14 @@ def main(argv: list[str] | None = None) -> int:
         if cfg.memory_root.exists():
             shutil.rmtree(cfg.memory_root)
 
-    backend, scripts = _wire_backend(cfg)
+    raw_backend, scripts = _wire_backend(cfg)
+    # H1 (cycle-9): Coordinator demands a _BackendTracker even for mock
+    # runs. No cap (mock = free), but the wrap-site invariant is
+    # enforced uniformly across all entry points.
+    backend = _BackendTracker(
+        raw_backend,
+        BudgetTracker(path=cfg.brain_root / "demo_pr.budget.json"),
+    )
     coord = Coordinator(config=cfg, backend=backend)
 
     print("=" * 78)

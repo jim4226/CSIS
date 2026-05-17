@@ -200,4 +200,16 @@ class MemoryEntry(BaseModel):
     created_at: float
     promoted_at: Optional[float] = None
     deprecated_reason: Optional[str] = None
+    writer_iteration_id: Optional[str] = Field(
+        default=None,
+        description=(
+            "H4 (cycle-9): the Coordinator's iteration_id at the time this "
+            "candidate was written. The TierMismatch cleanup discards only "
+            "entries whose writer_iteration_id equals the current iteration, "
+            "which makes the cleanup race-free against concurrent sibling "
+            "iterations that happen to write a same-id candidate during the "
+            "buggy-Librarian window. Optional/backward-compatible: legacy "
+            "entries without the field skip the cleanup."
+        ),
+    )
     extra: dict[str, Any] = Field(default_factory=dict)

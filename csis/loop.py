@@ -15,6 +15,7 @@ from pathlib import Path
 
 from csis.agents.coordinator import Coordinator
 from csis.backends.mock import MockBackend
+from csis.budget import BudgetTracker, _BackendTracker
 from csis.config import CSISConfig
 
 
@@ -57,9 +58,17 @@ def main(argv: list[str] | None = None) -> int:
     # Default to a tmp-style run under repo root so the demo doesn't
     # pollute a hypothetical operator's state.
     cfg = CSISConfig()
-    backend = _script_demo_backend(cfg)
+    raw_backend = _script_demo_backend(cfg)
+    # H1 (cycle-9): Coordinator demands a _BackendTracker. Mock demo
+    # uses a no-cap tracker so the wrap-site invariant is uniform.
+    backend = _BackendTracker(
+        raw_backend,
+        BudgetTracker(path=cfg.brain_root / "loop.budget.json"),
+    )
     coord = Coordinator(config=cfg, backend=backend)
-    res = coord.run_iteration(frontier_item="demo frontier")
+    # H8 (cycle-9): explicit salt=None — no salt in this static demo,
+    # but the explicitness keeps forensic-replay contracts consistent.
+    res = coord.run_iteration(frontier_item="demo frontier", salt=None)
     print(
         f"[csis.loop] iteration {res.iteration_id} -> {res.outcome} "
         f"(promoted {len(res.promoted)} entries, "

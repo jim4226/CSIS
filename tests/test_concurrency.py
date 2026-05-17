@@ -19,6 +19,8 @@ from csis.contracts import MemoryEntry
 from csis.memory.store import MemoryStore, PromotionPreconditionFailure
 from csis.memory.trust import TrustLevel
 
+from tests._helpers import wrap_for_test
+
 
 def _new_entry(eid: str) -> MemoryEntry:
     return MemoryEntry(
@@ -68,7 +70,7 @@ def test_event_log_no_seq_gaps_under_concurrent_emit(tmp_path: Path) -> None:
     backend = MockBackend()
     backend.set_model_id(cfg.builder_checkpoint, "mock-opus")
     backend.set_model_id(cfg.auditor_checkpoint, "mock-sonnet")
-    coord = Coordinator(config=cfg, backend=backend)
+    coord = Coordinator(config=cfg, backend=wrap_for_test(backend, tmp_path))
 
     threads = []
     for i in range(20):
@@ -113,7 +115,7 @@ def test_serial_iterations_all_promote_with_intact_log(tmp_path: Path) -> None:
     the event log must remain chain-intact across all of them."""
     cfg = CSISConfig.for_tests(tmp_path)
     backend = _wire(cfg)
-    coord = Coordinator(config=cfg, backend=backend)
+    coord = Coordinator(config=cfg, backend=wrap_for_test(backend, tmp_path))
     outcomes = []
     for i in range(5):
         res = coord.run_iteration(frontier_item=f"item-{i}")

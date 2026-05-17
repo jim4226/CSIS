@@ -37,6 +37,7 @@ if str(_REPO_ROOT) not in sys.path:
     sys.path.insert(0, str(_REPO_ROOT))
 
 from csis.agents.coordinator import Coordinator  # noqa: E402
+from csis.budget import BudgetTracker, _BackendTracker  # noqa: E402
 from csis.config import CSISConfig  # noqa: E402
 from csis.curiosity import Curiosity  # noqa: E402
 from csis.daemon import _select_backend, _select_domain  # noqa: E402
@@ -82,7 +83,16 @@ def main(argv: list[str] | None = None) -> int:
     args = parser.parse_args(argv)
 
     cfg = CSISConfig()
-    backend = _select_backend(args.backend, cfg)
+    raw_backend = _select_backend(args.backend, cfg)
+    # H1 (cycle-9): Coordinator demands a _BackendTracker. Wrap with a
+    # per-burst BudgetTracker so even mock runs go through the metering
+    # path — and so `--backend anthropic` (the default) can't bypass the
+    # day cap by skipping the wrap site as cycle-8 G1 allowed.
+    burst_tracker = BudgetTracker(
+        path=cfg.brain_root / "burst.budget.json",
+        max_cost_per_day_usd=args.max_cost_usd,
+    )
+    backend = _BackendTracker(raw_backend, burst_tracker)
     domain = _select_domain(args.domain, repo_path=args.repo_path)
 
     registry = domain.graders() if domain else None
@@ -101,12 +111,15 @@ def main(argv: list[str] | None = None) -> int:
     promoted = 0
     rolled_back = 0
     for i in range(args.iters):
-        # Cost check before each iteration (skip if over).
-        if hasattr(backend, "calls"):
-            cost_so_far = _estimate_cost(backend, backend.calls())
-            if cost_so_far >= args.max_cost_usd:
-                print(f"[burst] cost ceiling reached: ${cost_so_far:.4f} >= ${args.max_cost_usd}; stopping early")
-                break
+        # H1 (cycle-9): cost ceiling check now reads from the authoritative
+        # BudgetTracker rather than `backend.calls()`. The previous version
+        # used `hasattr(backend, 'calls')` which was False on the wrapped
+        # _BackendTracker AND on AnthropicBackend, silently skipping the
+        # ceiling entirely on real runs (the cycle-8 G1 escape).
+        cost_so_far = burst_tracker.today_cost_usd()
+        if cost_so_far >= args.max_cost_usd:
+            print(f"[burst] cost ceiling reached: ${cost_so_far:.4f} >= ${args.max_cost_usd}; stopping early")
+            break
 
         item = curiosity.next(coord.hierarchy)
         print(f"[burst] iter {i+1}/{args.iters} · frontier='{item.text[:60]}...'")
@@ -126,10 +139,10 @@ def main(argv: list[str] | None = None) -> int:
             time.sleep(args.sleep_s)
 
     elapsed = time.time() - started
-    cost = _estimate_cost(backend, backend.calls()) if hasattr(backend, "calls") else 0.0
+    cost = burst_tracker.today_cost_usd()
     print()
     print(f"[burst] DONE in {elapsed:.1f}s · promoted={promoted} rolled_back={rolled_back} "
-          f"· est_cost=${cost:.4f}")
+          f"· billed_cost=${cost:.4f}")
     return 0
 
 

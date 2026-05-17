@@ -81,9 +81,14 @@
     <p>G1 critical: 3rd-gen <code>_wrapped</code> bypass closed by dropping the subclass guard and constraining the wrap site (exact <code>type(...) is _BackendTracker</code> in <code>Daemon.__init__</code>). G2 added pre-consolidate per-tier snapshots so TierMismatch cleanup brute-walks all five tiers without over-discarding pre-existing same-id candidates. G3 fixed the Win <code>os.replace</code> race between cap and no-cap trackers sharing a file. <span class="pill good">202 tests pass</span>.</p>
     <p>Report: <a href="critiques/07-cycle7-redteam.md">critiques/07-cycle7-redteam.md</a></p>
   </div>
+  <div class="card">
+    <h3>Cycle 9 · 12 findings, 0 open <span class="pill good">shipped — chokepoint + identity</span></h3>
+    <p>H1 critical: G1 wrap-site was at Daemon, but Coordinator is the actual LLM chokepoint — burst/loop/demo bypassed metering. Moved check to <code>Coordinator.__init__</code>; scripts wrap explicitly. H3 critical: <code>setattr</code> after init wasn't re-validated; added property setters. H4 critical: G2 pre-consolidate snapshot had a sibling-race window; replaced with <code>writer_iteration_id</code> tagging on each candidate. H5 high: <code>record()</code> under lock timeout now persists to a WAL drained on next successful record. H7 high: cycle-8 G5 source-grep test rewritten as a behavior spy. H2 + H11 documented as known threat-model limits. <span class="pill good">213 tests pass</span>.</p>
+    <p>Report: <a href="critiques/08-cycle8-redteam.md">critiques/08-cycle8-redteam.md</a> (synthesis); detail in <a href="critiques/08-cycle8-redteam-G1G3.md">G1G3</a>, <a href="critiques/08-cycle8-redteam-G2.md">G2</a>, <a href="critiques/08-cycle8-redteam-G4G5G6.md">G4G5G6</a>.</p>
+  </div>
 </div>
 
-<h2>Loop quality (cumulative across 8 cycles)</h2>
+<h2>Loop quality (cumulative across 9 cycles)</h2>
 <table>
   <tr><th>Cycle</th><th>Findings</th><th>Critical</th><th>High</th><th>Medium</th><th>Low</th><th>Open</th><th>Deferred</th><th>Tests after</th></tr>
   <tr><td>1 (pre-impl)</td><td>18</td><td>2</td><td>6</td><td>7</td><td>3</td><td>0</td><td>0</td><td>52</td></tr>
@@ -93,10 +98,11 @@
   <tr><td>5 fixes</td><td>11</td><td>3</td><td>3</td><td>4</td><td>1</td><td>0</td><td>0</td><td>165</td></tr>
   <tr><td>6 fixes</td><td>10</td><td>3</td><td>3</td><td>3</td><td>1</td><td>0</td><td>1 (E8)</td><td>186</td></tr>
   <tr><td>7 fixes</td><td>7</td><td>1</td><td>2</td><td>3</td><td>1</td><td>0</td><td>0</td><td>195</td></tr>
-  <tr><td>8 fixes</td><td>6</td><td>2</td><td>2</td><td>2</td><td>0</td><td>0</td><td>0</td><td><b>202</b></td></tr>
-  <tr><th>Total</th><th>87</th><th>17</th><th>30</th><th>30</th><th>10</th><th>0</th><th>1</th><th>—</th></tr>
+  <tr><td>8 fixes</td><td>6</td><td>2</td><td>2</td><td>2</td><td>0</td><td>0</td><td>0</td><td>202</td></tr>
+  <tr><td>9 fixes</td><td>12</td><td>4</td><td>3</td><td>2</td><td>3</td><td>0</td><td>2</td><td><b>213</b></td></tr>
+  <tr><th>Total</th><th>99</th><th>21</th><th>33</th><th>32</th><th>13</th><th>0</th><th>3</th><th>—</th></tr>
 </table>
-<p style="font-family: var(--mono); font-size: 13px; color: var(--ink-dim);">Cycle 8 closed 6 findings — including two architectural-level corrections rather than additional guards. G1 ended the 3rd-generation <code>_wrapped</code> attack class by changing which layer the constraint lives at (wrap site, not subclass surface). G2 ended the TierMismatch-cleanup arms race by snapshotting pre-consolidate state so the cleanup brute-walk is structurally safe. Both are wins of design, not patches.</p>
+<p style="font-family: var(--mono); font-size: 13px; color: var(--ink-dim);">Cycle 9 jumped finding count back up (12 vs cycle-8's 6) — confirming cycle 8's architectural pivots were structurally understudied. Two cycle-9 criticals (H1 + H4) were the same metabug as cycle 8 but located at the wrong abstraction layer: G1's wrap-site at Daemon belonged at Coordinator (the actual LLM chokepoint); G2's pre-consolidate snapshot put ownership in <em>timing</em> when it should have been in <em>identity</em> (writer_iteration_id stamp). <strong>Identity beats timing; chokepoints beat perimeters.</strong> H2 + H11 are honest threat-model deferrals (closure-cell mutation + POSIX unlink race) — in-process attackers with code-execution rights defeat any in-process guard. Phase 1: process-level isolation.</p>
 
 <h2>24/7 daemon at a glance</h2>
 <table>
@@ -154,6 +160,7 @@
   <tr><td>08</td><td><a href="snapshots/08-cycle6-shipped.md">snapshots/08-cycle6-shipped.md</a></td><td>9 cycle-6 findings closed + 1 deferred (E8 Pydantic-frozen-dict); 186/186 tests; cycle-7 dispatched</td></tr>
   <tr><td>09</td><td><a href="snapshots/09-cycle7-shipped.md">snapshots/09-cycle7-shipped.md</a></td><td>All 7 cycle-7 findings closed; 195/195 tests; cycle-8 dispatched; diminishing-returns reflection</td></tr>
   <tr><td>10</td><td><a href="snapshots/10-cycle8-shipped.md">snapshots/10-cycle8-shipped.md</a></td><td>All 6 cycle-8 findings closed (G1 architectural pivot on <code>_wrapped</code>, G2 pre-consolidate snapshot); 202/202 tests; pause/pivot decision point</td></tr>
+  <tr><td>11</td><td><a href="snapshots/11-cycle9-shipped.md">snapshots/11-cycle9-shipped.md</a></td><td>All 12 cycle-9 findings closed (H1 chokepoint relocation to Coordinator, H4 writer-id tagging, H3 setter re-validation, H5 budget WAL); 213/213 tests; H2 + H11 deferred to Phase-1 process isolation</td></tr>
 </table>
 
 <h2>Plans</h2>
@@ -173,6 +180,7 @@
   <tr><td><a href="critiques/05-cycle5-redteam.md">critiques/05-cycle5-redteam.md</a></td><td>Cycle 5 fixes</td><td>11 findings · 3 critical (D1 dual-form FPs, D2 shallow snapshot, D3 sibling reservation) · all addressed</td></tr>
   <tr><td><a href="critiques/06-cycle6-redteam.md">critiques/06-cycle6-redteam.md</a></td><td>Cycle 6 fixes</td><td>7 findings · 1 critical (F1 acknowledged-but-shipped mangling escape) · all addressed</td></tr>
   <tr><td><a href="critiques/07-cycle7-redteam.md">critiques/07-cycle7-redteam.md</a></td><td>Cycle 7 fixes</td><td>6 findings · 2 critical (G1 3rd-gen <code>_wrapped</code> bypass, G3 cap/no-cap tracker race) · all addressed via architectural pivot</td></tr>
+  <tr><td><a href="critiques/08-cycle8-redteam.md">critiques/08-cycle8-redteam.md</a></td><td>Cycle 8 fixes (3-agent synthesis)</td><td>12 findings · 4 critical (H1 chokepoint at Daemon-not-Coordinator, H2 closure-cell mutation, H3 post-init setattr, H4 sibling-write race) · 10 addressed, 2 deferred (H2 + H11 require process-level isolation)</td></tr>
 </table>
 
 <h2>Research</h2>

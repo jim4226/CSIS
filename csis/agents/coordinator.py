@@ -64,7 +64,16 @@ class IterationResult:
 
 
 class Coordinator:
-    """Coordinator-led multiagent runner."""
+    """Coordinator-led multiagent runner.
+
+    H6 (cycle-9) threat-model note: `run_iteration` is NOT safe to call
+    concurrently against a shared MemoryHierarchy in Phase 0. The
+    per-promotion lock + writer-id tagging make individual primitives
+    race-safe, but iteration-level invariants (e.g. event-log ordering,
+    tripwire scan/halt) assume one in-flight iteration per Coordinator.
+    A daemon that wants concurrency should run N Coordinators each on
+    their own MemoryHierarchy, not N threads against one Coordinator.
+    """
 
     def __init__(
         self,
@@ -75,7 +84,28 @@ class Coordinator:
         registry: Optional[GraderRegistry] = None,
     ) -> None:
         self.config = config
-        self.backend = backend
+        # H1 (cycle-9): the Coordinator is the actual chokepoint for
+        # every LLM call (every agent reaches the backend through
+        # self.backend). Cycle-8 G1 placed the wrap-site type check at
+        # Daemon.__init__ only; three production scripts (burst.py,
+        # demo_pr_scenario.py, csis/loop.py) construct Coordinator
+        # directly with a raw backend, so the metering bypassed. Refuse
+        # any backend that is not exactly _BackendTracker — callers
+        # must wrap explicitly with a BudgetTracker. Phase-0 acceptance:
+        # tests construct mock budget trackers; production scripts
+        # construct production budget trackers.
+        from csis.budget import _BackendTracker  # late import to avoid cycle
+        if type(backend) is not _BackendTracker:
+            raise TypeError(
+                f"Coordinator requires a _BackendTracker-wrapped backend "
+                f"(metering must be active for any LLM call). Got: "
+                f"{type(backend).__name__!r}. Wrap with "
+                f"_BackendTracker(backend, BudgetTracker(...)) first."
+            )
+        # H3 (cycle-9): the type check above runs once at __init__.
+        # Store the wrapper in a private slot and expose via property
+        # so post-init `coord.backend = evil` is rejected by the setter.
+        self._backend = backend
         self.event_log = EventLog(config.event_log_path)
         self.constitution = Constitution()
         self.tier_guard = TierGuard()
@@ -94,6 +124,24 @@ class Coordinator:
         self._promotion_lock = threading.Lock()
 
         self.event_log.emit("coordinator", "boot", {"config": _config_for_log(config)})
+
+    # H3 (cycle-9): backend is a property with a setter that re-validates,
+    # so `coord.backend = MockBackend()` after construction raises.
+    @property
+    def backend(self):  # type: ignore[override]
+        return self._backend
+
+    @backend.setter
+    def backend(self, value):
+        from csis.budget import _BackendTracker
+        if type(value) is not _BackendTracker:
+            raise TypeError(
+                f"Coordinator.backend cannot be reassigned to a non-_BackendTracker "
+                f"value. Got: {type(value).__name__!r}. (H3 cycle-9: post-init "
+                f"setattr is rejected so the wrapped-backend invariant cannot "
+                f"be silently bypassed at runtime.)"
+            )
+        self._backend = value
 
     # ---- contexts -------------------------------------------------------
 
@@ -258,16 +306,23 @@ class Coordinator:
             self._rollback(result, f"verifier-rejected:{cert.notes}")
             return result
 
-        # G2 (cycle-8): snapshot which candidate IDs exist in EACH tier
-        # before Librarian runs. The TierMismatch cleanup path uses this
-        # to distinguish "IDs THIS iteration introduced" from "IDs that
-        # were already there", so a brute-walk discard doesn't trash a
-        # legitimate pre-existing candidate that happens to share an
-        # entry_id (the F2 regression scenario).
-        ALL_TIERS = ("working", "episodic", "semantic", "procedural", "causal")
+        # H4 (cycle-9) primary discipline: writer-id tagging. The
+        # Librarian stamps every candidate with this iteration_id at
+        # write_candidate time; the cleanup uses the stamp to identify
+        # this-iteration's writes (race-free against sibling iterations
+        # that wrote a same-id candidate concurrently — the G2-snapshot
+        # window that cycle-9 H4 exposed).
+        #
+        # Belt-and-suspenders: a buggy/malicious Librarian that bypasses
+        # consolidate_to_candidates can write WITHOUT stamping. The
+        # pre-consolidate snapshot still defends that case: any
+        # unstamped candidate whose id appears post-consolidate and was
+        # NOT pre-existing is treated as this-iteration's. This keeps
+        # the cycle-7 F2 / cycle-8 G2 attack scenarios closed.
+        tier_names = self.hierarchy.__class__.tier_names()  # H12 (cycle-9)
         pre_consolidate_ids: dict[str, set[str]] = {
             tier_name: self.hierarchy.tier(tier_name).candidate_ids()
-            for tier_name in ALL_TIERS
+            for tier_name in tier_names
         }
 
         # Librarian (step 6): consolidate to candidate stores.
@@ -280,6 +335,7 @@ class Coordinator:
                 artifact=artifact,
                 cert=cert,
                 target_tier=target_tier,
+                iteration_id=iteration_id,
             )
         except PermissionError as exc:
             self.event_log.emit("coordinator", "tier.write.blocked", {"reason": str(exc)})
@@ -324,7 +380,7 @@ class Coordinator:
                     )
         except TierMismatch as exc:
             self._tier_mismatch_cleanup(
-                exc, candidates, pre_consolidate_ids, result,
+                exc, candidates, iteration_id, pre_consolidate_ids, result,
             )
             return result
 
@@ -346,7 +402,7 @@ class Coordinator:
             )
         except TierMismatch as exc:
             self._tier_mismatch_cleanup(
-                exc, candidates, pre_consolidate_ids, result,
+                exc, candidates, iteration_id, pre_consolidate_ids, result,
             )
             return result
         except BudgetCapExceeded:
@@ -422,21 +478,41 @@ class Coordinator:
 
         return result
 
-    def run_continuous(self, frontier_items: list[str], *, target_tier: str = "episodic") -> list[IterationResult]:
+    def run_continuous(
+        self,
+        frontier_items,
+        *,
+        target_tier: str = "episodic",
+    ) -> list[IterationResult]:
         """Run a sequence of iterations, halting on the first HaltSignal.
+
+        H8 (cycle-9): accepts `list[FrontierItem | str]`. FrontierItem
+        callers thread `salt=item.salt` through to `run_iteration` so
+        iter.start records the authoritative salt (forensic replay
+        parity with `csis/daemon.py`). Plain-string callers preserve
+        legacy behavior (salt=None).
 
         For the prototype this is a synchronous loop. The Anthropic scheduler
         (≤25 concurrent threads) would replace this in a real deployment;
         the structure here keeps the same single-iteration contract.
         """
+        from csis.curiosity import FrontierItem
         out: list[IterationResult] = []
-        for item in frontier_items:
+        for raw in frontier_items:
             try:
                 self.shutdown.check()
             except HaltSignal as exc:
                 self.event_log.emit("coordinator", "halt", {"reason": str(exc)})
                 return out
-            res = self.run_iteration(frontier_item=item, target_tier=target_tier)
+            if isinstance(raw, FrontierItem):
+                item_text = raw.text
+                item_salt = raw.salt
+            else:
+                item_text = raw
+                item_salt = None
+            res = self.run_iteration(
+                frontier_item=item_text, salt=item_salt, target_tier=target_tier,
+            )
             out.append(res)
             # Periodic auto-snapshot if requested.
             if (
@@ -459,37 +535,53 @@ class Coordinator:
         self,
         exc: TierMismatch,
         candidates: list[MemoryEntry],
+        iteration_id: str,
         pre_consolidate_ids: dict[str, set[str]],
         result: IterationResult,
     ) -> None:
-        """G2 (cycle-8) cleanup. Brute-walk every tier to find stranded
-        candidates this iteration introduced, BUT only discard IDs that
-        were NOT present at the pre-consolidate snapshot — so a
-        legitimate pre-existing candidate with the same id is preserved
-        (cycle-7 F2 regression scenario).
+        """H4 (cycle-9) cleanup. Two-tier identification:
 
-        This combines cycle-7 F2's "don't over-discard" discipline with
-        cycle-8 G2's "don't trust the Librarian's tier claim" discipline.
+        1. Primary: discard candidates whose writer_iteration_id matches
+           this iteration. This is race-free against sibling iterations
+           even when they write a same-id candidate concurrently
+           (cycle-8 G2's snapshot race window — sibling's entry carries
+           sibling's iteration_id, never matches ours).
+
+        2. Belt-and-suspenders: discard unstamped candidates that
+           appear in this iteration's `candidates` list AND were NOT
+           in the pre-consolidate snapshot. This catches buggy/malicious
+           Librarians that write directly to a store, bypassing
+           consolidate_to_candidates' stamping path. The pre-snapshot
+           check prevents over-discard of pre-existing legitimate
+           same-id candidates (cycle-7 F2 scenario).
         """
-        ALL_TIERS = ("working", "episodic", "semantic", "procedural", "causal")
-        discarded: list[tuple[str, str]] = []
-        for entry in candidates:
-            for tier_name in ALL_TIERS:
-                tier_store = self.hierarchy.tier(tier_name)
-                if not tier_store.has_candidate(entry.entry_id):
-                    continue
-                if entry.entry_id in pre_consolidate_ids.get(tier_name, set()):
-                    # Pre-existing legitimate candidate — leave it alone.
-                    continue
-                tier_store.discard_candidate(
-                    entry.entry_id, reason=f"tier-mismatch:{exc}"
+        tier_names = self.hierarchy.__class__.tier_names()  # H12 (cycle-9)
+        discarded: list[tuple[str, str, str]] = []
+        candidate_ids = {e.entry_id for e in candidates}
+        for tier_name in tier_names:
+            tier_store = self.hierarchy.tier(tier_name)
+            tier_pre_ids = pre_consolidate_ids.get(tier_name, set())
+            for stored in tier_store.candidates_snapshot():
+                stamp_matches = stored.writer_iteration_id == iteration_id
+                legacy_match = (
+                    stored.writer_iteration_id is None
+                    and stored.entry_id in candidate_ids
+                    and stored.entry_id not in tier_pre_ids
                 )
-                discarded.append((tier_name, entry.entry_id))
+                if not (stamp_matches or legacy_match):
+                    continue
+                tier_store.discard_candidate(stored.entry_id, reason=f"tier-mismatch:{exc}")
+                discarded.append(
+                    (tier_name, stored.entry_id, "stamp" if stamp_matches else "legacy")
+                )
         self.event_log.emit("coordinator", "tier.mismatch", {
             "reason": str(exc),
             "claimed_tier": exc.claimed_tier,
             "target_tier": exc.target_tier,
-            "discarded": [{"tier": t, "id": i} for t, i in discarded],
+            "iteration_id": iteration_id,
+            "discarded": [
+                {"tier": t, "id": i, "match": m} for t, i, m in discarded
+            ],
         })
         self._rollback(result, f"tier-mismatch:{exc}")
 
@@ -501,8 +593,10 @@ class Coordinator:
             f"event_log seq: {self.event_log.seq()}\n"
             f"latest hash: {self.event_log.latest_hash()}\n"
             f"live store hashes:\n"
-            + "\n".join(f"  - {tier}: {self.hierarchy.tier(tier).live_hash()}" for tier in
-                       ("working", "episodic", "semantic", "procedural", "causal"))
+            + "\n".join(
+                f"  - {tier}: {self.hierarchy.tier(tier).live_hash()}"
+                for tier in self.hierarchy.__class__.tier_names()  # H12 (cycle-9)
+            )
             + f"\n\ntripwires fired: {len(self.tripwires.history())}\n",
             encoding="utf-8",
         )
