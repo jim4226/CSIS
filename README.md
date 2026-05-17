@@ -1,68 +1,80 @@
 # CSIS · Continuous Self-Improving System
 
-> A coordinator-led multi-agent system that runs 24/7, maintains persistent memory, and slowly improves itself — built on the architecture described in [`CSIS-architecture.html`](CSIS-architecture.html) (v0.2 Phase-0 contract).
+> A coordinator-led multi-agent system designed to run 24/7, maintain persistent memory, and slowly improve itself — **built in public alongside 9 cycles of red-team → fix → regression-test against itself.**
 
 <p align="center">
-  <img alt="status" src="https://img.shields.io/badge/status-Phase--0-d97757">
-  <img alt="tests" src="https://img.shields.io/badge/tests-92%20passing-788c5d">
+  <img alt="phase" src="https://img.shields.io/badge/phase-0%20%E2%80%94%20runnable-d97757">
+  <img alt="tests" src="https://img.shields.io/badge/tests-213%20passing-788c5d">
+  <img alt="cycles" src="https://img.shields.io/badge/critique%E2%86%92fix%20cycles-9-6a9bcc">
+  <img alt="findings" src="https://img.shields.io/badge/findings-99%20closed%20%C2%B7%200%20open-788c5d">
   <img alt="python" src="https://img.shields.io/badge/python-3.10%2B-6a9bcc">
   <img alt="license" src="https://img.shields.io/badge/license-MIT-c89b3c">
 </p>
 
-```
-┌───────────────────────────────────────────────────────────────────────────┐
-│                            CSIS · the loop                                │
-│                                                                           │
-│   Researcher  →  Builder  →  Verifier  →  Librarian  →  Auditor  →  PROMOTE │
-│      (T0)        (T1)       (T1, alt        (T0)        (T0, alt           │
-│                              ckpt)                       ckpt)              │
-│                                ↓                            ↓               │
-│                          V1 graders                  hash-preconditioned    │
-│                          + V2 critic                     why-doc CAS         │
-│                                ↓                            ↓               │
-│                       VerifierCert                   atomic candidate→live  │
-└───────────────────────────────────────────────────────────────────────────┘
-```
+## The headline
+
+Most agent-framework repos sell a vision. This one ships a **paper trail of its own failures.**
+
+Across 9 cycles, parallel red-team agents attacked the system, the fixes landed in code with regression tests, and the cycles often found that the *previous* cycle had fixed the bug at the wrong abstraction layer. Two of the bigger lessons:
+
+- **Identity beats timing.** Cycle 8 tried to detect "which iteration wrote this candidate?" with a pre-consolidate snapshot diff. Cycle 9 found the snapshot had a race window. The fix wasn't a wider snapshot — it was a `writer_iteration_id` stamp on each candidate at write time.
+- **Chokepoints beat perimeters.** Cycle 8 added a `type(...) is _BackendTracker` check at `Daemon.__init__` to defeat subclass-shaped bypasses of LLM metering. Cycle 9 found three production scripts (`burst.py`, `loop.py`, `demo_pr_scenario.py`) bypassed the Daemon entirely. The fix moved the check into `Coordinator.__init__` — the actual single chokepoint every LLM call passes through.
+
+Full cycle table, finding counts, and architectural-pivot post-mortems live in **[CYCLES.md](CYCLES.md)**.
 
 ## What this is
 
-CSIS is the runnable implementation of an architecture proposal for **continuous, self-improving agent systems** built on Anthropic's Managed Agents primitives. The idea: instead of episodic agents that wake, work, and forget, run a long-lived organization of specialized roles — Researcher, Builder, Critic, Verifier, Librarian, Auditor — that share persistent memory and improve gradually under load-bearing safety.
+CSIS is the runnable Phase-0 implementation of an architecture proposal for **continuous, self-improving agent systems** on Anthropic's Managed Agents primitives. Instead of episodic agents that wake, work, and forget, run a long-lived organization of specialized roles — Researcher, Builder, Critic, Verifier, Librarian, Auditor — that share persistent memory and improve gradually under load-bearing safety.
 
-The architecture document ([CSIS-architecture.html](CSIS-architecture.html)) is the spec. This repo is the prototype.
+The spec lives in [`CSIS-architecture.html`](CSIS-architecture.html). This repo is the prototype.
+
+```
+┌──────────────────────────────────────────────────────────────────────────────┐
+│                                CSIS · the loop                                │
+│                                                                              │
+│  Researcher → Builder → Verifier → Librarian → Auditor → PROMOTE             │
+│     (T0)       (T1)     (T1, alt    (T0)       (T0, alt                      │
+│                          ckpt)                  ckpt)                        │
+│                            ↓                       ↓                         │
+│                      V1 graders               hash-preconditioned            │
+│                      + V2 critic                  why-doc CAS                │
+│                            ↓                       ↓                         │
+│                     VerifierCert            atomic candidate→live            │
+└──────────────────────────────────────────────────────────────────────────────┘
+```
 
 **What's working today (Phase 0):**
 
-- The 8-step continuous loop from §4 of the spec, end-to-end runnable on a mock LLM backend (no API key required) or the real Anthropic backend.
-- 6-level memory trust lattice (`raw` → `untrusted` → `candidate` → `verified` → `promoted` → `deprecated`) with hash-preconditioned promotion as the only mutation primitive.
-- V1+V2 verification stack with cross-checkpoint cert signing (the Verifier and Auditor run on a structurally different checkpoint than the Builder).
-- 5-tier memory hierarchy (working / episodic / semantic / procedural / causal) backed by JSON files.
-- Capability-tier substrate (T0/T1 only at Phase-0; T2+ rejected at the call site).
-- Constitution + tripwires + shutdown-token + tier guard — all enforced as code, not as prompt.
-- 24/7 daemon with curiosity-driven frontier-item generation, budget caps, watchdog, stop-file, and auto-snapshots.
-- 3 domain adapters: PR maintenance (any git repo), self-improvement (this repo), Lean formal math (with graceful fallback if Lean isn't installed).
-- 92 tests; every red-team mitigation has a regression test.
+- The 8-step continuous loop end-to-end on a mock LLM backend (no API key required) or the real Anthropic backend
+- 6-level memory trust lattice (`raw` → `untrusted` → `candidate` → `verified` → `promoted` → `deprecated`) with hash-preconditioned promotion as the only mutation primitive
+- V1+V2 verification with cross-checkpoint cert signing (Verifier and Auditor on a structurally different checkpoint than the Builder)
+- 5-tier memory hierarchy (working / episodic / semantic / procedural / causal) backed by JSON
+- Capability-tier substrate — T0/T1 only at Phase-0; T2+ rejected at the call site
+- Constitution + tripwires + shutdown token + tier guard, all enforced as code
+- 24/7 daemon: curiosity-driven frontier-item generation, budget caps, watchdog, stop file, auto-snapshots
+- 3 domain adapters: PR maintenance (any git repo), self-improvement (this repo), Lean formal math (graceful fallback if Lean isn't installed)
+- 213 tests; every cycle's findings have regression tests
 
-**What's not Phase 0:**
+**Honest Phase-0 deferrals (tracked in [brain/synthesis/01-validation.md](brain/synthesis/01-validation.md)):**
 
-- Real Anthropic Dreams API integration (mocked locally in `csis/dreams/`).
-- V3 (debate), V4 (replication), V5 (calibration) verification layers.
-- I4–I7 improvement layers (DPO, distillation, continued pretraining, neural architecture search).
-- Multi-process EventLog (single-process Phase-0 is intentional).
-- Sandbox subprocess execution for Builder T1 work (graders read the repo's current state).
-- LLM-generated why-doc summaries (templated in Phase 0).
-- L6 meta-improvement layer.
-
-These are honest deferrals to Phase 1+, all listed in [brain/synthesis/01-validation.md](brain/synthesis/01-validation.md) with priorities.
+- Real Anthropic Dreams API integration (mocked locally in `csis/dreams/`)
+- V3 (debate), V4 (replication), V5 (calibration) verification layers
+- I4–I7 improvement layers (DPO, distillation, continued pretraining, NAS)
+- Multi-process EventLog (single-process Phase-0 is intentional)
+- Sandbox subprocess execution for Builder T1 work (graders read the repo's current state)
+- LLM-generated why-doc summaries (templated in Phase 0)
+- L6 meta-improvement layer
+- Process-level isolation for the wrapped-backend invariant (H2 / H11 deferrals from cycle 9)
 
 ## Quick start
 
 ```bash
 pip install pydantic pytest
 
-# Run the test suite.
+# Run the test suite (213 passing).
 python -m pytest tests/ -v
 
-# Run a single full iteration end-to-end (mock backend).
+# Run one full iteration end-to-end (mock backend, no API key).
 python -m csis.loop
 
 # Walk through the 5-scenario PR-maintenance benchmark.
@@ -72,7 +84,7 @@ python scripts/demo_pr_scenario.py --clean
 python -m csis.daemon --backend mock --rate-per-hour 60
 ```
 
-For switching to the real Anthropic backend, running on-demand bursts with a cost ceiling, installing as a Windows service, picking a benchmark domain, and the full operator interface, read **[RUN.md](RUN.md)**.
+Switching to the real Anthropic backend, running on-demand bursts with a cost ceiling, installing as a Windows service, picking a benchmark domain, and the full operator interface → **[RUN.md](RUN.md)**.
 
 ## Architecture map
 
@@ -85,30 +97,30 @@ For switching to the real Anthropic backend, running on-demand bursts with a cos
 | L4 — Verification & critic | [`csis/verification/`](csis/verification/) — V1 pinned graders, V2 critic, cross-checkpoint cert |
 | L5 — Improvement (I1–I3) | [`csis/improvement/skill_library.py`](csis/improvement/skill_library.py) — procedural-tier accumulation |
 | L6 — Meta-improvement | *deferred to Phase 1* |
-| L7 — Safety envelope | [`csis/safety/`](csis/safety/) — constitution, tier_guard, tripwires, shutdown |
+| L7 — Safety envelope | [`csis/safety/`](csis/safety/) — constitution, tier guard, tripwires, shutdown |
 | Sleep / consolidation | [`csis/dreams/`](csis/dreams/) — mock Dream pipeline + quality scoring + partial-output redaction |
 
 The full eight-layer stack and the per-role tier matrix are in `CSIS-architecture.html` §3 and §5.
 
 ## The "brain" auto-save catalog
 
-Every interesting state of the build is snapshotted under [`brain/`](brain/). This folder is the durable working memory that lets any future contributor (or a future Claude session) pick up cold.
+Every interesting state of the build is snapshotted under [`brain/`](brain/). This folder is durable working memory that lets any future contributor (or a future Claude session) pick up cold.
 
 - [`brain/BRAIN.html`](brain/BRAIN.html) — top-level index, open in a browser
-- [`brain/snapshots/00-initial.md`](brain/snapshots/00-initial.md) → snapshot 04 — point-in-time state files
+- [`brain/snapshots/`](brain/snapshots/) — 11 point-in-time state files (00-initial → 11-cycle9-shipped)
 - [`brain/plans/`](brain/plans/) — architecture + verification blueprints from planning sub-agents
-- [`brain/critiques/`](brain/critiques/) — pre-impl and post-impl red-team reports (31 total findings, 0 critical/high open)
+- [`brain/critiques/`](brain/critiques/) — 9 cycles of pre-impl and post-impl red-team reports
 - [`brain/research/`](brain/research/) — Anthropic SDK research with current API signatures
 - [`brain/synthesis/01-validation.md`](brain/synthesis/01-validation.md) — cross-cutting validation that the implementation is coherent
 
-To resume cold: read `brain/BRAIN.html`, then the highest-numbered file in `brain/snapshots/`, then run the test suite. The full read order is documented in `brain/README.md`.
+To resume cold: read `brain/BRAIN.html`, then the highest-numbered snapshot, then run the test suite.
 
 ## What "improving" means by backend
 
 | Backend | What happens each iteration | Cost |
 |---|---|---|
 | **Mock** (default) | Architecture exercises itself: curiosity → plan → mock artifact → V1/V2 → promote. Procedural store accumulates. Demonstrates infrastructure survives 24/7. **No real learning.** | $0 |
-| **Anthropic** (`--backend anthropic`, requires `ANTHROPIC_API_KEY`) | Real Opus 4.7 (Researcher/Builder/Librarian) + real Sonnet 4.6 (Verifier/Critic/Auditor) calls. Real artifacts; real falsification attempts; real gain accumulation. | ~$0.05–0.15 per iteration. See [`scripts/burst.py`](scripts/burst.py) for finite runs with a hard cost ceiling. |
+| **Anthropic** (`--backend anthropic`, requires `ANTHROPIC_API_KEY`) | Real Opus 4.7 (Researcher / Builder / Librarian) + real Sonnet 4.6 (Verifier / Critic / Auditor) calls. Real artifacts, real falsification attempts, real gain accumulation. | ~$0.05–0.15 per iteration. See [`scripts/burst.py`](scripts/burst.py) for finite runs with a hard cost ceiling. |
 
 ## Safety properties (load-bearing)
 
@@ -121,21 +133,21 @@ To resume cold: read `brain/BRAIN.html`, then the highest-numbered file in `brai
 | Audit-only structured query | `structured_query()` allow-lists trusted producers only | `test_structured_query_excludes_untrusted_producer` |
 | Shutdown enforced at substrate | `ShutdownToken.halt()` raises `HaltSignal` on next iteration | `test_shutdown_blocks_subsequent_checks` |
 | Atomic promotion under contention | Single-writer lock + hash-preconditioned CAS | `test_promote_serialization_under_contention` |
+| Wrapped-backend invariant (LLM metering can't be bypassed) | `Coordinator.__init__` demands `_BackendTracker`; property setter re-validates on every reassignment | `test_H1_coordinator_rejects_unwrapped_backend` + `test_H3_coordinator_backend_setattr_rejected` |
+| TierMismatch cleanup is race-free | `writer_iteration_id` stamp on every candidate at write_candidate time; cleanup filters by stamp | `test_H4_sibling_write_during_consolidate_not_over_discarded` |
+| Lost-spend-under-lock-contention | record() appends to WAL on LockUnavailable; next successful record() drains it | `test_H5_record_under_lock_timeout_persists_to_wal` |
 
-There are 92 tests total. Each red-team finding (18 pre-impl + 13 post-impl) has a corresponding test that proves the mitigation works.
+213 tests total. Each cycle's findings have a regression test that proves the mitigation works. Full cycle history → **[CYCLES.md](CYCLES.md)**.
 
 ## How this was built
 
-Two cycles, both LLM-driven, both documented:
+Nine cycles, all LLM-driven, all documented under [`brain/critiques/`](brain/critiques/) and [`brain/snapshots/`](brain/snapshots/). Cycle-by-cycle breakdown in **[CYCLES.md](CYCLES.md)**.
 
-1. **Cycle 1** — 4 planning sub-agents (architect, SDK researcher, pre-impl red team, verification engineer) returned in parallel; their outputs synthesized into the implementation skeleton; 11 substrate tests → 52 full tests; demo loop running end-to-end.
-2. **Cycle 2** — post-implementation red team attacked the *implementation* (not the architecture); 13 new findings including 2 critical; all critical + high addressed by promoting single-site checks into substrate-level invariants; 78 → 92 tests with new daemon + curiosity + skill + domain coverage.
-
-[`brain/synthesis/01-validation.md`](brain/synthesis/01-validation.md) is the synthesis pass over both cycles' outputs. **Verdict: valid for Phase-0 release.**
+The pattern that emerged: each cycle, parallel red-team agents attack the prior cycle's fixes; findings are triaged into a critique doc with reproducible attacks and `file:line` evidence; fixes land in code with regression tests; results are snapshotted. Cycles 4-9 each found that the previous cycle's pivot was at the right concept but the wrong abstraction layer, and the next cycle moved it.
 
 ## Status
 
-Phase 0. The repository is the prototype that has to work before the longer-arc framing in [Appendix A](CSIS-architecture.html#appA) can be argued for.
+Phase 0. Runnable end-to-end on mock or real Anthropic backend. Architecture-document, critique trail, and 213 tests are the proof that's the right framing for "Phase-0 is done."
 
 The system runs 24/7 in mock mode as a structural watchdog. Real-backend learning happens via `scripts/burst.py` on demand. Both paths are documented in [RUN.md](RUN.md).
 
