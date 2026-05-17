@@ -28,20 +28,24 @@ CSIS is the runnable Phase-0 implementation of an architecture proposal for **co
 
 The spec lives in [`CSIS-architecture.html`](CSIS-architecture.html). This repo is the prototype.
 
+```mermaid
+flowchart LR
+    R["<b>Researcher</b><br/>T0 · plan"]:::builder --> B["<b>Builder</b><br/>T1 · artifact"]:::builder
+    B --> V["<b>Verifier</b><br/>V1 graders + V2 critic"]:::altCkpt
+    V -->|cert| L["<b>Librarian</b><br/>candidate stores"]:::builder
+    L --> A["<b>Auditor</b><br/>why-doc + hash precondition"]:::altCkpt
+    A -->|atomic CAS| P(["<b>PROMOTE</b><br/>candidate → live"]):::promote
+
+    V -. cert fails .-> RB(["rollback"]):::rollback
+    A -. stale precondition .-> RB
+
+    classDef builder fill:#fbf4e7,stroke:#d97757,stroke-width:2px,color:#2a2a2a
+    classDef altCkpt fill:#dbe7f3,stroke:#4a82bc,stroke-width:2px,color:#1a3a5e
+    classDef promote fill:#c8d6b2,stroke:#5a6c46,stroke-width:2px,color:#2a3a1a
+    classDef rollback fill:#f3dbd0,stroke:#b85e3f,color:#5a2a1a
 ```
-┌──────────────────────────────────────────────────────────────────────────────┐
-│                                CSIS · the loop                                │
-│                                                                              │
-│  Researcher → Builder → Verifier → Librarian → Auditor → PROMOTE             │
-│     (T0)       (T1)     (T1, alt    (T0)       (T0, alt                      │
-│                          ckpt)                  ckpt)                        │
-│                            ↓                       ↓                         │
-│                      V1 graders               hash-preconditioned            │
-│                      + V2 critic                  why-doc CAS                │
-│                            ↓                       ↓                         │
-│                     VerifierCert            atomic candidate→live            │
-└──────────────────────────────────────────────────────────────────────────────┘
-```
+
+> **Legend.** Orange-bordered roles (Researcher, Builder, Librarian) run on the **builder checkpoint** — Opus-class. Blue-bordered roles (Verifier, Auditor) run on a **structurally different checkpoint** — Sonnet-class — so the same model that produced the artifact cannot rubber-stamp it. `PROMOTE` is a CAS-style atomic flip; if the live store moved between why-doc signing and promote, the iteration rolls back and nothing reaches live.
 
 **What's working today (Phase 0):**
 
