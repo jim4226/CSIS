@@ -5,13 +5,12 @@
 
 ## What this project is
 
-The user (Jaron, jim4226@miami.edu) has authored a comprehensive architecture proposal for **CSIS** (Continuous Self-Improving System) — a coordinator-led multi-agent system intended for Anthropic's Managed Agents platform. Documents in this folder:
+The user has authored a comprehensive architecture proposal for **CSIS** (Continuous Self-Improving System) — a coordinator-led multi-agent system intended for Anthropic's Managed Agents platform. Documents in this folder:
 
 - `CSIS-architecture.html` — interactive HTML version (the centerpiece, 650 lines)
 - `CSIS-deck.pptx` — 19-slide deck
 - `CSIS-memo.docx` — 8-page memo
 - `CSIS-whitepaper.docx` — long-form formal version
-- `Email-to-Anthropic.md` — drafts of email to Lance Martin at Anthropic
 
 ## What the user asked for
 
