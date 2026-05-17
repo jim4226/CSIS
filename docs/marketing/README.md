@@ -8,6 +8,7 @@ Drafts for getting CSIS in front of an audience. None of these have been publish
 | [`02-reddit-localllama.md`](02-reddit-localllama.md) | r/LocalLLaMA | Copy title + body; submit at https://reddit.com/r/LocalLLaMA |
 | [`03-reddit-machinelearning.md`](03-reddit-machinelearning.md) | r/MachineLearning | Copy title + body; submit at https://reddit.com/r/MachineLearning with [P] flair |
 | [`04-social-preview.html`](04-social-preview.html) | GitHub social preview image | Open in browser at 1280×640; screenshot; upload at https://github.com/jim4226/CSIS/settings (Social preview section) |
+| [`05-subreddits.md`](05-subreddits.md) | Subreddit research (tier-ranked) | Ranked list of 15+ candidate subreddits with size, fit, risk, and recommended angle for each |
 
 ## Recommended order of operations
 
