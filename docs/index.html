@@ -1,0 +1,532 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CSIS — 9 cycles of self-critique against a self-improving agent system</title>
+<meta name="description" content="Coordinator-led multi-agent system built in public alongside 9 cycles of red-team → fix → regression-test. 213 tests, 99 findings closed, 0 open.">
+<meta property="og:title" content="CSIS — 9 cycles of self-critique against a self-improving agent system">
+<meta property="og:description" content="Coordinator-led multi-agent system built in public alongside 9 cycles of red-team → fix → regression-test. 213 tests, 99 findings closed, 0 open.">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://jim4226.github.io/CSIS/">
+<meta name="twitter:card" content="summary_large_image">
+<style>
+  :root {
+    --bg: #fbf4e7;
+    --bg-card: #ffffff;
+    --bg-soft: #f6ecd6;
+    --ink: #2a2a2a;
+    --ink-dim: #6b6b6b;
+    --accent: #d97757;
+    --accent-deep: #b85e3f;
+    --good: #788c5d;
+    --calm: #6a9bcc;
+    --gold: #c89b3c;
+    --border: #e7d8b5;
+    --mono: ui-monospace, "SF Mono", "JetBrains Mono", Consolas, "Liberation Mono", monospace;
+    --sans: -apple-system, "Segoe UI", "Inter", "Helvetica Neue", Arial, sans-serif;
+    --serif: "Iowan Old Style", "Charter", "Lora", Georgia, serif;
+  }
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body {
+    margin: 0;
+    font-family: var(--sans);
+    background: var(--bg);
+    color: var(--ink);
+    line-height: 1.55;
+    font-size: 17px;
+    -webkit-font-smoothing: antialiased;
+  }
+  .container {
+    max-width: 1080px;
+    margin: 0 auto;
+    padding: 48px 32px 96px;
+  }
+
+  /* ---- top nav ------------------------------------------------------- */
+  .nav {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    margin-bottom: 40px;
+    font-family: var(--mono);
+    font-size: 14px;
+  }
+  .nav .brand {
+    color: var(--accent);
+    font-weight: 700;
+    letter-spacing: -0.5px;
+    font-size: 16px;
+  }
+  .nav a {
+    color: var(--ink-dim);
+    text-decoration: none;
+    margin-left: 24px;
+    transition: color 0.15s ease;
+  }
+  .nav a:hover {
+    color: var(--accent);
+  }
+
+  /* ---- hero ---------------------------------------------------------- */
+  .hero h1 {
+    font-family: var(--sans);
+    font-size: 64px;
+    font-weight: 700;
+    letter-spacing: -2px;
+    line-height: 1.0;
+    margin: 0 0 16px 0;
+  }
+  .hero h1 .accent { color: var(--accent); }
+  .hero h2 {
+    font-family: var(--serif);
+    font-size: 24px;
+    font-weight: 400;
+    line-height: 1.4;
+    margin: 0 0 28px 0;
+    color: var(--ink-dim);
+    max-width: 880px;
+  }
+  .badges {
+    display: flex;
+    gap: 10px;
+    flex-wrap: wrap;
+    margin-bottom: 36px;
+  }
+  .badge {
+    font-family: var(--mono);
+    font-size: 13px;
+    padding: 6px 12px;
+    border-radius: 5px;
+    color: white;
+    font-weight: 600;
+  }
+  .badge.phase    { background: var(--accent); }
+  .badge.tests    { background: var(--good); }
+  .badge.cycles   { background: var(--calm); }
+  .badge.findings { background: var(--good); }
+  .badge.license  { background: var(--gold); }
+  .ctas {
+    display: flex;
+    gap: 12px;
+    flex-wrap: wrap;
+    margin-bottom: 56px;
+  }
+  .cta {
+    font-family: var(--sans);
+    font-size: 15px;
+    font-weight: 600;
+    padding: 12px 22px;
+    border-radius: 7px;
+    text-decoration: none;
+    border: 1.5px solid var(--accent);
+    transition: all 0.15s ease;
+  }
+  .cta.primary {
+    background: var(--accent);
+    color: white;
+  }
+  .cta.primary:hover {
+    background: var(--accent-deep);
+    border-color: var(--accent-deep);
+  }
+  .cta.secondary {
+    background: transparent;
+    color: var(--accent);
+  }
+  .cta.secondary:hover {
+    background: var(--bg-soft);
+  }
+
+  /* ---- section ------------------------------------------------------- */
+  section {
+    margin-bottom: 64px;
+  }
+  h3.section-title {
+    font-family: var(--mono);
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 2px;
+    color: var(--accent);
+    margin: 0 0 12px 0;
+    font-weight: 700;
+  }
+  h4.section-h {
+    font-family: var(--sans);
+    font-size: 32px;
+    font-weight: 700;
+    letter-spacing: -0.8px;
+    line-height: 1.15;
+    margin: 0 0 24px 0;
+  }
+  .section-intro {
+    font-size: 17px;
+    color: var(--ink-dim);
+    max-width: 760px;
+    margin: 0 0 28px 0;
+  }
+
+  /* ---- cycle table --------------------------------------------------- */
+  .cycle-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-family: var(--mono);
+    font-size: 14px;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    overflow: hidden;
+  }
+  .cycle-table th {
+    background: var(--bg-soft);
+    text-align: left;
+    padding: 12px 16px;
+    font-weight: 600;
+    color: var(--ink);
+    border-bottom: 1px solid var(--border);
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+  }
+  .cycle-table td {
+    padding: 12px 16px;
+    border-bottom: 1px solid var(--border);
+    vertical-align: top;
+  }
+  .cycle-table tr:last-child td {
+    border-bottom: none;
+  }
+  .cycle-table tr.total {
+    background: var(--bg-soft);
+    font-weight: 700;
+  }
+  .cycle-table .right { text-align: right; }
+  .cycle-table .cycle-num {
+    color: var(--accent);
+    font-weight: 700;
+  }
+  .cycle-table .open-zero { color: var(--good); font-weight: 700; }
+
+  /* ---- two-pattern cards --------------------------------------------- */
+  .patterns {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 24px;
+  }
+  @media (max-width: 800px) {
+    .patterns { grid-template-columns: 1fr; }
+    .hero h1 { font-size: 44px; }
+    .hero h2 { font-size: 19px; }
+    .container { padding: 32px 20px 64px; }
+  }
+  .pattern {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 24px 26px;
+  }
+  .pattern .label {
+    font-family: var(--mono);
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    color: var(--accent);
+    font-weight: 700;
+    margin-bottom: 8px;
+  }
+  .pattern h5 {
+    font-family: var(--sans);
+    font-size: 22px;
+    font-weight: 700;
+    letter-spacing: -0.5px;
+    margin: 0 0 10px 0;
+  }
+  .pattern p {
+    margin: 0 0 12px 0;
+    color: var(--ink-dim);
+    font-size: 15px;
+  }
+  .pattern code {
+    font-family: var(--mono);
+    font-size: 13px;
+    background: var(--bg-soft);
+    padding: 1px 6px;
+    border-radius: 3px;
+    color: var(--accent-deep);
+  }
+
+  /* ---- 8-step loop --------------------------------------------------- */
+  pre.loop {
+    font-family: var(--mono);
+    font-size: 13px;
+    line-height: 1.5;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 22px 26px;
+    overflow-x: auto;
+    color: var(--ink);
+    margin: 0;
+  }
+  pre.loop .role {
+    color: var(--accent);
+    font-weight: 700;
+  }
+  pre.loop .dim {
+    color: var(--ink-dim);
+  }
+
+  /* ---- quick start --------------------------------------------------- */
+  pre.shell {
+    font-family: var(--mono);
+    font-size: 14px;
+    line-height: 1.6;
+    background: #1d1d1d;
+    color: #f6ecd6;
+    border-radius: 10px;
+    padding: 22px 26px;
+    overflow-x: auto;
+    margin: 0;
+  }
+  pre.shell .comment { color: #9b8f7a; }
+  pre.shell .cmd { color: #e4a268; }
+
+  /* ---- safety table -------------------------------------------------- */
+  .safety {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 14px;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    overflow: hidden;
+  }
+  .safety th {
+    background: var(--bg-soft);
+    text-align: left;
+    padding: 10px 14px;
+    font-weight: 600;
+    border-bottom: 1px solid var(--border);
+    font-family: var(--mono);
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+  }
+  .safety td {
+    padding: 10px 14px;
+    border-bottom: 1px solid var(--border);
+    vertical-align: top;
+  }
+  .safety tr:last-child td { border-bottom: none; }
+  .safety code {
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--accent-deep);
+  }
+
+  /* ---- footer -------------------------------------------------------- */
+  footer {
+    margin-top: 96px;
+    padding-top: 32px;
+    border-top: 1px solid var(--border);
+    font-family: var(--mono);
+    font-size: 13px;
+    color: var(--ink-dim);
+    display: flex;
+    justify-content: space-between;
+    flex-wrap: wrap;
+    gap: 16px;
+  }
+  footer a {
+    color: var(--accent);
+    text-decoration: none;
+  }
+  footer a:hover { text-decoration: underline; }
+
+  /* ---- inline ------------------------------------------------------- */
+  a.inline {
+    color: var(--accent);
+    text-decoration: none;
+    border-bottom: 1px solid transparent;
+    transition: border-color 0.15s ease;
+  }
+  a.inline:hover {
+    border-bottom-color: var(--accent);
+  }
+  code.inline {
+    font-family: var(--mono);
+    font-size: 0.92em;
+    background: var(--bg-soft);
+    padding: 1px 6px;
+    border-radius: 3px;
+    color: var(--accent-deep);
+  }
+</style>
+</head>
+<body>
+
+<div class="container">
+
+  <nav class="nav">
+    <span class="brand">CSIS</span>
+    <div>
+      <a href="#cycles">Cycles</a>
+      <a href="#loop">The loop</a>
+      <a href="#patterns">Patterns</a>
+      <a href="#safety">Safety</a>
+      <a href="https://github.com/jim4226/CSIS">GitHub</a>
+    </div>
+  </nav>
+
+  <header class="hero">
+    <h1>9 cycles of <span class="accent">self-critique</span> against a self-improving agent system</h1>
+    <h2>Most agent-framework repos sell a vision. CSIS ships a paper trail of its own failures: parallel red-team agents attack each cycle's fixes, findings land in code with regression tests, and the next cycle usually finds the previous one fixed the bug at the wrong abstraction layer.</h2>
+
+    <div class="badges">
+      <span class="badge phase">phase 0 · runnable</span>
+      <span class="badge tests">213 tests passing</span>
+      <span class="badge cycles">9 critique cycles</span>
+      <span class="badge findings">99 findings closed · 0 open</span>
+      <span class="badge license">MIT</span>
+    </div>
+
+    <div class="ctas">
+      <a class="cta primary" href="https://github.com/jim4226/CSIS">View on GitHub →</a>
+      <a class="cta secondary" href="https://github.com/jim4226/CSIS/blob/main/CYCLES.md">Read the cycle trail</a>
+      <a class="cta secondary" href="https://github.com/jim4226/CSIS/blob/main/CSIS-architecture.html">Architecture spec</a>
+    </div>
+  </header>
+
+  <section id="cycles">
+    <h3 class="section-title">The numbers</h3>
+    <h4 class="section-h">99 findings across 9 cycles. 96 closed in code, 3 honestly deferred.</h4>
+    <p class="section-intro">Each cycle: parallel red-team agents attack the prior cycle's fixes, with <code class="inline">file:line</code> evidence and reproducible attack snippets. Fixes land in code with regression tests. Snapshots get written to <code class="inline">brain/</code> so the trail survives any contributor — human or AI — picking up cold.</p>
+
+    <table class="cycle-table">
+      <thead>
+        <tr>
+          <th>Cycle</th>
+          <th class="right">Findings</th>
+          <th class="right">Critical</th>
+          <th class="right">High</th>
+          <th class="right">Medium</th>
+          <th class="right">Low</th>
+          <th class="right">Open</th>
+          <th class="right">Deferred</th>
+          <th class="right">Tests after</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr><td><span class="cycle-num">1</span> · pre-impl</td><td class="right">18</td><td class="right">2</td><td class="right">6</td><td class="right">7</td><td class="right">3</td><td class="right open-zero">0</td><td class="right">0</td><td class="right">52</td></tr>
+        <tr><td><span class="cycle-num">2</span> · post-impl</td><td class="right">13</td><td class="right">2</td><td class="right">6</td><td class="right">3</td><td class="right">2</td><td class="right open-zero">0</td><td class="right">0</td><td class="right">78</td></tr>
+        <tr><td><span class="cycle-num">3</span> · deltas</td><td class="right">11</td><td class="right">2</td><td class="right">4</td><td class="right">4</td><td class="right">1</td><td class="right open-zero">0</td><td class="right">0</td><td class="right">114</td></tr>
+        <tr><td><span class="cycle-num">4</span> · fixes</td><td class="right">11</td><td class="right">2</td><td class="right">4</td><td class="right">4</td><td class="right">1</td><td class="right open-zero">0</td><td class="right">0</td><td class="right">141</td></tr>
+        <tr><td><span class="cycle-num">5</span> · fixes</td><td class="right">11</td><td class="right">3</td><td class="right">3</td><td class="right">4</td><td class="right">1</td><td class="right open-zero">0</td><td class="right">0</td><td class="right">165</td></tr>
+        <tr><td><span class="cycle-num">6</span> · fixes</td><td class="right">10</td><td class="right">3</td><td class="right">3</td><td class="right">3</td><td class="right">1</td><td class="right open-zero">0</td><td class="right">1</td><td class="right">186</td></tr>
+        <tr><td><span class="cycle-num">7</span> · fixes</td><td class="right">7</td><td class="right">1</td><td class="right">2</td><td class="right">3</td><td class="right">1</td><td class="right open-zero">0</td><td class="right">0</td><td class="right">195</td></tr>
+        <tr><td><span class="cycle-num">8</span> · fixes</td><td class="right">6</td><td class="right">2</td><td class="right">2</td><td class="right">2</td><td class="right">0</td><td class="right open-zero">0</td><td class="right">0</td><td class="right">202</td></tr>
+        <tr><td><span class="cycle-num">9</span> · fixes</td><td class="right">12</td><td class="right">4</td><td class="right">3</td><td class="right">2</td><td class="right">3</td><td class="right open-zero">0</td><td class="right">2</td><td class="right"><b>213</b></td></tr>
+        <tr class="total"><td>Total</td><td class="right">99</td><td class="right">21</td><td class="right">33</td><td class="right">32</td><td class="right">13</td><td class="right open-zero">0</td><td class="right">3</td><td class="right">—</td></tr>
+      </tbody>
+    </table>
+  </section>
+
+  <section id="loop">
+    <h3 class="section-title">How a single iteration works</h3>
+    <h4 class="section-h">The 8-step loop, end-to-end, on every iteration.</h4>
+    <p class="section-intro">Researcher proposes; Builder produces; Verifier signs a cert on a structurally different checkpoint (Sonnet-class verifying Opus-class); Librarian writes to candidate stores; Auditor signs a why-doc with a hash precondition; Promote is a CAS-style atomic flip. If the live store moved between why-doc signing and promote attempt, the promotion is rolled back atomically.</p>
+<pre class="loop"><span class="role">Researcher</span>  →  <span class="role">Builder</span>  →  <span class="role">Verifier</span>  →  <span class="role">Librarian</span>  →  <span class="role">Auditor</span>  →  <b>PROMOTE</b>
+   (T0)        (T1)      (T1, alt        (T0)       (T0, alt
+                          ckpt)                      ckpt)
+                            ↓                          ↓
+                      V1 graders                 hash-preconditioned
+                      <span class="dim">+ V2 critic</span>                  why-doc CAS
+                            ↓                          ↓
+                     VerifierCert              atomic candidate→live</pre>
+  </section>
+
+  <section id="patterns">
+    <h3 class="section-title">What the cycles kept teaching</h3>
+    <h4 class="section-h">Two patterns showed up over and over.</h4>
+    <p class="section-intro">Cycles 4-9 each found the previous cycle's pivot was the right concept at the wrong abstraction layer — and the next cycle moved it. Two patterns kept reappearing:</p>
+
+    <div class="patterns">
+      <div class="pattern">
+        <div class="label">cycle 8 → cycle 9</div>
+        <h5>Identity beats timing</h5>
+        <p>Cycle 8 detected "which iteration wrote this candidate?" via a pre-consolidate snapshot diff. Cycle 9 found the snapshot has a race window — a sibling iteration writing a same-id candidate between snapshot and cleanup is indistinguishable from "introduced by this iteration."</p>
+        <p>The fix that ended the arms race wasn't a wider snapshot — it was a <code>writer_iteration_id</code> field stamped on every candidate at <code>write_candidate</code> time. Cleanup filters by stamp. Race-free under any concurrency model.</p>
+      </div>
+      <div class="pattern">
+        <div class="label">cycle 8 → cycle 9</div>
+        <h5>Chokepoints beat perimeters</h5>
+        <p>Cycle 8 added a <code>type(...) is _BackendTracker</code> check at <code>Daemon.__init__</code> to defeat subclass-shaped bypasses of LLM metering. Cycle 9 found three production scripts (<code>burst.py</code>, <code>loop.py</code>, <code>demo_pr_scenario.py</code>) constructed the inner <code>Coordinator</code> directly with a raw backend.</p>
+        <p>The fix moved the check into <code>Coordinator.__init__</code> (the actual single chokepoint every LLM call passes through) and added property setters that re-validate on every <code>setattr</code>. Single chokepoint beats perimeter fencing.</p>
+      </div>
+    </div>
+  </section>
+
+  <section id="quick-start">
+    <h3 class="section-title">Quick start</h3>
+    <h4 class="section-h">Runs end-to-end on a mock backend. No API key required.</h4>
+<pre class="shell"><span class="comment"># Get the code</span>
+<span class="cmd">git clone</span> https://github.com/jim4226/CSIS
+<span class="cmd">cd</span> CSIS
+<span class="cmd">pip install</span> pydantic pytest
+
+<span class="comment"># Run the test suite (213 passing)</span>
+<span class="cmd">python -m pytest</span> tests/ -v
+
+<span class="comment"># One full 8-step iteration end-to-end, mock backend</span>
+<span class="cmd">python -m</span> csis.loop
+
+<span class="comment"># Walk through the 5-scenario PR-maintenance benchmark</span>
+<span class="cmd">python</span> scripts/demo_pr_scenario.py --clean
+
+<span class="comment"># Run the 24/7 daemon (foreground; Ctrl-C to stop)</span>
+<span class="cmd">python -m</span> csis.daemon --backend mock --rate-per-hour 60</pre>
+  </section>
+
+  <section id="safety">
+    <h3 class="section-title">Load-bearing safety properties</h3>
+    <h4 class="section-h">Each property is enforced as code and gated by a regression test.</h4>
+    <table class="safety">
+      <thead>
+        <tr><th>Property</th><th>Implementation</th></tr>
+      </thead>
+      <tbody>
+        <tr><td>Capability cannot grow faster than oversight</td><td>Phase-0 hard ceiling = T1; T2+ rejected at the call site</td></tr>
+        <tr><td>Memory mutation is reversible</td><td>Candidate stores + <code>MemoryStore.promote()</code> is the only path to live</td></tr>
+        <tr><td>Cross-checkpoint verification</td><td><code>assert_cross_checkpoint</code> requires ≥2 distinct identity components</td></tr>
+        <tr><td>Grader integrity</td><td>Pinned source-hash check at every cert build</td></tr>
+        <tr><td>Audit-only structured query</td><td><code>structured_query()</code> allow-lists trusted producers only</td></tr>
+        <tr><td>Shutdown enforced at substrate</td><td><code>ShutdownToken.halt()</code> raises <code>HaltSignal</code> on next iteration</td></tr>
+        <tr><td>Atomic promotion under contention</td><td>Single-writer lock + hash-preconditioned CAS</td></tr>
+        <tr><td>Wrapped-backend invariant (LLM metering can't be bypassed)</td><td><code>Coordinator.__init__</code> demands <code>_BackendTracker</code>; property setter re-validates on every reassignment</td></tr>
+        <tr><td>TierMismatch cleanup is race-free</td><td><code>writer_iteration_id</code> stamp on every candidate at write_candidate time</td></tr>
+        <tr><td>Lost-spend-under-lock-contention</td><td><code>record()</code> appends to WAL on LockUnavailable; next successful <code>record()</code> drains it</td></tr>
+      </tbody>
+    </table>
+    <p style="margin-top: 24px; color: var(--ink-dim); font-size: 15px;">Cycle 9 also produced two <em>honest deferrals</em>: H2 (closure-cell mutation defeats any pure-Python in-process guard) and H11 (POSIX unlink-during-lock race, unverified on Windows). Both require process-level isolation to close, planned for Phase 1. <a class="inline" href="https://github.com/jim4226/CSIS/blob/main/CYCLES.md">Full cycle trail →</a></p>
+  </section>
+
+  <section id="honest">
+    <h3 class="section-title">What this is NOT a claim about</h3>
+    <h4 class="section-h">Where the system genuinely doesn't deliver yet.</h4>
+    <ul style="color: var(--ink-dim); line-height: 1.7; max-width: 760px;">
+      <li><b>Not a proof of safety.</b> 213 tests + 99 findings closed are evidence of careful engineering, not certification of safe behavior under adversarial conditions. Cycle 9 H2/H11 deferrals are explicit about this.</li>
+      <li><b>The LLM backend is mock by default.</b> Real Anthropic calls are gated behind <code class="inline">--backend anthropic</code> + an <code class="inline">ANTHROPIC_API_KEY</code> + cost ceilings + WAL-backed budget metering. No agent is currently improving itself at production scale on this codebase.</li>
+      <li><b>"Self-improving" in Phase 0 means the infrastructure for self-improvement is working and tested.</b> Real learning happens via <code class="inline">scripts/burst.py</code> on demand. The longer-arc framing is in <a class="inline" href="https://github.com/jim4226/CSIS/blob/main/CSIS-architecture.html">CSIS-architecture.html</a> Appendix A.</li>
+    </ul>
+  </section>
+
+  <footer>
+    <span>CSIS · Phase-0 · MIT-licensed · <a href="https://github.com/jim4226/CSIS">github.com/jim4226/CSIS</a></span>
+    <span><a href="https://github.com/jim4226/CSIS/blob/main/CYCLES.md">CYCLES.md</a> · <a href="https://github.com/jim4226/CSIS/blob/main/CSIS-architecture.html">Architecture</a> · <a href="https://github.com/jim4226/CSIS/tree/main/brain/critiques">Critiques</a> · <a href="https://github.com/jim4226/CSIS/issues">Issues</a></span>
+  </footer>
+
+</div>
+
+</body>
+</html>
