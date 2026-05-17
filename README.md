@@ -145,4 +145,4 @@ MIT — see [LICENSE](LICENSE).
 
 ## Contact
 
-Jaron — jim4226@miami.edu — University of Miami
+Open an issue at https://github.com/jim4226/CSIS/issues.
