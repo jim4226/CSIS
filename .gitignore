@@ -22,6 +22,8 @@ brain/daemon.heartbeat
 brain/daemon.stats.json
 brain/daemon_logs/
 brain/service_logs/
+# Subprocess spawns from the dashboard control panel (logs + ledgers).
+brain/ui_spawns/
 
 # Auto-snapshots are ephemeral; manual snapshots (00..NN-named.md) are committed.
 brain/snapshots/auto-*.md

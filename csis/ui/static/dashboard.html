@@ -262,6 +262,135 @@
     display: none;
   }
   .error-banner.show { display: block; }
+
+  .control-banner {
+    background: #fff4e0;
+    border: 2px solid var(--gold);
+    color: #8a5d12;
+    padding: 12px 18px;
+    border-radius: 8px;
+    margin-bottom: 16px;
+    font-family: var(--mono);
+    font-size: 13px;
+    grid-column: 1 / -1;
+    display: none;
+  }
+  .control-banner.show { display: block; }
+  .control-banner .bold { font-weight: 700; color: #6e4810; }
+
+  .control-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
+    gap: 12px;
+    margin-bottom: 12px;
+  }
+  .control-action {
+    background: var(--bg-soft);
+    border: 1px solid var(--border);
+    border-radius: 7px;
+    padding: 12px 14px;
+  }
+  .control-action h4 {
+    font-family: var(--sans);
+    margin: 0 0 6px 0;
+    font-size: 14px;
+    font-weight: 700;
+    letter-spacing: -0.3px;
+  }
+  .control-action p {
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--ink-dim);
+    margin: 0 0 10px 0;
+    line-height: 1.5;
+  }
+  .control-action .inputs {
+    display: flex;
+    gap: 6px;
+    flex-wrap: wrap;
+    margin-bottom: 8px;
+  }
+  .control-action .inputs input, .control-action .inputs select {
+    font-family: var(--mono);
+    font-size: 12px;
+    padding: 4px 8px;
+    border: 1px solid var(--border);
+    border-radius: 4px;
+    background: white;
+    color: var(--ink);
+    min-width: 0;
+    flex: 1 1 70px;
+  }
+  .control-action .inputs label {
+    font-family: var(--mono);
+    font-size: 10px;
+    color: var(--ink-dim);
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    flex: 1 1 70px;
+  }
+  .control-action button {
+    font-family: var(--sans);
+    font-size: 12px;
+    font-weight: 600;
+    padding: 6px 14px;
+    border: 1.5px solid var(--accent);
+    border-radius: 5px;
+    cursor: pointer;
+    background: var(--accent);
+    color: white;
+    transition: background 0.15s ease;
+    width: 100%;
+  }
+  .control-action button:hover { background: var(--accent-deep); }
+  .control-action button:disabled {
+    background: var(--ink-dim);
+    border-color: var(--ink-dim);
+    cursor: not-allowed;
+    opacity: 0.6;
+  }
+  .control-action button.danger { background: var(--danger); border-color: var(--danger); }
+  .control-action button.danger:hover { background: #9c4128; border-color: #9c4128; }
+
+  .control-disabled {
+    background: var(--bg-soft);
+    color: var(--ink-dim);
+    padding: 14px;
+    border-radius: 6px;
+    font-family: var(--mono);
+    font-size: 12px;
+    text-align: center;
+  }
+  .control-disabled code {
+    background: white;
+    padding: 1px 6px;
+    border-radius: 3px;
+    color: var(--accent-deep);
+  }
+
+  .toast {
+    position: fixed;
+    bottom: 24px;
+    right: 24px;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-left: 4px solid var(--good);
+    padding: 12px 18px;
+    border-radius: 6px;
+    box-shadow: 0 4px 12px rgba(0,0,0,0.08);
+    font-family: var(--mono);
+    font-size: 13px;
+    max-width: 460px;
+    z-index: 100;
+    animation: slideIn 0.2s ease;
+  }
+  .toast.error { border-left-color: var(--danger); }
+  .toast.warn { border-left-color: var(--gold); }
+  @keyframes slideIn {
+    from { transform: translateY(20px); opacity: 0; }
+    to { transform: translateY(0); opacity: 1; }
+  }
 </style>
 </head>
 <body>
@@ -281,6 +410,18 @@
 
 <main id="main">
   <div class="error-banner" id="error-banner"></div>
+  <div class="control-banner" id="control-banner">
+    <span class="bold">⚠ Write actions enabled.</span>
+    Anyone who can reach this URL can start the daemon, run iterations, or trigger bursts that bill against your API budget.
+    Bind this server to <code>127.0.0.1</code> and only on a host you trust.
+  </div>
+
+  <!-- CONTROL PANEL -->
+  <section class="card full" id="control-card">
+    <h3>Control panel <span class="sub" id="control-sub"></span></h3>
+    <div id="control-body"></div>
+    <div id="tasks-area" style="margin-top: 14px;"></div>
+  </section>
 
   <!-- DAEMON STATUS -->
   <section class="card">
@@ -522,6 +663,199 @@ function renderEvents(e) {
   }).join("\n");
 }
 
+function renderControl(c) {
+  const banner = $("control-banner");
+  const body = $("control-body");
+  const sub = $("control-sub");
+  const allowed = !!(c && c.allowed);
+  if (allowed) {
+    banner.classList.add("show");
+    sub.textContent = "write actions enabled · use with care";
+    if (!body.dataset.rendered) {
+      body.innerHTML = `
+        <div class="control-grid">
+          <div class="control-action">
+            <h4>Run one iteration</h4>
+            <p>Single end-to-end pass via <code>csis.loop</code>. Mock backend, fast (~1s). Useful for a smoke test.</p>
+            <button data-action="run-iteration">▶ Run iteration</button>
+          </div>
+
+          <div class="control-action">
+            <h4>Start daemon</h4>
+            <p>24/7 background loop. Default rate 60/hr. Real backend requires a cost cap below.</p>
+            <div class="inputs">
+              <label>backend
+                <select data-field="daemon-backend">
+                  <option value="mock" selected>mock</option>
+                  <option value="anthropic">anthropic ($)</option>
+                </select>
+              </label>
+              <label>rate/hr
+                <input type="number" data-field="daemon-rate" value="60" min="1" max="600">
+              </label>
+              <label>cap $/day
+                <input type="number" data-field="daemon-cap" value="5" min="0" step="0.5">
+              </label>
+            </div>
+            <button data-action="start-daemon">▶ Start daemon</button>
+          </div>
+
+          <div class="control-action">
+            <h4>Stop daemon</h4>
+            <p>Writes the <code>STOP</code> file. Daemon halts gracefully on its next iteration.</p>
+            <button data-action="stop-daemon" class="danger">⏹ Stop daemon</button>
+          </div>
+
+          <div class="control-action">
+            <h4>Run burst</h4>
+            <p>N finite iterations. Real backend requires explicit cost cap. Writes a publishable ledger.</p>
+            <div class="inputs">
+              <label>iters
+                <input type="number" data-field="burst-iters" value="5" min="1" max="100">
+              </label>
+              <label>backend
+                <select data-field="burst-backend">
+                  <option value="mock" selected>mock</option>
+                  <option value="anthropic">anthropic ($)</option>
+                </select>
+              </label>
+              <label>cap $
+                <input type="number" data-field="burst-cap" value="0.50" min="0" step="0.25">
+              </label>
+            </div>
+            <button data-action="run-burst">▶ Run burst</button>
+          </div>
+        </div>
+      `;
+      body.dataset.rendered = "1";
+      body.querySelectorAll("button[data-action]").forEach((b) => {
+        b.addEventListener("click", () => handleControlAction(b.dataset.action, b));
+      });
+    }
+  } else {
+    banner.classList.remove("show");
+    sub.textContent = "read-only";
+    body.innerHTML = `<div class="control-disabled">
+      Control endpoints are disabled (read-only mode). To enable write actions, restart with
+      <code>python -m csis.ui --allow-control</code>. Anyone who can reach the dashboard
+      with this enabled can spend your API budget — keep it bound to <code>127.0.0.1</code>.
+    </div>`;
+  }
+
+  // Tasks list — visible regardless of mode (so you can still see what's running)
+  const tasks = (c && c.tasks) || [];
+  const tasksArea = $("tasks-area");
+  if (tasks.length === 0) {
+    tasksArea.innerHTML = "";
+  } else {
+    tasksArea.innerHTML = `
+      <table style="font-family:var(--mono); font-size:11px">
+        <thead><tr><th>task</th><th>cmd</th><th>started</th><th>state</th><th>log</th></tr></thead>
+        <tbody>${tasks.map((t) => {
+          let stateChip;
+          if (t.done == null) stateChip = '<span class="chip info">running</span>';
+          else if (t.returncode === 0) stateChip = '<span class="chip ok">done</span>';
+          else stateChip = '<span class="chip bad">rc=' + t.returncode + '</span>';
+          return `<tr>
+            <td>${escapeHtml(t.task_id)}</td>
+            <td title="${escapeHtml(t.cmd || '')}">${escapeHtml((t.cmd || '').slice(-60))}</td>
+            <td>${fmtAge(t.started_at)}</td>
+            <td>${stateChip}</td>
+            <td>${escapeHtml(t.log_file || '')}</td>
+          </tr>`;
+        }).join("")}</tbody>
+      </table>
+    `;
+  }
+}
+
+let toastTimer = null;
+function toast(msg, kind) {
+  const old = document.querySelector(".toast");
+  if (old) old.remove();
+  const t = document.createElement("div");
+  t.className = "toast" + (kind ? " " + kind : "");
+  t.textContent = msg;
+  document.body.appendChild(t);
+  if (toastTimer) clearTimeout(toastTimer);
+  toastTimer = setTimeout(() => t.remove(), 4500);
+}
+
+async function controlPost(url, body) {
+  const resp = await fetch(url, {
+    method: "POST",
+    headers: { "Content-Type": "application/json" },
+    body: JSON.stringify(body || {}),
+  });
+  const data = await resp.json().catch(() => ({}));
+  if (!resp.ok || data.error) {
+    throw new Error(data.error || ("HTTP " + resp.status));
+  }
+  return data;
+}
+
+async function handleControlAction(action, btn) {
+  const root = btn.closest(".control-action");
+  const field = (name) => {
+    const el = root.querySelector(`[data-field="${name}"]`);
+    return el ? el.value : "";
+  };
+  const confirmAndRun = async (msg, fn) => {
+    if (!confirm(msg)) return;
+    btn.disabled = true;
+    try {
+      const result = await fn();
+      toast("✓ " + result.toast, "ok");
+    } catch (err) {
+      toast("✗ " + err.message, "error");
+    } finally {
+      btn.disabled = false;
+      poll();
+    }
+  };
+
+  if (action === "run-iteration") {
+    await confirmAndRun("Run one mock iteration?", async () => {
+      const r = await controlPost("/api/control/run-iteration", {});
+      return { toast: "iteration spawned · task " + r.task_id + " · pid " + r.pid };
+    });
+  }
+  if (action === "start-daemon") {
+    const backend = field("daemon-backend");
+    const rate = field("daemon-rate");
+    const cap = field("daemon-cap");
+    const body = { backend: backend, rate_per_hour: Number(rate) };
+    if (backend === "anthropic") body.max_cost_per_day_usd = Number(cap);
+    const msg = backend === "anthropic"
+      ? `Start the REAL Anthropic daemon at ${rate}/hr capped at $${cap}/day? This will spend money.`
+      : `Start the mock daemon at ${rate}/hr?`;
+    await confirmAndRun(msg, async () => {
+      const r = await controlPost("/api/control/start-daemon", body);
+      return { toast: "daemon started · pid " + r.pid + " · log " + r.log_file };
+    });
+  }
+  if (action === "stop-daemon") {
+    await confirmAndRun("Write STOP file? Daemon halts on its next iteration.", async () => {
+      const r = await controlPost("/api/control/stop-daemon", { reason: "via dashboard" });
+      return { toast: "STOP file written at " + r.stop_file };
+    });
+  }
+  if (action === "run-burst") {
+    const iters = field("burst-iters");
+    const backend = field("burst-backend");
+    const cap = field("burst-cap");
+    const body = { iters: Number(iters), backend: backend };
+    if (backend === "anthropic") body.max_cost_usd = Number(cap);
+    const msg = backend === "anthropic"
+      ? `Run ${iters} REAL Anthropic iterations capped at $${cap}? This will spend money.`
+      : `Run ${iters} mock iterations?`;
+    await confirmAndRun(msg, async () => {
+      const r = await controlPost("/api/control/run-burst", body);
+      return { toast: "burst spawned · " + iters + " iters · ledger " + r.ledger_file };
+    });
+  }
+}
+
 let consecutive_failures = 0;
 async function poll() {
   try {
@@ -536,6 +870,7 @@ async function poll() {
     renderTripwires(data.tripwires || {});
     renderEvents(data.events || {});
     renderCalls(data.calls || {});
+    renderControl(data.control || {});
   } catch (err) {
     consecutive_failures++;
     if (consecutive_failures > 2) {

@@ -10,8 +10,11 @@ from __future__ import annotations
 import argparse
 import json
 import os
+import subprocess
 import sys
+import threading
 import time
+import uuid
 from collections import Counter, defaultdict
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
@@ -21,9 +24,12 @@ STATIC_DIR = Path(__file__).resolve().parent / "static"
 
 
 class State:
-    """Holds the resolved CSIS state-root path. Set once at startup."""
+    """Holds resolved server-wide state. Set once at startup."""
 
     root: Path = Path(".")
+    allow_control: bool = False
+    tasks: dict[str, dict] = {}  # task_id -> {pid, cmd, started_at, log_file, done}
+    tasks_lock = threading.Lock()
 
 
 # ---------------------------------------------------------------------- helpers
@@ -280,7 +286,192 @@ def endpoint_summary() -> dict:
         "tripwires": endpoint_tripwires(10),
         "events": endpoint_events(20),
         "calls": endpoint_calls(30),
+        "control": {
+            "allowed": State.allow_control,
+            "tasks": endpoint_tasks(),
+        },
     }
+
+
+# ---------------------------------------------------------------------- control endpoints
+
+
+def endpoint_tasks() -> list[dict]:
+    """List spawned subprocess tasks with their current state."""
+    with State.tasks_lock:
+        out = []
+        for task_id, t in State.tasks.items():
+            # Check liveness (returncode may have changed since last poll).
+            proc = t.get("_proc")
+            if proc is not None and t.get("done") is None:
+                rc = proc.poll()
+                if rc is not None:
+                    t["done"] = time.time()
+                    t["returncode"] = rc
+            out.append({
+                "task_id": task_id,
+                "cmd": t.get("cmd"),
+                "pid": t.get("pid"),
+                "started_at": t.get("started_at"),
+                "done": t.get("done"),
+                "returncode": t.get("returncode"),
+                "log_file": t.get("log_file"),
+            })
+        # Most recent first.
+        out.sort(key=lambda x: x.get("started_at", 0), reverse=True)
+        return out
+
+
+def _spawn_detached(cmd: list[str], cwd: Path, log_path: Path) -> dict:
+    """Start a subprocess that survives the dashboard server, with stdout
+    + stderr redirected to a log file. Returns the task dict (to be
+    stored in State.tasks)."""
+    log_path.parent.mkdir(parents=True, exist_ok=True)
+    log_handle = open(log_path, "a", encoding="utf-8", buffering=1)
+    log_handle.write(f"\n=== spawn {time.strftime('%Y-%m-%d %H:%M:%S')} cmd={' '.join(cmd)} ===\n")
+    log_handle.flush()
+
+    kwargs = {
+        "cwd": str(cwd),
+        "stdout": log_handle,
+        "stderr": subprocess.STDOUT,
+        "stdin": subprocess.DEVNULL,
+    }
+    if sys.platform == "win32":
+        # Detach from this process group so closing the dashboard
+        # doesn't propagate SIGINT/Ctrl-C to the daemon.
+        kwargs["creationflags"] = (
+            subprocess.CREATE_NEW_PROCESS_GROUP  # type: ignore[attr-defined]
+            | getattr(subprocess, "DETACHED_PROCESS", 0)
+        )
+    else:
+        kwargs["start_new_session"] = True
+
+    proc = subprocess.Popen(cmd, **kwargs)
+    task_id = f"task-{uuid.uuid4().hex[:8]}"
+    rec = {
+        "task_id": task_id,
+        "cmd": " ".join(cmd),
+        "pid": proc.pid,
+        "started_at": time.time(),
+        "done": None,
+        "returncode": None,
+        "log_file": str(log_path.relative_to(State.root)).replace("\\", "/"),
+        "_proc": proc,
+    }
+    with State.tasks_lock:
+        State.tasks[task_id] = rec
+    return rec
+
+
+def _require_control() -> dict | None:
+    """Return a 403-shaped error dict if control is disabled, else None."""
+    if not State.allow_control:
+        return {
+            "error": "control endpoints disabled",
+            "fix": "restart the dashboard with --allow-control to enable write actions",
+        }
+    return None
+
+
+def endpoint_control_start_daemon(body: dict) -> dict:
+    err = _require_control()
+    if err:
+        return err
+    backend = body.get("backend", "mock")
+    if backend not in ("mock", "anthropic"):
+        return {"error": "backend must be 'mock' or 'anthropic'"}
+    rate = max(1, min(int(body.get("rate_per_hour", 60)), 600))
+    max_iter = body.get("max_total_iterations")
+    cmd = [sys.executable, "-m", "csis.daemon",
+           "--backend", backend, "--rate-per-hour", str(rate)]
+    if max_iter:
+        cmd += ["--max-total-iterations", str(int(max_iter))]
+    if backend == "anthropic":
+        cap = body.get("max_cost_per_day_usd")
+        if cap is None:
+            return {"error": "anthropic backend requires max_cost_per_day_usd in body"}
+        cmd += ["--max-cost-per-day-usd", str(float(cap))]
+    log_path = State.root / "brain" / "ui_spawns" / f"daemon-{int(time.time())}.log"
+    task = _spawn_detached(cmd, State.root, log_path)
+    return {"ok": True, "task_id": task["task_id"], "pid": task["pid"], "log_file": task["log_file"]}
+
+
+def endpoint_control_stop_daemon(body: dict) -> dict:
+    err = _require_control()
+    if err:
+        return err
+    stop_file = State.root / "STOP"
+    reason = body.get("reason", "stopped via dashboard control panel")
+    try:
+        stop_file.write_text(reason, encoding="utf-8")
+    except OSError as exc:
+        return {"error": f"could not write stop file: {exc}"}
+    return {"ok": True, "stop_file": str(stop_file.relative_to(State.root)).replace("\\", "/")}
+
+
+def endpoint_control_run_iteration(body: dict) -> dict:
+    err = _require_control()
+    if err:
+        return err
+    # Run a single iteration via csis.loop. Async — returns task_id;
+    # poll /api/control/tasks for completion.
+    log_path = State.root / "brain" / "ui_spawns" / f"iter-{int(time.time())}.log"
+    cmd = [sys.executable, "-m", "csis.loop"]
+    task = _spawn_detached(cmd, State.root, log_path)
+    return {"ok": True, "task_id": task["task_id"], "pid": task["pid"], "log_file": task["log_file"]}
+
+
+def endpoint_control_run_burst(body: dict) -> dict:
+    err = _require_control()
+    if err:
+        return err
+    iters = max(1, min(int(body.get("iters", 5)), 100))
+    backend = body.get("backend", "mock")
+    if backend not in ("mock", "anthropic"):
+        return {"error": "backend must be 'mock' or 'anthropic'"}
+    # Real backend MUST have an explicit cost cap. No defaults.
+    if backend == "anthropic" and body.get("max_cost_usd") is None:
+        return {"error": "anthropic backend requires max_cost_usd in body"}
+    max_cost = float(body.get("max_cost_usd", 0.10))
+    sleep_s = max(0.0, float(body.get("sleep_s", 0.5)))
+    domain = body.get("domain")
+    cmd = [sys.executable, "scripts/burst.py",
+           "--iters", str(iters),
+           "--backend", backend,
+           "--max-cost-usd", str(max_cost),
+           "--sleep-s", str(sleep_s)]
+    if domain in ("pr_maintenance", "self_improve", "lean_math"):
+        cmd += ["--domain", domain]
+    # Always write a ledger so the dashboard can show the structured result.
+    ledger_path = State.root / "brain" / "ui_spawns" / f"burst-{int(time.time())}.md"
+    cmd += ["--ledger-out", str(ledger_path)]
+    log_path = State.root / "brain" / "ui_spawns" / f"burst-{int(time.time())}.log"
+    task = _spawn_detached(cmd, State.root, log_path)
+    task["ledger_path"] = str(ledger_path.relative_to(State.root)).replace("\\", "/")
+    return {"ok": True, "task_id": task["task_id"], "pid": task["pid"],
+            "log_file": task["log_file"], "ledger_file": task["ledger_path"]}
+
+
+def endpoint_control_kill_task(body: dict) -> dict:
+    err = _require_control()
+    if err:
+        return err
+    task_id = body.get("task_id")
+    if not task_id:
+        return {"error": "task_id required"}
+    with State.tasks_lock:
+        t = State.tasks.get(task_id)
+        if t is None:
+            return {"error": f"unknown task_id: {task_id}"}
+        proc = t.get("_proc")
+        if proc is None or proc.poll() is not None:
+            return {"ok": True, "note": "task already finished"}
+        try:
+            proc.terminate()
+        except Exception as exc:  # noqa: BLE001
+            return {"error": f"terminate failed: {exc}"}
+    return {"ok": True, "task_id": task_id}
 
 
 # ---------------------------------------------------------------------- routing
@@ -294,6 +485,15 @@ ROUTES = {
     "/api/events": lambda q: endpoint_events(int(q.get("limit", ["50"])[0])),
     "/api/calls": lambda q: endpoint_calls(int(q.get("limit", ["50"])[0])),
     "/api/tripwires": lambda q: endpoint_tripwires(int(q.get("limit", ["20"])[0])),
+    "/api/control/tasks": lambda q: {"allowed": State.allow_control, "tasks": endpoint_tasks()},
+}
+
+POST_ROUTES = {
+    "/api/control/run-iteration": endpoint_control_run_iteration,
+    "/api/control/run-burst": endpoint_control_run_burst,
+    "/api/control/start-daemon": endpoint_control_start_daemon,
+    "/api/control/stop-daemon": endpoint_control_stop_daemon,
+    "/api/control/kill-task": endpoint_control_kill_task,
 }
 
 
@@ -361,6 +561,12 @@ class Handler(BaseHTTPRequestHandler):
                 self._send_json({"error": str(exc), "type": type(exc).__name__}, status=500)
             return
 
+        if path in POST_ROUTES:
+            # Reject GET on POST-only endpoints so reload-button mistakes don't
+            # accidentally spend money.
+            self._send_json({"error": "POST required for control endpoints"}, status=405)
+            return
+
         # Static asset
         if path.startswith("/static/"):
             asset = STATIC_DIR / path[len("/static/"):]
@@ -385,6 +591,41 @@ class Handler(BaseHTTPRequestHandler):
 
         self.send_error(404, "Not Found")
 
+    def do_POST(self):
+        parsed = urlparse(self.path)
+        path = parsed.path
+        if path not in POST_ROUTES:
+            self.send_error(404, "Not Found")
+            return
+        # Read JSON body (cap at 64 KB so a malicious client can't OOM us).
+        length = int(self.headers.get("Content-Length", "0") or 0)
+        if length > 65536:
+            self._send_json({"error": "body too large (>64KB)"}, status=413)
+            return
+        raw = self.rfile.read(length) if length else b""
+        try:
+            body = json.loads(raw.decode("utf-8")) if raw else {}
+        except json.JSONDecodeError as exc:
+            self._send_json({"error": f"invalid JSON body: {exc}"}, status=400)
+            return
+        if not isinstance(body, dict):
+            self._send_json({"error": "body must be a JSON object"}, status=400)
+            return
+        try:
+            result = POST_ROUTES[path](body)
+            status = 403 if (isinstance(result, dict) and result.get("error") == "control endpoints disabled") else 200
+            self._send_json(result, status=status)
+        except Exception as exc:  # noqa: BLE001
+            self._send_json({"error": str(exc), "type": type(exc).__name__}, status=500)
+
+    def do_OPTIONS(self):
+        # CORS preflight for browser fetch with Content-Type.
+        self.send_response(204)
+        self.send_header("Access-Control-Allow-Origin", "*")
+        self.send_header("Access-Control-Allow-Methods", "GET, POST, OPTIONS")
+        self.send_header("Access-Control-Allow-Headers", "Content-Type")
+        self.end_headers()
+
 
 # ---------------------------------------------------------------------- entry
 
@@ -402,8 +643,14 @@ def main(argv: list[str] | None = None) -> int:
                              "The server reads brain/, event_log/, memory_store/ underneath this.")
     parser.add_argument("--no-open", action="store_true",
                         help="do not open the dashboard in a browser on start")
+    parser.add_argument("--allow-control", action="store_true",
+                        help="ENABLE WRITE ACTIONS: lets the dashboard start/stop the daemon, "
+                             "run one-shot iterations, and run bursts. Off by default. Anyone "
+                             "who can reach the dashboard with this enabled can spend your API "
+                             "budget. Only use on a host you trust and bind to 127.0.0.1.")
     args = parser.parse_args(argv)
 
+    State.allow_control = bool(args.allow_control)
     State.root = Path(args.root).resolve()
     if not State.root.exists():
         print(f"[ui] root path does not exist: {State.root}", file=sys.stderr)
@@ -417,6 +664,16 @@ def main(argv: list[str] | None = None) -> int:
     print(f"[ui]   memory store: {(State.root / 'memory_store').exists() and 'present' or 'missing'}")
     print(f"[ui]   budgets found: {len(_discover_budgets())}")
     print(f"[ui]   call logs found: {len(_discover_call_logs())}")
+    if State.allow_control:
+        warn = (
+            "\n[ui] !!! WRITE ACTIONS ENABLED !!! the dashboard can now start/stop\n"
+            "[ui] the daemon, run one-shot iterations, and run bursts. Anyone\n"
+            "[ui] who can reach this URL can spend your API budget. Bind to\n"
+            f"[ui] 127.0.0.1 ({'OK' if args.host == '127.0.0.1' else 'NOT OK — currently bound to ' + args.host})\n"
+        )
+        print(warn, file=sys.stderr)
+    else:
+        print("[ui] control endpoints: DISABLED (read-only). Pass --allow-control to enable.")
     print(f"[ui] Ctrl-C to stop")
 
     if not args.no_open:

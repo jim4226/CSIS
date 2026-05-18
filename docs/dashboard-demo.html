@@ -1,0 +1,729 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CSIS · dashboard demo (simulated)</title>
+<meta name="description" content="A simulated walkthrough of the CSIS live dashboard. Real version: python -m csis.ui.">
+<style>
+  :root {
+    --bg: #fbf4e7;
+    --bg-card: #ffffff;
+    --bg-soft: #f6ecd6;
+    --ink: #2a2a2a;
+    --ink-dim: #6b6b6b;
+    --accent: #d97757;
+    --accent-deep: #b85e3f;
+    --good: #788c5d;
+    --calm: #6a9bcc;
+    --gold: #c89b3c;
+    --danger: #c4543b;
+    --border: #e7d8b5;
+    --mono: ui-monospace, "SF Mono", "JetBrains Mono", Consolas, monospace;
+    --sans: -apple-system, "Segoe UI", "Inter", "Helvetica Neue", Arial, sans-serif;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: var(--sans);
+    background: var(--bg);
+    color: var(--ink);
+    line-height: 1.55;
+    font-size: 14px;
+  }
+  header.bar {
+    background: var(--bg-card);
+    border-bottom: 1px solid var(--border);
+    padding: 14px 28px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    position: sticky;
+    top: 0;
+    z-index: 50;
+  }
+  header.bar .brand {
+    font-weight: 700;
+    color: var(--accent);
+    font-size: 18px;
+    letter-spacing: -0.5px;
+  }
+  header.bar .brand small {
+    font-weight: 400;
+    color: var(--ink-dim);
+    margin-left: 8px;
+    font-size: 13px;
+  }
+  header.bar .status {
+    font-family: var(--mono);
+    font-size: 13px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    color: var(--ink-dim);
+  }
+  header.bar .status .dot {
+    width: 9px;
+    height: 9px;
+    border-radius: 50%;
+    background: var(--good);
+    animation: pulse 1.5s ease-in-out infinite;
+  }
+  @keyframes pulse {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.5; }
+  }
+  header.bar .nav a {
+    color: var(--ink-dim);
+    text-decoration: none;
+    margin-left: 16px;
+    font-family: var(--mono);
+    font-size: 13px;
+  }
+  header.bar .nav a:hover { color: var(--accent); }
+
+  .demo-banner {
+    background: linear-gradient(90deg, #fff4e0, #faf2dc);
+    border-bottom: 2px solid var(--accent);
+    color: var(--accent-deep);
+    padding: 10px 28px;
+    text-align: center;
+    font-family: var(--mono);
+    font-size: 13px;
+    font-weight: 600;
+  }
+  .demo-banner code {
+    background: white;
+    padding: 1px 6px;
+    border-radius: 3px;
+    color: var(--accent-deep);
+  }
+  .demo-banner a {
+    color: var(--accent-deep);
+    text-decoration: underline;
+  }
+  .demo-progress {
+    height: 3px;
+    background: var(--bg-soft);
+    overflow: hidden;
+  }
+  .demo-progress .fill {
+    height: 100%;
+    background: var(--accent);
+    width: 0%;
+    transition: width 1.8s linear;
+  }
+
+  main {
+    padding: 24px 28px 60px;
+    max-width: 1500px;
+    margin: 0 auto;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 18px;
+  }
+  @media (max-width: 900px) { main { grid-template-columns: 1fr; } }
+  .card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 18px 22px;
+  }
+  .card.full { grid-column: 1 / -1; }
+  .card h3 {
+    font-family: var(--mono);
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    color: var(--accent);
+    margin: 0 0 12px 0;
+    font-weight: 700;
+  }
+  .card h3 .sub {
+    color: var(--ink-dim);
+    text-transform: none;
+    letter-spacing: 0;
+    font-weight: 400;
+    margin-left: 8px;
+  }
+
+  .stats {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+    gap: 10px;
+  }
+  .stat {
+    background: var(--bg-soft);
+    border-radius: 6px;
+    padding: 10px 12px;
+  }
+  .stat .label {
+    font-family: var(--mono);
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: var(--ink-dim);
+    margin-bottom: 4px;
+  }
+  .stat .value {
+    font-family: var(--mono);
+    font-size: 22px;
+    font-weight: 700;
+    line-height: 1.0;
+    transition: color 0.4s ease;
+  }
+  .stat .value.dim { color: var(--ink-dim); }
+  .stat .value.good { color: var(--good); }
+  .stat .value.bad { color: var(--danger); }
+  .stat .value.pulse {
+    animation: bump 0.6s ease;
+  }
+  @keyframes bump {
+    0% { color: var(--accent); transform: scale(1); }
+    40% { color: var(--accent); transform: scale(1.08); }
+    100% { transform: scale(1); }
+  }
+
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-family: var(--mono);
+    font-size: 12px;
+  }
+  table th {
+    text-align: left;
+    padding: 6px 8px;
+    color: var(--ink-dim);
+    font-weight: 600;
+    border-bottom: 1px solid var(--border);
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+  }
+  table td {
+    padding: 6px 8px;
+    border-bottom: 1px dashed var(--border);
+    vertical-align: top;
+  }
+  table tr:last-child td { border-bottom: none; }
+  table td.num { text-align: right; }
+  table tbody tr.new-row {
+    animation: highlight 1.2s ease;
+  }
+  @keyframes highlight {
+    0% { background: #fff4e0; }
+    100% { background: transparent; }
+  }
+
+  .chip {
+    display: inline-block;
+    padding: 1px 7px;
+    border-radius: 3px;
+    font-family: var(--mono);
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: white;
+  }
+  .chip.ok { background: var(--good); }
+  .chip.bad { background: var(--danger); }
+  .chip.warn { background: var(--gold); }
+  .chip.info { background: var(--calm); }
+  .chip.dim { background: var(--ink-dim); }
+
+  .tier-row {
+    display: grid;
+    grid-template-columns: 110px 70px 70px 1fr;
+    align-items: center;
+    gap: 10px;
+    padding: 6px 0;
+    border-bottom: 1px dashed var(--border);
+    font-family: var(--mono);
+    font-size: 12px;
+  }
+  .tier-row:last-child { border-bottom: none; }
+  .tier-row .label { color: var(--ink); font-weight: 600; }
+  .tier-row .count { color: var(--ink-dim); transition: color 0.4s ease; }
+  .tier-row .count.bump { color: var(--accent); font-weight: 700; }
+  .tier-bar {
+    height: 8px;
+    background: var(--bg-soft);
+    border-radius: 4px;
+    overflow: hidden;
+  }
+  .tier-bar .fill {
+    height: 100%;
+    background: var(--accent);
+    transition: width 1.2s ease;
+  }
+
+  pre.events {
+    font-family: var(--mono);
+    font-size: 11px;
+    line-height: 1.55;
+    background: #1d1d1d;
+    color: #d4c89a;
+    border-radius: 7px;
+    padding: 12px 14px;
+    overflow-x: auto;
+    margin: 0;
+    max-height: 280px;
+    overflow-y: auto;
+  }
+  pre.events .ts { color: #9b8f7a; }
+  pre.events .actor { color: #e4a268; font-weight: 600; }
+  pre.events .kind { color: #95a878; }
+  pre.events .seq { color: #6a9bcc; }
+  pre.events .new { animation: newEvent 1.2s ease; }
+  @keyframes newEvent {
+    0% { background: #4a3a1a; }
+    100% { background: transparent; }
+  }
+
+  .footer {
+    grid-column: 1 / -1;
+    text-align: center;
+    color: var(--ink-dim);
+    font-family: var(--mono);
+    font-size: 11px;
+    padding: 14px 0;
+  }
+  .footer a { color: var(--accent); text-decoration: none; }
+  .footer a:hover { text-decoration: underline; }
+</style>
+</head>
+<body>
+
+<header class="bar">
+  <span class="brand">CSIS<small>live dashboard · simulated demo</small></span>
+  <span class="status">
+    <span class="dot"></span>
+    <span>daemon alive · heartbeat 2s ago</span>
+  </span>
+  <span class="nav">
+    <a href="index.html">← landing</a>
+    <a href="playground.html">playground</a>
+    <a href="https://github.com/jim4226/CSIS" target="_blank">github</a>
+  </span>
+</header>
+
+<div class="demo-banner">
+  This is a <b>simulated walkthrough</b> · run the real thing with
+  <code>python -m csis.ui</code> after <a href="https://github.com/jim4226/CSIS#quick-start" target="_blank">cloning the repo</a>
+</div>
+<div class="demo-progress"><div class="fill" id="demo-fill"></div></div>
+
+<main>
+  <!-- DAEMON STATUS -->
+  <section class="card">
+    <h3>Daemon <span class="sub" id="daemon-sub">started 4m ago</span></h3>
+    <div class="stats">
+      <div class="stat"><div class="label">Iterations</div><div class="value" id="d-iters">—</div></div>
+      <div class="stat"><div class="label">Promoted</div><div class="value good" id="d-prom">—</div></div>
+      <div class="stat"><div class="label">Rolled back</div><div class="value dim" id="d-roll">—</div></div>
+      <div class="stat"><div class="label">Skills</div><div class="value" id="d-skills">—</div></div>
+      <div class="stat"><div class="label">Last iter</div><div class="value dim" id="d-last" style="font-size:14px">—</div></div>
+    </div>
+    <table id="rollback-table" style="margin-top:10px"></table>
+  </section>
+
+  <!-- COST -->
+  <section class="card">
+    <h3>Cost <span class="sub">today + last hour</span></h3>
+    <div class="stats">
+      <div class="stat"><div class="label">Today $</div><div class="value" id="c-today">—</div></div>
+      <div class="stat"><div class="label">Today calls</div><div class="value dim" id="c-calls">—</div></div>
+      <div class="stat"><div class="label">Pending res</div><div class="value dim" id="c-pending">—</div></div>
+      <div class="stat"><div class="label">Burn $/min</div><div class="value" id="c-burn">—</div></div>
+      <div class="stat"><div class="label">p50 latency</div><div class="value dim" id="c-p50">—</div></div>
+      <div class="stat"><div class="label">p95 latency</div><div class="value dim" id="c-p95">—</div></div>
+    </div>
+    <table id="model-table"></table>
+  </section>
+
+  <!-- MEMORY -->
+  <section class="card">
+    <h3>Memory tiers <span class="sub">candidate / live counts</span></h3>
+    <div id="tier-list"></div>
+  </section>
+
+  <!-- TRIPWIRES -->
+  <section class="card">
+    <h3>Tripwire firings <span class="sub">recent</span></h3>
+    <div id="tripwire-list" style="font-family:var(--mono); font-size:12px;"></div>
+  </section>
+
+  <!-- RECENT CALLS -->
+  <section class="card full">
+    <h3>Recent backend calls <span class="sub">per-call latency + cost + retries</span></h3>
+    <table id="calls-table">
+      <thead><tr>
+        <th>when</th><th>role</th><th>model</th>
+        <th class="num">tokens in / out</th><th class="num">cost $</th>
+        <th class="num">latency ms</th><th class="num">retries</th><th>outcome</th>
+      </tr></thead>
+      <tbody></tbody>
+    </table>
+  </section>
+
+  <!-- EVENT LOG -->
+  <section class="card full">
+    <h3>Event log tail <span class="sub">newest first · hash-chained</span></h3>
+    <pre class="events" id="events"></pre>
+  </section>
+
+  <div class="footer">
+    simulated demo · advances every 1.8s · loops continuously
+    · real dashboard: <a href="https://github.com/jim4226/CSIS/blob/main/RUN.md#live-dashboard">RUN.md → Live dashboard</a>
+  </div>
+</main>
+
+<script>
+// 18 pre-baked snapshots, each represents ~1.8s of simulated dashboard
+// activity (~32 seconds total before looping). The numbers here are
+// realistic but invented — they mirror the shape of an actual real-
+// backend burst against the CSIS codebase.
+const SNAPSHOTS = [
+  { iters: 47, prom: 41, roll: 6, skills: 5, today: 0.1182, calls: 142, pending: 0.0024, burn: 0.0028, p50: 1130, p95: 2840,
+    models: [["claude-opus-4-7", 88, 0.0741], ["claude-sonnet-4-6", 54, 0.0441]],
+    rollbacks: [["verifier-rejected", 3], ["tripwire", 2], ["promote-failed", 1]],
+    memory: [["working", 0, 0], ["episodic", 2, 41], ["semantic", 1, 12], ["procedural", 0, 5], ["causal", 0, 1]],
+    tripwires: [["override_audit", "plan", 1419], ["exfil_attempt", "frontier_item", 1387]],
+    calls: [
+      ["12s", "critic", "claude-sonnet-4-6", "284 / 96", 0.0019, 1247, 0, "ok"],
+      ["12s", "auditor", "claude-sonnet-4-6", "412 / 218", 0.0042, 1893, 0, "ok"],
+      ["13s", "librarian", "claude-opus-4-7", "210 / 102", 0.0044, 982, 0, "ok"],
+      ["14s", "builder", "claude-opus-4-7", "385 / 470", 0.0410, 2310, 0, "ok"],
+      ["14s", "verifier", "claude-sonnet-4-6", "385 / 89", 0.0024, 1144, 0, "ok"],
+      ["15s", "researcher", "claude-opus-4-7", "175 / 215", 0.0188, 1822, 0, "ok"],
+    ],
+    events: [
+      [1431, "coordinator", "iter.promoted"],
+      [1430, "auditor", "auditor.signed"],
+      [1429, "librarian", "librarian.consolidate"],
+      [1428, "verifier", "verifier.cert"],
+      [1427, "builder", "artifact.produced"],
+      [1426, "researcher", "plan.proposed"],
+      [1425, "coordinator", "iter.start"],
+    ],
+  },
+  { iters: 48, prom: 41, roll: 7, skills: 5, today: 0.1207, calls: 145, pending: 0.0019, burn: 0.0029, p50: 1140, p95: 2840,
+    models: [["claude-opus-4-7", 90, 0.0756], ["claude-sonnet-4-6", 55, 0.0451]],
+    rollbacks: [["verifier-rejected", 4], ["tripwire", 2], ["promote-failed", 1]],
+    memory: [["working", 0, 0], ["episodic", 2, 41], ["semantic", 1, 12], ["procedural", 0, 5], ["causal", 0, 1]],
+    tripwires: [["override_audit", "plan", 1419], ["exfil_attempt", "frontier_item", 1387]],
+    calls: [
+      ["2s", "critic", "claude-sonnet-4-6", "256 / 88", 0.0017, 1318, 0, "ok"],
+      ["3s", "verifier", "claude-sonnet-4-6", "390 / 92", 0.0025, 1208, 0, "ok"],
+      ["12s", "critic", "claude-sonnet-4-6", "284 / 96", 0.0019, 1247, 0, "ok"],
+      ["13s", "auditor", "claude-sonnet-4-6", "412 / 218", 0.0042, 1893, 0, "ok"],
+      ["14s", "librarian", "claude-opus-4-7", "210 / 102", 0.0044, 982, 0, "ok"],
+      ["15s", "builder", "claude-opus-4-7", "385 / 470", 0.0410, 2310, 0, "ok"],
+    ],
+    events: [
+      [1434, "coordinator", "iter.rolled_back"],
+      [1433, "coordinator", "verifier-rejected"],
+      [1432, "verifier", "verifier.cert"],
+      [1431, "coordinator", "iter.promoted"],
+      [1430, "auditor", "auditor.signed"],
+      [1429, "librarian", "librarian.consolidate"],
+    ],
+  },
+  { iters: 49, prom: 42, roll: 7, skills: 5, today: 0.1241, calls: 149, pending: 0.0021, burn: 0.0032, p50: 1140, p95: 2900,
+    models: [["claude-opus-4-7", 92, 0.0772], ["claude-sonnet-4-6", 57, 0.0469]],
+    rollbacks: [["verifier-rejected", 4], ["tripwire", 2], ["promote-failed", 1]],
+    memory: [["working", 0, 0], ["episodic", 3, 42], ["semantic", 1, 12], ["procedural", 0, 5], ["causal", 0, 1]],
+    tripwires: [["override_audit", "plan", 1419], ["exfil_attempt", "frontier_item", 1387]],
+    calls: [
+      ["1s", "researcher", "claude-opus-4-7", "190 / 226", 0.0202, 1764, 0, "ok"],
+      ["4s", "critic", "claude-sonnet-4-6", "256 / 88", 0.0017, 1318, 0, "ok"],
+      ["5s", "verifier", "claude-sonnet-4-6", "390 / 92", 0.0025, 1208, 0, "ok"],
+      ["14s", "critic", "claude-sonnet-4-6", "284 / 96", 0.0019, 1247, 0, "ok"],
+      ["15s", "auditor", "claude-sonnet-4-6", "412 / 218", 0.0042, 1893, 0, "ok"],
+    ],
+    events: [
+      [1438, "coordinator", "iter.promoted"],
+      [1437, "auditor", "auditor.signed"],
+      [1436, "librarian", "librarian.consolidate"],
+      [1435, "verifier", "verifier.cert"],
+      [1434, "coordinator", "iter.rolled_back"],
+    ],
+  },
+  { iters: 50, prom: 43, roll: 7, skills: 5, today: 0.1268, calls: 152, pending: 0.0018, burn: 0.0030, p50: 1140, p95: 2900,
+    models: [["claude-opus-4-7", 94, 0.0788], ["claude-sonnet-4-6", 58, 0.0480]],
+    rollbacks: [["verifier-rejected", 4], ["tripwire", 2], ["promote-failed", 1]],
+    memory: [["working", 0, 0], ["episodic", 3, 43], ["semantic", 1, 12], ["procedural", 0, 5], ["causal", 0, 1]],
+    tripwires: [["override_audit", "plan", 1419], ["exfil_attempt", "frontier_item", 1387]],
+    calls: [
+      ["0s", "builder", "claude-opus-4-7", "402 / 488", 0.0429, 2421, 1, "ok"],
+      ["3s", "researcher", "claude-opus-4-7", "190 / 226", 0.0202, 1764, 0, "ok"],
+      ["6s", "critic", "claude-sonnet-4-6", "256 / 88", 0.0017, 1318, 0, "ok"],
+      ["7s", "verifier", "claude-sonnet-4-6", "390 / 92", 0.0025, 1208, 0, "ok"],
+    ],
+    events: [
+      [1442, "coordinator", "iter.promoted"],
+      [1441, "auditor", "auditor.signed"],
+      [1440, "librarian", "librarian.consolidate"],
+      [1439, "verifier", "verifier.cert"],
+      [1438, "coordinator", "iter.promoted"],
+    ],
+  },
+  { iters: 51, prom: 43, roll: 8, skills: 5, today: 0.1294, calls: 155, pending: 0.0022, burn: 0.0031, p50: 1150, p95: 2900,
+    models: [["claude-opus-4-7", 96, 0.0805], ["claude-sonnet-4-6", 59, 0.0489]],
+    rollbacks: [["verifier-rejected", 4], ["tripwire", 3], ["promote-failed", 1]],
+    memory: [["working", 0, 0], ["episodic", 3, 43], ["semantic", 1, 12], ["procedural", 0, 5], ["causal", 0, 1]],
+    tripwires: [["override_audit", "plan", 1444], ["override_audit", "plan", 1419], ["exfil_attempt", "frontier_item", 1387]],
+    calls: [
+      ["1s", "researcher", "claude-opus-4-7", "165 / 192", 0.0177, 1611, 0, "ok"],
+      ["2s", "builder", "claude-opus-4-7", "402 / 488", 0.0429, 2421, 1, "ok"],
+      ["5s", "researcher", "claude-opus-4-7", "190 / 226", 0.0202, 1764, 0, "ok"],
+    ],
+    events: [
+      [1445, "coordinator", "iter.rolled_back"],
+      [1444, "coordinator", "tripwire.fired"],
+      [1443, "researcher", "plan.proposed"],
+      [1442, "coordinator", "iter.promoted"],
+    ],
+  },
+  { iters: 52, prom: 44, roll: 8, skills: 5, today: 0.1322, calls: 158, pending: 0.0014, burn: 0.0034, p50: 1150, p95: 2920,
+    models: [["claude-opus-4-7", 97, 0.0820], ["claude-sonnet-4-6", 61, 0.0502]],
+    rollbacks: [["verifier-rejected", 4], ["tripwire", 3], ["promote-failed", 1]],
+    memory: [["working", 0, 0], ["episodic", 4, 44], ["semantic", 1, 12], ["procedural", 0, 5], ["causal", 0, 1]],
+    tripwires: [["override_audit", "plan", 1444], ["override_audit", "plan", 1419], ["exfil_attempt", "frontier_item", 1387]],
+    calls: [
+      ["1s", "auditor", "claude-sonnet-4-6", "425 / 232", 0.0046, 1942, 0, "ok"],
+      ["3s", "researcher", "claude-opus-4-7", "165 / 192", 0.0177, 1611, 0, "ok"],
+      ["4s", "builder", "claude-opus-4-7", "402 / 488", 0.0429, 2421, 1, "ok"],
+    ],
+    events: [
+      [1449, "coordinator", "iter.promoted"],
+      [1448, "auditor", "auditor.signed"],
+      [1447, "librarian", "librarian.consolidate"],
+      [1446, "verifier", "verifier.cert"],
+    ],
+  },
+  { iters: 53, prom: 45, roll: 8, skills: 6, today: 0.1361, calls: 162, pending: 0.0019, burn: 0.0039, p50: 1150, p95: 2920,
+    models: [["claude-opus-4-7", 99, 0.0846], ["claude-sonnet-4-6", 63, 0.0515]],
+    rollbacks: [["verifier-rejected", 4], ["tripwire", 3], ["promote-failed", 1]],
+    memory: [["working", 0, 0], ["episodic", 4, 45], ["semantic", 1, 12], ["procedural", 1, 6], ["causal", 0, 1]],
+    tripwires: [["override_audit", "plan", 1444], ["override_audit", "plan", 1419], ["exfil_attempt", "frontier_item", 1387]],
+    calls: [
+      ["1s", "builder", "claude-opus-4-7", "521 / 612", 0.0539, 3127, 0, "ok"],
+      ["2s", "auditor", "claude-sonnet-4-6", "425 / 232", 0.0046, 1942, 0, "ok"],
+      ["5s", "researcher", "claude-opus-4-7", "165 / 192", 0.0177, 1611, 0, "ok"],
+    ],
+    events: [
+      [1453, "coordinator", "iter.promoted"],
+      [1452, "auditor", "auditor.signed"],
+      [1451, "librarian", "librarian.consolidate"],
+      [1450, "verifier", "verifier.cert"],
+    ],
+  },
+  { iters: 54, prom: 46, roll: 8, skills: 6, today: 0.1389, calls: 165, pending: 0.0016, burn: 0.0037, p50: 1160, p95: 2960,
+    models: [["claude-opus-4-7", 101, 0.0863], ["claude-sonnet-4-6", 64, 0.0526]],
+    rollbacks: [["verifier-rejected", 4], ["tripwire", 3], ["promote-failed", 1]],
+    memory: [["working", 0, 0], ["episodic", 4, 46], ["semantic", 1, 12], ["procedural", 1, 6], ["causal", 0, 1]],
+    tripwires: [["override_audit", "plan", 1444], ["override_audit", "plan", 1419], ["exfil_attempt", "frontier_item", 1387]],
+    calls: [
+      ["1s", "verifier", "claude-sonnet-4-6", "488 / 124", 0.0034, 1402, 0, "ok"],
+      ["3s", "builder", "claude-opus-4-7", "521 / 612", 0.0539, 3127, 0, "ok"],
+      ["4s", "auditor", "claude-sonnet-4-6", "425 / 232", 0.0046, 1942, 0, "ok"],
+    ],
+    events: [
+      [1457, "coordinator", "iter.promoted"],
+      [1456, "auditor", "auditor.signed"],
+      [1455, "librarian", "librarian.consolidate"],
+      [1454, "verifier", "verifier.cert"],
+    ],
+  },
+  { iters: 55, prom: 47, roll: 8, skills: 6, today: 0.1415, calls: 168, pending: 0.0011, burn: 0.0036, p50: 1160, p95: 2960,
+    models: [["claude-opus-4-7", 102, 0.0876], ["claude-sonnet-4-6", 66, 0.0539]],
+    rollbacks: [["verifier-rejected", 4], ["tripwire", 3], ["promote-failed", 1]],
+    memory: [["working", 0, 0], ["episodic", 5, 47], ["semantic", 1, 12], ["procedural", 1, 6], ["causal", 0, 1]],
+    tripwires: [["override_audit", "plan", 1444], ["override_audit", "plan", 1419], ["exfil_attempt", "frontier_item", 1387]],
+    calls: [
+      ["0s", "critic", "claude-sonnet-4-6", "262 / 97", 0.0019, 1289, 0, "ok"],
+      ["2s", "verifier", "claude-sonnet-4-6", "488 / 124", 0.0034, 1402, 0, "ok"],
+      ["4s", "builder", "claude-opus-4-7", "521 / 612", 0.0539, 3127, 0, "ok"],
+    ],
+    events: [
+      [1461, "coordinator", "iter.promoted"],
+      [1460, "auditor", "auditor.signed"],
+      [1459, "librarian", "librarian.consolidate"],
+      [1458, "verifier", "verifier.cert"],
+    ],
+  },
+  { iters: 56, prom: 47, roll: 9, skills: 6, today: 0.1443, calls: 171, pending: 0.0017, burn: 0.0036, p50: 1170, p95: 2980,
+    models: [["claude-opus-4-7", 104, 0.0893], ["claude-sonnet-4-6", 67, 0.0550]],
+    rollbacks: [["verifier-rejected", 5], ["tripwire", 3], ["promote-failed", 1]],
+    memory: [["working", 0, 0], ["episodic", 5, 47], ["semantic", 1, 12], ["procedural", 1, 6], ["causal", 0, 1]],
+    tripwires: [["override_audit", "plan", 1444], ["override_audit", "plan", 1419], ["exfil_attempt", "frontier_item", 1387]],
+    calls: [
+      ["1s", "verifier", "claude-sonnet-4-6", "362 / 108", 0.0030, 1567, 0, "rejected"],
+      ["3s", "critic", "claude-sonnet-4-6", "262 / 97", 0.0019, 1289, 0, "ok"],
+      ["5s", "verifier", "claude-sonnet-4-6", "488 / 124", 0.0034, 1402, 0, "ok"],
+    ],
+    events: [
+      [1464, "coordinator", "iter.rolled_back"],
+      [1463, "verifier", "verifier.cert"],
+      [1462, "builder", "artifact.produced"],
+      [1461, "coordinator", "iter.promoted"],
+    ],
+  },
+  { iters: 57, prom: 48, roll: 9, skills: 6, today: 0.1471, calls: 174, pending: 0.0014, burn: 0.0033, p50: 1170, p95: 3010,
+    models: [["claude-opus-4-7", 106, 0.0910], ["claude-sonnet-4-6", 68, 0.0561]],
+    rollbacks: [["verifier-rejected", 5], ["tripwire", 3], ["promote-failed", 1]],
+    memory: [["working", 0, 0], ["episodic", 5, 48], ["semantic", 1, 12], ["procedural", 1, 6], ["causal", 0, 1]],
+    tripwires: [["override_audit", "plan", 1444], ["override_audit", "plan", 1419], ["exfil_attempt", "frontier_item", 1387]],
+    calls: [
+      ["1s", "auditor", "claude-sonnet-4-6", "440 / 245", 0.0049, 2012, 0, "ok"],
+      ["3s", "verifier", "claude-sonnet-4-6", "362 / 108", 0.0030, 1567, 0, "rejected"],
+      ["5s", "critic", "claude-sonnet-4-6", "262 / 97", 0.0019, 1289, 0, "ok"],
+    ],
+    events: [
+      [1468, "coordinator", "iter.promoted"],
+      [1467, "auditor", "auditor.signed"],
+      [1466, "librarian", "librarian.consolidate"],
+      [1465, "verifier", "verifier.cert"],
+    ],
+  },
+  { iters: 58, prom: 49, roll: 9, skills: 7, today: 0.1502, calls: 178, pending: 0.0018, burn: 0.0034, p50: 1180, p95: 3010,
+    models: [["claude-opus-4-7", 108, 0.0927], ["claude-sonnet-4-6", 70, 0.0575]],
+    rollbacks: [["verifier-rejected", 5], ["tripwire", 3], ["promote-failed", 1]],
+    memory: [["working", 0, 0], ["episodic", 6, 49], ["semantic", 1, 12], ["procedural", 1, 7], ["causal", 0, 1]],
+    tripwires: [["override_audit", "plan", 1444], ["override_audit", "plan", 1419], ["exfil_attempt", "frontier_item", 1387]],
+    calls: [
+      ["0s", "builder", "claude-opus-4-7", "412 / 502", 0.0438, 2398, 0, "ok"],
+      ["2s", "auditor", "claude-sonnet-4-6", "440 / 245", 0.0049, 2012, 0, "ok"],
+      ["4s", "verifier", "claude-sonnet-4-6", "362 / 108", 0.0030, 1567, 0, "rejected"],
+    ],
+    events: [
+      [1472, "coordinator", "iter.promoted"],
+      [1471, "auditor", "auditor.signed"],
+      [1470, "librarian", "librarian.consolidate"],
+      [1469, "verifier", "verifier.cert"],
+    ],
+  },
+];
+
+const $ = (id) => document.getElementById(id);
+
+function fmtCost(n) {
+  if (n == null) return "—";
+  if (n === 0) return "$0";
+  if (n < 0.01) return "$" + n.toFixed(4);
+  return "$" + n.toFixed(2);
+}
+
+function escapeHtml(s) {
+  return String(s ?? "")
+    .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;").replace(/'/g, "&#039;");
+}
+
+let lastSnapshot = null;
+function bump(el, newVal) {
+  if (el.textContent !== String(newVal)) {
+    el.textContent = newVal;
+    el.classList.remove("pulse");
+    void el.offsetWidth;
+    el.classList.add("pulse");
+  }
+}
+
+function render(s) {
+  bump($("d-iters"), s.iters);
+  bump($("d-prom"), s.prom);
+  bump($("d-roll"), s.roll);
+  bump($("d-skills"), s.skills);
+  $("d-last").textContent = "just now";
+
+  $("c-today").textContent = fmtCost(s.today);
+  bump($("c-calls"), s.calls);
+  $("c-pending").textContent = fmtCost(s.pending);
+  $("c-burn").textContent = fmtCost(s.burn) + "/min";
+  $("c-p50").textContent = s.p50 + "ms";
+  $("c-p95").textContent = s.p95 + "ms";
+
+  // model table
+  $("model-table").innerHTML = '<thead><tr><th>model</th><th class="num">calls</th><th class="num">cost</th></tr></thead><tbody>'
+    + s.models.map(([m, c, cost]) => `<tr><td>${escapeHtml(m)}</td><td class="num">${c}</td><td class="num">${fmtCost(cost)}</td></tr>`).join("")
+    + '</tbody>';
+
+  // rollback reasons
+  $("rollback-table").innerHTML = '<thead><tr><th>rollback reason</th><th class="num">count</th></tr></thead><tbody>'
+    + s.rollbacks.map(([r, n]) => `<tr><td>${escapeHtml(r)}</td><td class="num">${n}</td></tr>`).join("")
+    + '</tbody>';
+
+  // memory tiers
+  let max = 1;
+  s.memory.forEach(([, c, l]) => max = Math.max(max, c + l));
+  $("tier-list").innerHTML = s.memory.map(([t, c, l]) => {
+    const pct = max > 0 ? ((c + l) / max) * 100 : 0;
+    return `<div class="tier-row">
+      <span class="label">${t}</span>
+      <span class="count">cand: ${c}</span>
+      <span class="count">live: ${l}</span>
+      <div class="tier-bar"><div class="fill" style="width:${pct}%"></div></div>
+    </div>`;
+  }).join("");
+
+  // tripwires
+  $("tripwire-list").innerHTML = s.tripwires.map(([label, where, seq]) =>
+    `<div style="padding:6px 0; border-bottom:1px dashed var(--border)">
+      <span class="chip warn">${escapeHtml(label)}</span>
+      <span style="color:var(--ink-dim); margin-left:8px">${escapeHtml(where)}</span>
+      <span style="color:var(--ink-dim); margin-left:8px">seq ${seq}</span>
+    </div>`).join("");
+
+  // calls
+  const tbody = document.querySelector("#calls-table tbody");
+  const oldSeqs = new Set(Array.from(tbody.querySelectorAll("tr")).map(tr => tr.dataset.key || ""));
+  tbody.innerHTML = s.calls.map((r) => {
+    const [when, role, model, tokens, cost, lat, retries, outcome] = r;
+    const key = role + model + tokens + cost;
+    const chipKind = outcome === "ok" ? "ok" : outcome === "rejected" ? "warn" : "bad";
+    const retryChip = retries > 0 ? `<span class="chip warn">${retries}</span>` : "0";
+    const newClass = oldSeqs.has(key) ? "" : " class=\"new-row\"";
+    return `<tr${newClass} data-key="${escapeHtml(key)}">
+      <td>${when} ago</td>
+      <td>${escapeHtml(role)}</td>
+      <td>${escapeHtml(model)}</td>
+      <td class="num">${tokens}</td>
+      <td class="num">${fmtCost(cost)}</td>
+      <td class="num">${lat}</td>
+      <td class="num">${retryChip}</td>
+      <td><span class="chip ${chipKind}">${escapeHtml(outcome)}</span></td>
+    </tr>`;
+  }).join("");
+
+  // events
+  const lastSeqs = new Set((lastSnapshot ? lastSnapshot.events.map(e => e[0]) : []));
+  $("events").innerHTML = s.events.map(([seq, actor, kind]) => {
+    const cls = lastSeqs.has(seq) ? "" : " new";
+    const ts = new Date().toISOString().slice(11, 19);
+    return `<span class="seq">${String(seq).padStart(5, "0")}</span> <span class="ts">${ts}</span> <span class="actor${cls}">${escapeHtml(actor.padEnd(11))}</span> <span class="kind">${escapeHtml(kind)}</span>`;
+  }).join("\n");
+
+  lastSnapshot = s;
+}
+
+let idx = 0;
+function tick() {
+  const s = SNAPSHOTS[idx];
+  render(s);
+  const fill = $("demo-fill");
+  fill.style.width = ((idx + 1) / SNAPSHOTS.length * 100) + "%";
+  idx = (idx + 1) % SNAPSHOTS.length;
+  if (idx === 0) {
+    setTimeout(() => { fill.style.transition = "none"; fill.style.width = "0%"; setTimeout(() => { fill.style.transition = "width 1.8s linear"; }, 50); }, 100);
+  }
+}
+
+tick();
+setInterval(tick, 1800);
+</script>
+
+</body>
+</html>
