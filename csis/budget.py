@@ -620,21 +620,76 @@ class _BackendTracker:
         # ONLY the bound closures, not the wrapped object itself. dir(self)
         # will not list the wrapped backend.
         self.name = getattr(wrapped, "name", "wrapped")
+        # Per-call observability sidecar — derived from tracker.path so
+        # each script (daemon / burst / demo / loop) gets its own jsonl
+        # that the live dashboard can tail. Append-only, one JSON record
+        # per line. Cheap to write (no lock; one open per call is fine
+        # because the dashboard reads with retry).
+        call_log_path = Path(tracker.path).with_suffix(".calls.jsonl")
+
+        def _append_call_log(rec: dict) -> None:
+            try:
+                call_log_path.parent.mkdir(parents=True, exist_ok=True)
+                with open(call_log_path, "a", encoding="utf-8") as f:
+                    f.write(json.dumps(rec) + "\n")
+            except Exception:
+                # Observability is best-effort; never let a logging failure
+                # break the real call path.
+                pass
 
         def _do_complete(req):
             ident = wrapped.checkpoint_identity(req.checkpoint_id)
             model_id = ident.get("model_id", req.checkpoint_id)
             est = estimate_cost(model_id, len(req.prompt), getattr(req, "max_tokens", 800))
             token = tracker.reserve_or_raise(est)
+            t0 = time.time()
             try:
                 resp = wrapped.complete(req)
-            except Exception:
+            except Exception as exc:
                 tracker.cancel_reservation(token)
+                _append_call_log({
+                    "ts": t0,
+                    "elapsed_ms": int((time.time() - t0) * 1000),
+                    "role": req.role,
+                    "checkpoint_id": req.checkpoint_id,
+                    "model_id": model_id,
+                    "prompt_chars": len(req.prompt),
+                    "tokens_in": 0,
+                    "tokens_out": 0,
+                    "cost_usd": 0.0,
+                    "outcome": "exception",
+                    "error_type": type(exc).__name__,
+                    "error_msg": str(exc)[:200],
+                })
                 raise
             # C8: distinguish missing-attr (default 800) from real zero.
             out_tokens_attr = getattr(resp, "tokens_out", None)
             out_tokens = 800 if out_tokens_attr is None else out_tokens_attr
-            tracker.record(model_id, len(req.prompt), out_tokens, reservation_token=token)
+            tokens_in = getattr(resp, "tokens_in", None) or (len(req.prompt) // 4)
+            cost_after = tracker.record(model_id, len(req.prompt), out_tokens, reservation_token=token)
+            # Use post-record cost to capture the actual delta for this call.
+            prices = _PRICE_PER_1K.get(model_id, _DEFAULT_PRICE)
+            call_cost = (
+                (max(0, len(req.prompt)) // 4 / 1000.0) * prices["in"]
+                + (max(0, out_tokens) / 1000.0) * prices["out"]
+            )
+            raw = getattr(resp, "raw", None) or {}
+            _append_call_log({
+                "ts": t0,
+                "elapsed_ms": int((time.time() - t0) * 1000),
+                "role": req.role,
+                "checkpoint_id": req.checkpoint_id,
+                "model_id": model_id,
+                "prompt_chars": len(req.prompt),
+                "tokens_in": tokens_in,
+                "tokens_out": out_tokens,
+                "cost_usd": round(call_cost, 6),
+                "outcome": "ok",
+                "backend": raw.get("backend", "unknown") if isinstance(raw, dict) else "unknown",
+                "latency_ms": (raw.get("latency_ms") if isinstance(raw, dict) else None),
+                "retry_count": (len(raw.get("retries", [])) if isinstance(raw, dict) else 0),
+                "stop_reason": (raw.get("stop_reason") if isinstance(raw, dict) else None),
+            })
             return resp
 
         def _do_checkpoint_identity(checkpoint_id):

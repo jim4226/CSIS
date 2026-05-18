@@ -52,9 +52,9 @@ pytest_temp/
 docs/marketing/
 
 # Budget tracker state from running scripts/burst.py or scripts/demo_pr_scenario.py.
-brain/burst.budget.json
-brain/burst.budget.json.lock
-brain/demo_pr.budget.json
-brain/demo_pr.budget.json.lock
-brain/loop.budget.json
-brain/loop.budget.json.lock
+brain/*.budget.json
+brain/*.budget.json.lock
+brain/*.budget.json.wal
+# Per-call observability sidecars written by _BackendTracker — used by the
+# live dashboard. Operator state, not source.
+brain/*.calls.jsonl

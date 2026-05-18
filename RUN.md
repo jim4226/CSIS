@@ -122,6 +122,41 @@ These map to the two Dreams-supported models. F1's cross-checkpoint
 invariant is satisfied by construction: Opus and Sonnet have different
 model IDs.
 
+### Real-backend monitoring
+
+The Anthropic backend is instrumented with end-to-end observability so
+you know what's actually happening when real LLM calls go out:
+
+| Surface | Where | What it captures |
+|---|---|---|
+| Per-call latency | `LLMResponse.raw["latency_ms"]` | Wall-clock time from request start to response in milliseconds |
+| Retry trail | `LLMResponse.raw["retries"]` | List of attempts that got 429 (RateLimitError) or 5xx (APIStatusError); each entry has attempt number, reason, and backoff |
+| Real token counts | `LLMResponse.tokens_in/.tokens_out` | Taken from the API's usage block, not estimated |
+| Cost ledger | `brain/<script>.budget.json` | Day-keyed cumulative spend + per-day call counts + reservations |
+| Per-call sidecar | `brain/<script>.calls.jsonl` | One append-only JSON line per call: timestamp, role, model, tokens, cost, latency, retries, outcome |
+| Lost-spend WAL | `brain/<script>.budget.json.wal` | Cost records that couldn't acquire the inter-process lock; drained on next successful `record()` (cycle-9 H5 fix) |
+
+The retry policy is **exponential backoff with jitter** (1s · 2s · 4s · 8s, plus 0-0.5s jitter) for up to 4 retries on `RateLimitError` or `5xx APIStatusError`. Caller-error responses (400/401/403/404) are not retried — they won't get better.
+
+If retries exhaust, the wrapper raises with the full context (`Anthropic backend exhausted N retries after M ms; last error: <type>: <msg>`) and the BudgetTracker reservation is cancelled (no phantom debit).
+
+### Live dashboard
+
+```bash
+python -m csis.ui
+```
+
+Opens a localhost-only single-page dashboard at `http://127.0.0.1:8765/` that polls every 2 seconds and displays everything above in one place — daemon status, today's cost across all tracker files, last-hour burn rate ($/min), p50/p95/p99 latency, per-model breakdown, memory tier counts, tripwire firings, recent backend calls with retry counts, and the tail of the event log.
+
+The dashboard reads from on-disk artifacts only. Run it alongside a running daemon, a burst, or even after everything stopped — the trail is durable.
+
+```bash
+python -m csis.ui --port 9000        # use a custom port
+python -m csis.ui --no-open          # don't auto-open browser
+python -m csis.ui --root /path/to/csis  # point at a different CSIS state root
+python -m csis.ui --host 0.0.0.0     # expose beyond localhost (use only when you trust the network)
+```
+
 To use a different mapping, override the model_map argument to
 `AnthropicBackend(model_map={...})` or extend `csis/backends/anthropic.py`.
 

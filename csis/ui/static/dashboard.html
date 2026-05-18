@@ -1,0 +1,554 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CSIS · live dashboard</title>
+<style>
+  :root {
+    --bg: #fbf4e7;
+    --bg-card: #ffffff;
+    --bg-soft: #f6ecd6;
+    --ink: #2a2a2a;
+    --ink-dim: #6b6b6b;
+    --accent: #d97757;
+    --accent-deep: #b85e3f;
+    --good: #788c5d;
+    --calm: #6a9bcc;
+    --gold: #c89b3c;
+    --danger: #c4543b;
+    --border: #e7d8b5;
+    --mono: ui-monospace, "SF Mono", "JetBrains Mono", Consolas, monospace;
+    --sans: -apple-system, "Segoe UI", "Inter", "Helvetica Neue", Arial, sans-serif;
+  }
+  * { box-sizing: border-box; }
+  body {
+    margin: 0;
+    font-family: var(--sans);
+    background: var(--bg);
+    color: var(--ink);
+    line-height: 1.55;
+    font-size: 14px;
+  }
+  header.bar {
+    background: var(--bg-card);
+    border-bottom: 1px solid var(--border);
+    padding: 14px 28px;
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    position: sticky;
+    top: 0;
+    z-index: 50;
+  }
+  header.bar .brand {
+    font-weight: 700;
+    color: var(--accent);
+    font-size: 18px;
+    letter-spacing: -0.5px;
+  }
+  header.bar .brand small {
+    font-weight: 400;
+    color: var(--ink-dim);
+    margin-left: 8px;
+    font-size: 13px;
+  }
+  header.bar .status {
+    font-family: var(--mono);
+    font-size: 13px;
+    display: flex;
+    align-items: center;
+    gap: 10px;
+    color: var(--ink-dim);
+  }
+  header.bar .status .dot {
+    width: 9px;
+    height: 9px;
+    border-radius: 50%;
+    background: var(--gold);
+  }
+  header.bar .status.alive .dot { background: var(--good); }
+  header.bar .status.dead .dot { background: var(--danger); }
+  header.bar .nav a {
+    color: var(--ink-dim);
+    text-decoration: none;
+    margin-left: 16px;
+    font-family: var(--mono);
+    font-size: 13px;
+  }
+  header.bar .nav a:hover { color: var(--accent); }
+
+  main {
+    padding: 24px 28px 60px;
+    max-width: 1500px;
+    margin: 0 auto;
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: 18px;
+  }
+  @media (max-width: 900px) {
+    main { grid-template-columns: 1fr; }
+  }
+  .card {
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    padding: 18px 22px;
+  }
+  .card.full { grid-column: 1 / -1; }
+  .card h3 {
+    font-family: var(--mono);
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 1.5px;
+    color: var(--accent);
+    margin: 0 0 12px 0;
+    font-weight: 700;
+  }
+  .card h3 .sub {
+    color: var(--ink-dim);
+    text-transform: none;
+    letter-spacing: 0;
+    font-weight: 400;
+    margin-left: 8px;
+  }
+
+  /* Stats grid */
+  .stats {
+    display: grid;
+    grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
+    gap: 10px;
+    margin-bottom: 8px;
+  }
+  .stat {
+    background: var(--bg-soft);
+    border-radius: 6px;
+    padding: 10px 12px;
+  }
+  .stat .label {
+    font-family: var(--mono);
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 1px;
+    color: var(--ink-dim);
+    margin-bottom: 4px;
+  }
+  .stat .value {
+    font-family: var(--mono);
+    font-size: 22px;
+    font-weight: 700;
+    color: var(--ink);
+    line-height: 1.0;
+  }
+  .stat .value.dim { color: var(--ink-dim); }
+  .stat .value.good { color: var(--good); }
+  .stat .value.bad { color: var(--danger); }
+
+  /* Tables */
+  table {
+    width: 100%;
+    border-collapse: collapse;
+    font-family: var(--mono);
+    font-size: 12px;
+  }
+  table th {
+    text-align: left;
+    padding: 6px 8px;
+    color: var(--ink-dim);
+    font-weight: 600;
+    border-bottom: 1px solid var(--border);
+    font-size: 10px;
+    text-transform: uppercase;
+    letter-spacing: 0.8px;
+  }
+  table td {
+    padding: 6px 8px;
+    border-bottom: 1px dashed var(--border);
+    vertical-align: top;
+  }
+  table tr:last-child td { border-bottom: none; }
+  table td.num { text-align: right; }
+
+  .chip {
+    display: inline-block;
+    padding: 1px 7px;
+    border-radius: 3px;
+    font-family: var(--mono);
+    font-size: 10px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 0.5px;
+    color: white;
+  }
+  .chip.ok { background: var(--good); }
+  .chip.bad { background: var(--danger); }
+  .chip.warn { background: var(--gold); }
+  .chip.info { background: var(--calm); }
+  .chip.dim { background: var(--ink-dim); }
+
+  .tier-bar {
+    height: 8px;
+    background: var(--bg-soft);
+    border-radius: 4px;
+    overflow: hidden;
+    margin-top: 4px;
+  }
+  .tier-bar .fill {
+    height: 100%;
+    background: var(--accent);
+    transition: width 0.3s ease;
+  }
+  .tier-row {
+    display: grid;
+    grid-template-columns: 110px 70px 70px 1fr;
+    align-items: center;
+    gap: 10px;
+    padding: 6px 0;
+    border-bottom: 1px dashed var(--border);
+    font-family: var(--mono);
+    font-size: 12px;
+  }
+  .tier-row:last-child { border-bottom: none; }
+  .tier-row .label { color: var(--ink); font-weight: 600; }
+  .tier-row .count { color: var(--ink-dim); }
+
+  pre.events {
+    font-family: var(--mono);
+    font-size: 11px;
+    line-height: 1.5;
+    background: #1d1d1d;
+    color: #d4c89a;
+    border-radius: 7px;
+    padding: 12px 14px;
+    overflow-x: auto;
+    margin: 0;
+    max-height: 280px;
+    overflow-y: auto;
+  }
+  pre.events .ts { color: #9b8f7a; }
+  pre.events .actor { color: #e4a268; font-weight: 600; }
+  pre.events .kind { color: #95a878; }
+  pre.events .seq { color: #6a9bcc; }
+  pre.events .empty { color: #9b8f7a; font-style: italic; }
+
+  .burn-canvas {
+    background: var(--bg-soft);
+    border-radius: 6px;
+    padding: 6px;
+    margin-top: 8px;
+  }
+
+  .footer {
+    grid-column: 1 / -1;
+    text-align: center;
+    color: var(--ink-dim);
+    font-family: var(--mono);
+    font-size: 11px;
+    padding: 14px 0;
+  }
+  .footer a { color: var(--accent); text-decoration: none; }
+  .footer a:hover { text-decoration: underline; }
+
+  .error-banner {
+    background: #f7e1da;
+    border: 1px solid var(--danger);
+    color: var(--danger);
+    padding: 10px 14px;
+    border-radius: 6px;
+    margin-bottom: 16px;
+    font-family: var(--mono);
+    font-size: 13px;
+    grid-column: 1 / -1;
+    display: none;
+  }
+  .error-banner.show { display: block; }
+</style>
+</head>
+<body>
+
+<header class="bar">
+  <span class="brand">CSIS<small>live dashboard · v0.1</small></span>
+  <span class="status" id="status-pill">
+    <span class="dot"></span>
+    <span id="status-text">connecting…</span>
+  </span>
+  <span class="nav">
+    <a href="https://github.com/jim4226/CSIS" target="_blank">repo</a>
+    <a href="https://jim4226.github.io/CSIS/" target="_blank">site</a>
+    <a href="https://github.com/jim4226/CSIS/blob/main/CYCLES.md" target="_blank">cycles</a>
+  </span>
+</header>
+
+<main id="main">
+  <div class="error-banner" id="error-banner"></div>
+
+  <!-- DAEMON STATUS -->
+  <section class="card">
+    <h3>Daemon <span class="sub" id="daemon-sub"></span></h3>
+    <div class="stats">
+      <div class="stat"><div class="label">Iterations</div><div class="value" id="d-iters">—</div></div>
+      <div class="stat"><div class="label">Promoted</div><div class="value good" id="d-prom">—</div></div>
+      <div class="stat"><div class="label">Rolled back</div><div class="value dim" id="d-roll">—</div></div>
+      <div class="stat"><div class="label">Skills</div><div class="value" id="d-skills">—</div></div>
+      <div class="stat"><div class="label">Last iter</div><div class="value dim" id="d-last" style="font-size:14px">—</div></div>
+    </div>
+    <table id="rollback-table" style="margin-top:10px"></table>
+  </section>
+
+  <!-- COST -->
+  <section class="card">
+    <h3>Cost <span class="sub">today + last hour</span></h3>
+    <div class="stats">
+      <div class="stat"><div class="label">Today $</div><div class="value" id="c-today">—</div></div>
+      <div class="stat"><div class="label">Today calls</div><div class="value dim" id="c-calls">—</div></div>
+      <div class="stat"><div class="label">Pending res</div><div class="value dim" id="c-pending">—</div></div>
+      <div class="stat"><div class="label">Burn $/min</div><div class="value" id="c-burn">—</div></div>
+      <div class="stat"><div class="label">p50 latency</div><div class="value dim" id="c-p50">—</div></div>
+      <div class="stat"><div class="label">p95 latency</div><div class="value dim" id="c-p95">—</div></div>
+    </div>
+    <table id="model-table"></table>
+  </section>
+
+  <!-- MEMORY -->
+  <section class="card">
+    <h3>Memory tiers <span class="sub">candidate / live counts</span></h3>
+    <div id="tier-list"></div>
+  </section>
+
+  <!-- TRIPWIRES -->
+  <section class="card">
+    <h3>Tripwire firings <span class="sub">last 10 from event log</span></h3>
+    <div id="tripwire-list" style="font-family:var(--mono); font-size:12px;"></div>
+  </section>
+
+  <!-- RECENT CALLS -->
+  <section class="card full">
+    <h3>Recent backend calls <span class="sub">per-call latency + cost + retries</span></h3>
+    <table id="calls-table">
+      <thead><tr>
+        <th>when</th><th>role</th><th>model</th><th>sidecar</th>
+        <th class="num">tokens in / out</th><th class="num">cost $</th>
+        <th class="num">latency ms</th><th class="num">retries</th><th>outcome</th>
+      </tr></thead>
+      <tbody></tbody>
+    </table>
+  </section>
+
+  <!-- EVENT LOG -->
+  <section class="card full">
+    <h3>Event log tail <span class="sub">newest first · hash-chained</span></h3>
+    <pre class="events" id="events"></pre>
+  </section>
+
+  <div class="footer">
+    polling every 2s · read-only · all data from on-disk artifacts (event_log / brain / memory_store)
+    · <a href="https://github.com/jim4226/CSIS/blob/main/RUN.md">RUN.md</a>
+  </div>
+</main>
+
+<script>
+const API = "/api/summary";
+
+const $ = (id) => document.getElementById(id);
+
+function fmtNum(n) {
+  if (n == null) return "—";
+  if (typeof n !== "number") return String(n);
+  if (n >= 1000) return n.toLocaleString();
+  return String(n);
+}
+function fmtCost(n) {
+  if (n == null) return "—";
+  if (n === 0) return "$0";
+  if (n < 0.01) return "$" + n.toFixed(4);
+  return "$" + n.toFixed(2);
+}
+function fmtAge(ts) {
+  if (!ts) return "—";
+  const age = (Date.now() / 1000) - ts;
+  if (age < 0) return "—";
+  if (age < 60) return Math.floor(age) + "s ago";
+  if (age < 3600) return Math.floor(age / 60) + "m ago";
+  if (age < 86400) return Math.floor(age / 3600) + "h ago";
+  return Math.floor(age / 86400) + "d ago";
+}
+function escapeHtml(s) {
+  return String(s ?? "")
+    .replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;")
+    .replace(/"/g, "&quot;").replace(/'/g, "&#039;");
+}
+
+function renderStatus(s) {
+  const pill = $("status-pill");
+  const txt = $("status-text");
+  const d = s.daemon || {};
+  if (d.alive) {
+    pill.className = "status alive";
+    txt.textContent = "daemon alive · heartbeat " + (d.heartbeat_age_s != null ? d.heartbeat_age_s + "s ago" : "?");
+  } else if (d.heartbeat_age_s != null) {
+    pill.className = "status dead";
+    txt.textContent = "daemon stale · last heartbeat " + Math.floor(d.heartbeat_age_s) + "s ago";
+  } else {
+    pill.className = "status";
+    txt.textContent = "no daemon running (heartbeat missing) · scripts can still write to event log";
+  }
+  $("daemon-sub").textContent = d.started_at
+    ? "started " + fmtAge(d.started_at)
+    : "(no daemon stats yet)";
+  $("d-iters").textContent = fmtNum(d.iterations_total);
+  $("d-prom").textContent = fmtNum(d.iterations_promoted);
+  $("d-roll").textContent = fmtNum(d.iterations_rolled_back);
+  $("d-skills").textContent = fmtNum(d.skills_promoted);
+  $("d-last").textContent = fmtAge(d.last_iteration_at);
+
+  // Rollback reason breakdown
+  const reasons = d.rollback_reason_counts || {};
+  const reasonRows = Object.entries(reasons).sort((a,b) => b[1] - a[1]);
+  let t = $("rollback-table");
+  if (reasonRows.length === 0) {
+    t.innerHTML = '<tr><td style="color:var(--ink-dim); font-style:italic">no rollbacks yet</td></tr>';
+  } else {
+    t.innerHTML = '<thead><tr><th>rollback reason</th><th class="num">count</th></tr></thead><tbody>'
+      + reasonRows.map(([r, n]) => `<tr><td>${escapeHtml(r)}</td><td class="num">${n}</td></tr>`).join("")
+      + '</tbody>';
+  }
+}
+
+function renderCost(c) {
+  $("c-today").textContent = fmtCost(c.total_today_usd);
+  $("c-calls").textContent = fmtNum(c.total_today_calls);
+  $("c-pending").textContent = fmtCost(c.pending_reservations_usd);
+  const lh = c.last_hour || {};
+  $("c-burn").textContent = fmtCost(lh.burn_rate_usd_per_min) + "/min";
+  const lat = lh.latency_ms || {};
+  $("c-p50").textContent = lat.p50 != null ? lat.p50 + "ms" : "—";
+  $("c-p95").textContent = lat.p95 != null ? lat.p95 + "ms" : "—";
+
+  const by = lh.by_model || [];
+  let t = $("model-table");
+  if (by.length === 0) {
+    t.innerHTML = '<tr><td style="color:var(--ink-dim); font-style:italic">no calls in the last hour</td></tr>';
+  } else {
+    t.innerHTML = '<thead><tr><th>model</th><th class="num">calls (1h)</th><th class="num">cost</th><th class="num">tokens out</th></tr></thead><tbody>'
+      + by.map(m => `<tr><td>${escapeHtml(m.model)}</td><td class="num">${m.calls}</td><td class="num">${fmtCost(m.cost_usd)}</td><td class="num">${fmtNum(m.tokens_out)}</td></tr>`).join("")
+      + '</tbody>';
+  }
+}
+
+function renderMemory(m) {
+  const tiers = ["working", "episodic", "semantic", "procedural", "causal"];
+  // Find max for bar scaling
+  let max = 1;
+  for (const t of tiers) {
+    const d = m[t];
+    if (!d) continue;
+    max = Math.max(max, (d.candidate_count || 0) + (d.live_count || 0));
+  }
+  const tierList = $("tier-list");
+  tierList.innerHTML = tiers.map(t => {
+    const d = m[t] || { candidate_count: 0, live_count: 0 };
+    const total = (d.candidate_count || 0) + (d.live_count || 0);
+    const pct = max > 0 ? (total / max) * 100 : 0;
+    return `<div class="tier-row">
+      <span class="label">${t}</span>
+      <span class="count">cand: ${d.candidate_count}</span>
+      <span class="count">live: ${d.live_count}</span>
+      <div class="tier-bar"><div class="fill" style="width:${pct}%"></div></div>
+    </div>`;
+  }).join("");
+}
+
+function renderTripwires(tw) {
+  const f = tw.firings || [];
+  let html;
+  if (f.length === 0) {
+    html = '<div style="color:var(--ink-dim); font-style:italic">no tripwire firings in the last ' + tw.window_size + ' events</div>';
+  } else {
+    html = f.map(fr => {
+      const payload = fr.payload || {};
+      const labels = (payload.labels || ["?"]).join(", ");
+      return `<div style="padding:6px 0; border-bottom:1px dashed var(--border)">
+        <span class="chip warn">${escapeHtml(labels)}</span>
+        <span style="color:var(--ink-dim); margin-left:8px">${escapeHtml(payload.where || "?")}</span>
+        <span style="color:var(--ink-dim); margin-left:8px">seq ${fr.seq}</span>
+      </div>`;
+    }).join("");
+  }
+  $("tripwire-list").innerHTML = html;
+}
+
+function renderCalls(c) {
+  const tbody = document.querySelector("#calls-table tbody");
+  const rows = c.calls || [];
+  if (rows.length === 0) {
+    tbody.innerHTML = '<tr><td colspan="9" style="color:var(--ink-dim); font-style:italic">no backend calls recorded yet</td></tr>';
+    return;
+  }
+  tbody.innerHTML = rows.map(r => {
+    const outcomeChip = r.outcome === "ok"
+      ? '<span class="chip ok">ok</span>'
+      : '<span class="chip bad">' + escapeHtml(r.outcome) + '</span>';
+    const retryChip = (r.retry_count > 0)
+      ? '<span class="chip warn">' + r.retry_count + '</span>'
+      : '0';
+    return `<tr>
+      <td>${fmtAge(r.ts)}</td>
+      <td>${escapeHtml(r.role || "?")}</td>
+      <td>${escapeHtml(r.model_id || "?")}</td>
+      <td><span class="chip dim">${escapeHtml(r._sidecar)}</span></td>
+      <td class="num">${r.tokens_in} / ${r.tokens_out}</td>
+      <td class="num">${fmtCost(r.cost_usd)}</td>
+      <td class="num">${r.latency_ms ?? r.elapsed_ms ?? "—"}</td>
+      <td class="num">${retryChip}</td>
+      <td>${outcomeChip}</td>
+    </tr>`;
+  }).join("");
+}
+
+function renderEvents(e) {
+  const pre = $("events");
+  const evs = e.events || [];
+  if (evs.length === 0) {
+    pre.innerHTML = '<span class="empty">no events yet · this populates as the daemon, burst, or loop runs</span>';
+    return;
+  }
+  pre.innerHTML = evs.map(sig => {
+    const ev = sig.event || {};
+    const ts = sig.ts ? new Date(sig.ts * 1000).toISOString().slice(11, 19) : "??:??:??";
+    const seq = sig.seq != null ? String(sig.seq).padStart(5, "0") : "?????";
+    const actor = (ev.actor || "?").padEnd(11);
+    const kind = ev.kind || "?";
+    return `<span class="seq">${seq}</span> <span class="ts">${ts}</span> <span class="actor">${escapeHtml(actor)}</span> <span class="kind">${escapeHtml(kind)}</span>`;
+  }).join("\n");
+}
+
+let consecutive_failures = 0;
+async function poll() {
+  try {
+    const resp = await fetch(API, { cache: "no-store" });
+    if (!resp.ok) throw new Error("HTTP " + resp.status);
+    const data = await resp.json();
+    $("error-banner").classList.remove("show");
+    consecutive_failures = 0;
+    renderStatus(data.status || {});
+    renderCost(data.cost || {});
+    renderMemory(data.memory || {});
+    renderTripwires(data.tripwires || {});
+    renderEvents(data.events || {});
+    renderCalls(data.calls || {});
+  } catch (err) {
+    consecutive_failures++;
+    if (consecutive_failures > 2) {
+      const banner = $("error-banner");
+      banner.textContent = "Lost connection to dashboard server: " + err.message;
+      banner.classList.add("show");
+    }
+  }
+}
+
+poll();
+setInterval(poll, 2000);
+</script>
+
+</body>
+</html>

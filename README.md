@@ -86,9 +86,32 @@ python scripts/demo_pr_scenario.py --clean
 
 # Run the 24/7 daemon (foreground; Ctrl-C to stop).
 python -m csis.daemon --backend mock --rate-per-hour 60
+
+# Open the live dashboard (read-only, localhost-only, port 8765 by default).
+python -m csis.ui
 ```
 
 Switching to the real Anthropic backend, running on-demand bursts with a cost ceiling, installing as a Windows service, picking a benchmark domain, and the full operator interface → **[RUN.md](RUN.md)**.
+
+## Live dashboard
+
+```bash
+python -m csis.ui                 # opens http://127.0.0.1:8765 in your browser
+python -m csis.ui --port 9000     # custom port
+python -m csis.ui --no-open       # don't auto-open the browser
+python -m csis.ui --host 0.0.0.0  # expose beyond localhost (use with care)
+```
+
+Single-page dashboard, polls every 2s, read-only. Shows:
+
+- **Daemon status** — alive / stale, iterations promoted vs rolled back, rollback reason breakdown
+- **Cost** — today's spend across every BudgetTracker file, last-hour burn rate, p50/p95 latency, per-model breakdown
+- **Memory tiers** — candidate + live counts for each of working / episodic / semantic / procedural / causal
+- **Tripwire firings** — last 10 from the event log with labels and surface (frontier / plan / artifact / why_doc)
+- **Recent backend calls** — per-call latency, tokens in/out, cost, retry count, outcome — populated from `brain/*.calls.jsonl` sidecars written by every wrapped backend call
+- **Event log tail** — newest 20 chain-linked events with seq numbers and actor/kind
+
+The dashboard reads from on-disk artifacts only (event log, budget JSONs, memory store, daemon heartbeat). No coupling to the running daemon — you can boot the dashboard against a stopped state and still see the trail of what happened.
 
 ## Architecture map
 
