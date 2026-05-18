@@ -34,29 +34,31 @@
   header.bar {
     background: var(--bg-card);
     border-bottom: 1px solid var(--border);
-    padding: 14px 28px;
+    padding: 14px 24px;
     display: flex;
     justify-content: space-between;
     align-items: center;
-    position: sticky;
-    top: 0;
-    z-index: 50;
+    flex-wrap: wrap;
+    gap: 12px 20px;
   }
   header.bar .brand {
     font-weight: 700;
     color: var(--accent);
     font-size: 18px;
     letter-spacing: -0.5px;
+    white-space: nowrap;
   }
   header.bar .brand small {
     font-weight: 400;
     color: var(--ink-dim);
-    margin-left: 8px;
-    font-size: 13px;
+    margin-left: 10px;
+    padding-left: 10px;
+    border-left: 1px solid var(--border);
+    font-size: 12px;
   }
   header.bar .status {
     font-family: var(--mono);
-    font-size: 13px;
+    font-size: 12px;
     display: flex;
     align-items: center;
     gap: 10px;
@@ -86,21 +88,28 @@
     background: linear-gradient(90deg, #fff4e0, #faf2dc);
     border-bottom: 2px solid var(--accent);
     color: var(--accent-deep);
-    padding: 10px 28px;
+    padding: 12px 24px;
     text-align: center;
     font-family: var(--mono);
     font-size: 13px;
     font-weight: 600;
+    line-height: 1.5;
   }
   .demo-banner code {
     background: white;
-    padding: 1px 6px;
+    padding: 2px 7px;
     border-radius: 3px;
     color: var(--accent-deep);
+    font-size: 12px;
+    white-space: nowrap;
   }
   .demo-banner a {
     color: var(--accent-deep);
     text-decoration: underline;
+    white-space: nowrap;
+  }
+  @media (max-width: 700px) {
+    .demo-banner { font-size: 12px; padding: 10px 16px; }
   }
   .demo-progress {
     height: 3px;
@@ -149,13 +158,18 @@
 
   .stats {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
-    gap: 10px;
+    grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
+    gap: 8px;
   }
   .stat {
     background: var(--bg-soft);
     border-radius: 6px;
     padding: 10px 12px;
+    min-height: 58px;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    overflow: hidden;
   }
   .stat .label {
     font-family: var(--mono);
@@ -163,14 +177,25 @@
     text-transform: uppercase;
     letter-spacing: 1px;
     color: var(--ink-dim);
-    margin-bottom: 4px;
+    margin-bottom: 6px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
   .stat .value {
     font-family: var(--mono);
-    font-size: 22px;
+    font-size: 19px;
     font-weight: 700;
-    line-height: 1.0;
+    line-height: 1.05;
     transition: color 0.4s ease;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .stat .value.small {
+    font-size: 13px;
+    font-weight: 600;
+    line-height: 1.3;
   }
   .stat .value.dim { color: var(--ink-dim); }
   .stat .value.good { color: var(--good); }
@@ -234,29 +259,45 @@
 
   .tier-row {
     display: grid;
-    grid-template-columns: 110px 70px 70px 1fr;
+    grid-template-columns: minmax(72px, 100px) minmax(56px, 70px) minmax(56px, 70px) 1fr;
     align-items: center;
     gap: 10px;
-    padding: 6px 0;
+    padding: 8px 0;
     border-bottom: 1px dashed var(--border);
     font-family: var(--mono);
     font-size: 12px;
   }
   .tier-row:last-child { border-bottom: none; }
   .tier-row .label { color: var(--ink); font-weight: 600; }
-  .tier-row .count { color: var(--ink-dim); transition: color 0.4s ease; }
+  .tier-row .count {
+    color: var(--ink-dim);
+    transition: color 0.4s ease;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
   .tier-row .count.bump { color: var(--accent); font-weight: 700; }
   .tier-bar {
     height: 8px;
     background: var(--bg-soft);
     border-radius: 4px;
     overflow: hidden;
+    min-width: 40px;
   }
   .tier-bar .fill {
     height: 100%;
     background: var(--accent);
     transition: width 1.2s ease;
   }
+
+  /* Wrap wide tables in card.full so they scroll horizontally on narrow
+     viewports instead of overflowing the card border. */
+  .table-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  .table-scroll table { min-width: 720px; }
+  table th, table td {
+    white-space: nowrap;
+  }
+  table td.wrap { white-space: normal; }
 
   pre.events {
     font-family: var(--mono);
@@ -270,6 +311,30 @@
     margin: 0;
     max-height: 280px;
     overflow-y: auto;
+    white-space: pre;
+  }
+  /* Inline tables inside the daemon card (rollback reasons, model breakdown)
+     get consistent spacing from the stats grid above them. */
+  .card table { margin-top: 12px; }
+  .card table:empty { display: none; }
+
+  /* Utility classes for JS-rendered fragments. */
+  .empty-state {
+    color: var(--ink-dim);
+    font-style: italic;
+    font-family: var(--mono);
+    font-size: 12px;
+    padding: 6px 0;
+  }
+  .mono-list { font-family: var(--mono); font-size: 12px; }
+  .firing-row {
+    padding: 6px 0;
+    border-bottom: 1px dashed var(--border);
+  }
+  .firing-row:last-child { border-bottom: none; }
+  .firing-row .meta {
+    color: var(--ink-dim);
+    margin-left: 8px;
   }
   pre.events .ts { color: #9b8f7a; }
   pre.events .actor { color: #e4a268; font-weight: 600; }
@@ -323,9 +388,9 @@
       <div class="stat"><div class="label">Promoted</div><div class="value good" id="d-prom">—</div></div>
       <div class="stat"><div class="label">Rolled back</div><div class="value dim" id="d-roll">—</div></div>
       <div class="stat"><div class="label">Skills</div><div class="value" id="d-skills">—</div></div>
-      <div class="stat"><div class="label">Last iter</div><div class="value dim" id="d-last" style="font-size:14px">—</div></div>
+      <div class="stat"><div class="label">Last iter</div><div class="value small dim" id="d-last">—</div></div>
     </div>
-    <table id="rollback-table" style="margin-top:10px"></table>
+    <table id="rollback-table"></table>
   </section>
 
   <!-- COST -->
@@ -351,20 +416,22 @@
   <!-- TRIPWIRES -->
   <section class="card">
     <h3>Tripwire firings <span class="sub">recent</span></h3>
-    <div id="tripwire-list" style="font-family:var(--mono); font-size:12px;"></div>
+    <div id="tripwire-list" class="mono-list"></div>
   </section>
 
   <!-- RECENT CALLS -->
   <section class="card full">
     <h3>Recent backend calls <span class="sub">per-call latency + cost + retries</span></h3>
-    <table id="calls-table">
-      <thead><tr>
-        <th>when</th><th>role</th><th>model</th>
-        <th class="num">tokens in / out</th><th class="num">cost $</th>
-        <th class="num">latency ms</th><th class="num">retries</th><th>outcome</th>
-      </tr></thead>
-      <tbody></tbody>
-    </table>
+    <div class="table-scroll">
+      <table id="calls-table">
+        <thead><tr>
+          <th>when</th><th>role</th><th>model</th>
+          <th class="num">tokens&nbsp;in/out</th><th class="num">cost&nbsp;$</th>
+          <th class="num">latency&nbsp;ms</th><th class="num">retries</th><th>outcome</th>
+        </tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
   </section>
 
   <!-- EVENT LOG -->
@@ -671,10 +738,10 @@ function render(s) {
 
   // tripwires
   $("tripwire-list").innerHTML = s.tripwires.map(([label, where, seq]) =>
-    `<div style="padding:6px 0; border-bottom:1px dashed var(--border)">
+    `<div class="firing-row">
       <span class="chip warn">${escapeHtml(label)}</span>
-      <span style="color:var(--ink-dim); margin-left:8px">${escapeHtml(where)}</span>
-      <span style="color:var(--ink-dim); margin-left:8px">seq ${seq}</span>
+      <span class="meta">${escapeHtml(where)}</span>
+      <span class="meta">seq ${seq}</span>
     </div>`).join("");
 
   // calls

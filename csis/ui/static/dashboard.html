@@ -33,10 +33,12 @@
   header.bar {
     background: var(--bg-card);
     border-bottom: 1px solid var(--border);
-    padding: 14px 28px;
+    padding: 14px 24px;
     display: flex;
     justify-content: space-between;
     align-items: center;
+    flex-wrap: wrap;
+    gap: 12px 20px;
     position: sticky;
     top: 0;
     z-index: 50;
@@ -46,16 +48,19 @@
     color: var(--accent);
     font-size: 18px;
     letter-spacing: -0.5px;
+    white-space: nowrap;
   }
   header.bar .brand small {
     font-weight: 400;
     color: var(--ink-dim);
-    margin-left: 8px;
-    font-size: 13px;
+    margin-left: 10px;
+    padding-left: 10px;
+    border-left: 1px solid var(--border);
+    font-size: 12px;
   }
   header.bar .status {
     font-family: var(--mono);
-    font-size: 13px;
+    font-size: 12px;
     display: flex;
     align-items: center;
     gap: 10px;
@@ -116,14 +121,19 @@
   /* Stats grid */
   .stats {
     display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(120px, 1fr));
-    gap: 10px;
+    grid-template-columns: repeat(auto-fit, minmax(110px, 1fr));
+    gap: 8px;
     margin-bottom: 8px;
   }
   .stat {
     background: var(--bg-soft);
     border-radius: 6px;
     padding: 10px 12px;
+    min-height: 58px;
+    display: flex;
+    flex-direction: column;
+    justify-content: space-between;
+    overflow: hidden;
   }
   .stat .label {
     font-family: var(--mono);
@@ -131,14 +141,25 @@
     text-transform: uppercase;
     letter-spacing: 1px;
     color: var(--ink-dim);
-    margin-bottom: 4px;
+    margin-bottom: 6px;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
   }
   .stat .value {
     font-family: var(--mono);
-    font-size: 22px;
+    font-size: 19px;
     font-weight: 700;
     color: var(--ink);
-    line-height: 1.0;
+    line-height: 1.05;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .stat .value.small {
+    font-size: 13px;
+    font-weight: 600;
+    line-height: 1.3;
   }
   .stat .value.dim { color: var(--ink-dim); }
   .stat .value.good { color: var(--good); }
@@ -200,17 +221,54 @@
   }
   .tier-row {
     display: grid;
-    grid-template-columns: 110px 70px 70px 1fr;
+    grid-template-columns: minmax(72px, 100px) minmax(56px, 70px) minmax(56px, 70px) 1fr;
     align-items: center;
     gap: 10px;
-    padding: 6px 0;
+    padding: 8px 0;
     border-bottom: 1px dashed var(--border);
     font-family: var(--mono);
     font-size: 12px;
   }
   .tier-row:last-child { border-bottom: none; }
   .tier-row .label { color: var(--ink); font-weight: 600; }
-  .tier-row .count { color: var(--ink-dim); }
+  .tier-row .count {
+    color: var(--ink-dim);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .tier-bar { min-width: 40px; }
+
+  /* Wrap wide tables in card.full so they scroll horizontally on narrow
+     viewports instead of overflowing the card border. */
+  .table-scroll { overflow-x: auto; -webkit-overflow-scrolling: touch; }
+  .table-scroll table { min-width: 720px; }
+  table th, table td { white-space: nowrap; }
+  table td.wrap { white-space: normal; }
+  .card table { margin-top: 12px; }
+  .card table:empty { display: none; }
+
+  /* Utilities used in JS-rendered fragments — keeps inline styles out of
+     template literals and lets the page restyle in one place. */
+  .empty-state {
+    color: var(--ink-dim);
+    font-style: italic;
+    font-family: var(--mono);
+    font-size: 12px;
+    padding: 6px 0;
+  }
+  .mono-list { font-family: var(--mono); font-size: 12px; }
+  .firing-row {
+    padding: 6px 0;
+    border-bottom: 1px dashed var(--border);
+  }
+  .firing-row:last-child { border-bottom: none; }
+  .firing-row .meta {
+    color: var(--ink-dim);
+    margin-left: 8px;
+  }
+  .tasks-area { margin-top: 14px; }
+  .tasks-area table { font-family: var(--mono); font-size: 11px; }
 
   pre.events {
     font-family: var(--mono);
@@ -420,7 +478,7 @@
   <section class="card full" id="control-card">
     <h3>Control panel <span class="sub" id="control-sub"></span></h3>
     <div id="control-body"></div>
-    <div id="tasks-area" style="margin-top: 14px;"></div>
+    <div id="tasks-area" class="tasks-area"></div>
   </section>
 
   <!-- DAEMON STATUS -->
@@ -431,9 +489,9 @@
       <div class="stat"><div class="label">Promoted</div><div class="value good" id="d-prom">—</div></div>
       <div class="stat"><div class="label">Rolled back</div><div class="value dim" id="d-roll">—</div></div>
       <div class="stat"><div class="label">Skills</div><div class="value" id="d-skills">—</div></div>
-      <div class="stat"><div class="label">Last iter</div><div class="value dim" id="d-last" style="font-size:14px">—</div></div>
+      <div class="stat"><div class="label">Last iter</div><div class="value small dim" id="d-last">—</div></div>
     </div>
-    <table id="rollback-table" style="margin-top:10px"></table>
+    <table id="rollback-table"></table>
   </section>
 
   <!-- COST -->
@@ -459,20 +517,22 @@
   <!-- TRIPWIRES -->
   <section class="card">
     <h3>Tripwire firings <span class="sub">last 10 from event log</span></h3>
-    <div id="tripwire-list" style="font-family:var(--mono); font-size:12px;"></div>
+    <div id="tripwire-list" class="mono-list"></div>
   </section>
 
   <!-- RECENT CALLS -->
   <section class="card full">
     <h3>Recent backend calls <span class="sub">per-call latency + cost + retries</span></h3>
-    <table id="calls-table">
-      <thead><tr>
-        <th>when</th><th>role</th><th>model</th><th>sidecar</th>
-        <th class="num">tokens in / out</th><th class="num">cost $</th>
-        <th class="num">latency ms</th><th class="num">retries</th><th>outcome</th>
-      </tr></thead>
-      <tbody></tbody>
-    </table>
+    <div class="table-scroll">
+      <table id="calls-table">
+        <thead><tr>
+          <th>when</th><th>role</th><th>model</th><th>sidecar</th>
+          <th class="num">tokens&nbsp;in/out</th><th class="num">cost&nbsp;$</th>
+          <th class="num">latency&nbsp;ms</th><th class="num">retries</th><th>outcome</th>
+        </tr></thead>
+        <tbody></tbody>
+      </table>
+    </div>
   </section>
 
   <!-- EVENT LOG -->
@@ -547,7 +607,7 @@ function renderStatus(s) {
   const reasonRows = Object.entries(reasons).sort((a,b) => b[1] - a[1]);
   let t = $("rollback-table");
   if (reasonRows.length === 0) {
-    t.innerHTML = '<tr><td style="color:var(--ink-dim); font-style:italic">no rollbacks yet</td></tr>';
+    t.innerHTML = '<tr><td class="empty-state">no rollbacks yet</td></tr>';
   } else {
     t.innerHTML = '<thead><tr><th>rollback reason</th><th class="num">count</th></tr></thead><tbody>'
       + reasonRows.map(([r, n]) => `<tr><td>${escapeHtml(r)}</td><td class="num">${n}</td></tr>`).join("")
@@ -568,7 +628,7 @@ function renderCost(c) {
   const by = lh.by_model || [];
   let t = $("model-table");
   if (by.length === 0) {
-    t.innerHTML = '<tr><td style="color:var(--ink-dim); font-style:italic">no calls in the last hour</td></tr>';
+    t.innerHTML = '<tr><td class="empty-state">no calls in the last hour</td></tr>';
   } else {
     t.innerHTML = '<thead><tr><th>model</th><th class="num">calls (1h)</th><th class="num">cost</th><th class="num">tokens out</th></tr></thead><tbody>'
       + by.map(m => `<tr><td>${escapeHtml(m.model)}</td><td class="num">${m.calls}</td><td class="num">${fmtCost(m.cost_usd)}</td><td class="num">${fmtNum(m.tokens_out)}</td></tr>`).join("")
@@ -603,15 +663,15 @@ function renderTripwires(tw) {
   const f = tw.firings || [];
   let html;
   if (f.length === 0) {
-    html = '<div style="color:var(--ink-dim); font-style:italic">no tripwire firings in the last ' + tw.window_size + ' events</div>';
+    html = '<div class="empty-state">no tripwire firings in the last ' + tw.window_size + ' events</div>';
   } else {
     html = f.map(fr => {
       const payload = fr.payload || {};
       const labels = (payload.labels || ["?"]).join(", ");
-      return `<div style="padding:6px 0; border-bottom:1px dashed var(--border)">
+      return `<div class="firing-row">
         <span class="chip warn">${escapeHtml(labels)}</span>
-        <span style="color:var(--ink-dim); margin-left:8px">${escapeHtml(payload.where || "?")}</span>
-        <span style="color:var(--ink-dim); margin-left:8px">seq ${fr.seq}</span>
+        <span class="meta">${escapeHtml(payload.where || "?")}</span>
+        <span class="meta">seq ${fr.seq}</span>
       </div>`;
     }).join("");
   }
@@ -622,7 +682,7 @@ function renderCalls(c) {
   const tbody = document.querySelector("#calls-table tbody");
   const rows = c.calls || [];
   if (rows.length === 0) {
-    tbody.innerHTML = '<tr><td colspan="9" style="color:var(--ink-dim); font-style:italic">no backend calls recorded yet</td></tr>';
+    tbody.innerHTML = '<tr><td colspan="9" class="empty-state">no backend calls recorded yet</td></tr>';
     return;
   }
   tbody.innerHTML = rows.map(r => {
@@ -749,7 +809,7 @@ function renderControl(c) {
     tasksArea.innerHTML = "";
   } else {
     tasksArea.innerHTML = `
-      <table style="font-family:var(--mono); font-size:11px">
+      <table>
         <thead><tr><th>task</th><th>cmd</th><th>started</th><th>state</th><th>log</th></tr></thead>
         <tbody>${tasks.map((t) => {
           let stateChip;
