@@ -151,7 +151,7 @@ The dashboard reads from on-disk artifacts only (event log, budget JSONs, memory
 
 ## Architecture
 
-> **Full visual walkthrough with five diagrams** (8-layer stack, 6-level trust lattice, 5-tier memory hierarchy, V1+V2 cross-checkpoint verification, hash-CAS promotion) lives at **[https://jim4226.github.io/CSIS/architecture.html](https://jim4226.github.io/CSIS/architecture.html)** — that's the canonical architecture document. The diagrams + design rationale below are summary-level so you can read the README on GitHub and still get the shape.
+> **Full visual walkthrough with six interactive diagrams** (8-layer stack with click-to-expand layer details, 6-level trust lattice, 5-tier memory hierarchy, V1+V2 cross-checkpoint verification, hash-CAS promotion, sleep/dreams consolidation) lives at **[https://jim4226.github.io/CSIS/architecture.html](https://jim4226.github.io/CSIS/architecture.html)** — that's the canonical architecture document. The diagrams + design rationale below are summary-level so you can read the README on GitHub and still get the shape.
 
 ### The 8-layer stack
 
