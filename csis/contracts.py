@@ -51,12 +51,77 @@ class Artifact(BaseModel):
 
 
 class GraderResult(BaseModel):
-    """One V1 grader's verdict on an artifact."""
+    """One V1 grader's verdict on an artifact (binary pass/fail).
+
+    For tasks whose acceptance criterion is naturally categorical
+    (tests pass, lint clean, type-check clean, diff scope acceptable).
+    For tasks whose criterion is a continuous metric over a sample
+    distribution (Dice score over N segmentation cases, landmark
+    Euclidean error in mm, calibration error over a held-out set),
+    use `DistributionalGraderResult` instead — the binary `passed`
+    field can't carry confidence intervals, per-slice breakdowns, or
+    sample-size information that distribution-level eval needs.
+    """
 
     grader: str
     passed: bool
     detail: str = ""
     metrics: dict[str, float] = Field(default_factory=dict)
+
+
+class GraderSlice(BaseModel):
+    """Per-subset breakdown of a distributional metric.
+
+    A slice is a named subset of the evaluation samples, e.g., per-organ
+    in medical segmentation ("liver", "pancreas"), per-modality
+    ("CT", "MRI"), per-cohort ("pediatric", "geriatric"), per-difficulty
+    ("hard cases only"). Tracked separately from the global point
+    estimate so the Verifier can see whether a high overall Dice is
+    being carried by easy slices while a critical slice fails.
+    """
+
+    name: str
+    n_samples: int = Field(..., ge=0)
+    point_estimate: float
+    ci_lower: Optional[float] = None
+    ci_upper: Optional[float] = None
+    passed: Optional[bool] = None
+
+
+class DistributionalGraderResult(BaseModel):
+    """One V1 distributional grader's verdict over a sample population.
+
+    Replaces the binary `GraderResult.passed` semantics with a
+    continuous point estimate, bootstrap confidence interval, sample
+    size, optional per-slice breakdown, and a threshold-vs-CI-bound
+    pass rule. Designed for outcomes-based evaluation where the
+    "good" criterion is a distributional quantity (Dice, IoU,
+    Hausdorff, ASSD, landmark error, calibration error) rather than
+    a rubric-style pass/fail.
+
+    Pass semantics:
+      - direction = "higher_is_better" (Dice, IoU, accuracy):
+        passed iff ci_lower >= threshold (conservative — accept only
+        when the lower end of the 95% CI clears the bar)
+      - direction = "lower_is_better" (Hausdorff, ASSD, error in mm):
+        passed iff ci_upper <= threshold (conservative — reject if
+        the upper end of the 95% CI might exceed the bar)
+      - threshold = None: report only; no pass/fail
+    """
+
+    grader: str
+    metric_name: str = Field(..., description="dice, iou, assd_mm, landmark_euclidean_mm, etc.")
+    direction: Literal["higher_is_better", "lower_is_better"] = "higher_is_better"
+    point_estimate: float
+    ci_lower: float
+    ci_upper: float
+    ci_level: float = Field(default=0.95, ge=0.0, le=1.0)
+    n_samples: int = Field(..., ge=0)
+    n_bootstrap: int = Field(default=0, ge=0)
+    threshold: Optional[float] = None
+    passed: bool = False
+    slices: list[GraderSlice] = Field(default_factory=list)
+    detail: str = ""
 
 
 class CriticFinding(BaseModel):
@@ -81,6 +146,20 @@ class VerifierCertificate(BaseModel):
     builder_checkpoint: str
     verifier_checkpoint: str = Field(..., description="MUST differ from builder_checkpoint")
     grader_results: list[GraderResult]
+    distributional_results: list[DistributionalGraderResult] = Field(
+        default_factory=list,
+        description=(
+            "V1 distributional graders' verdicts. Empty for tasks whose "
+            "acceptance criterion is purely categorical (PR maintenance, "
+            "lint/type-check pipelines). Populated for tasks with "
+            "distributional outcomes: medical image segmentation (Dice + "
+            "Hausdorff over N cases with per-organ slices), bone "
+            "reconstruction (ASSD in mm + landmark error), calibration "
+            "(ECE over a held-out set), or any scientific eval where "
+            "the result is a continuous metric over a sample population "
+            "rather than a single pass/fail."
+        ),
+    )
     critic_findings: list[CriticFinding]
     passed: bool
     signed_at: float

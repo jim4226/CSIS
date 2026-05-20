@@ -4,9 +4,9 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>CSIS — 9 cycles of self-critique against a self-improving agent system</title>
-<meta name="description" content="Coordinator-led multi-agent system built in public alongside 9 cycles of red-team → fix → regression-test. 213 tests, 99 findings closed, 0 open.">
+<meta name="description" content="Coordinator-led multi-agent system built in public alongside 9 cycles of red-team → fix → regression-test. 244 tests, 99 findings closed, 0 open.">
 <meta property="og:title" content="CSIS — 9 cycles of self-critique against a self-improving agent system">
-<meta property="og:description" content="Coordinator-led multi-agent system built in public alongside 9 cycles of red-team → fix → regression-test. 213 tests, 99 findings closed, 0 open.">
+<meta property="og:description" content="Coordinator-led multi-agent system built in public alongside 9 cycles of red-team → fix → regression-test. 244 tests, 99 findings closed, 0 open.">
 <meta property="og:type" content="website">
 <meta property="og:url" content="https://jim4226.github.io/CSIS/">
 <meta name="twitter:card" content="summary_large_image">
@@ -587,6 +587,7 @@
       <a href="#cycles">Cycles</a>
       <a href="#loop">The loop</a>
       <a href="#patterns">Patterns</a>
+      <a href="#distributional">Distributional</a>
       <a href="#safety">Safety</a>
       <a href="dashboard-demo.html">Dashboard</a>
       <a href="playground.html">Playground</a>
@@ -600,7 +601,7 @@
 
     <div class="badges">
       <span class="badge phase">phase 0 · runnable</span>
-      <span class="badge tests">213 tests passing</span>
+      <span class="badge tests">244 tests passing</span>
       <span class="badge cycles">9 critique cycles</span>
       <span class="badge findings">99 findings closed · 0 open</span>
       <span class="badge license">MIT</span>
@@ -764,6 +765,47 @@
     </div>
   </section>
 
+  <section id="distributional">
+    <h3 class="section-title">Cycle 10 — distributional graders</h3>
+    <h4 class="section-h">Outcomes-based eval where the answer is a number with uncertainty.</h4>
+    <p class="section-intro">Rubric eval (HealthBench-style, LLM-Rubric, CSIS V1) collapses every grader to <code class="inline">passed: bool</code>. That fits PR maintenance, lint pipelines, and CI gates. It does <em>not</em> fit medical image segmentation, orthopedic reconstruction, calibration, or any domain whose acceptance criterion is a continuous metric over a sample distribution. Cycle 10 ships the missing layer.</p>
+
+    <div class="patterns" style="margin-bottom: 18px;">
+      <div class="pattern">
+        <div class="label">the gap</div>
+        <h5>Rubric eval can't carry CIs, slices, or sample size</h5>
+        <p>A model with mean Dice 0.89 could be 0.89 ± 0.02 (excellent) or 0.89 ± 0.18 (one in three cases is dangerous). A rubric grader doesn't surface that. A global mean of 0.89 can hide a 0.71 on the pancreas — clinically lethal. A boolean grader can't see the slice.</p>
+      </div>
+      <div class="pattern">
+        <div class="label">the fix</div>
+        <h5>DistributionalGraderResult with conservative CI semantics</h5>
+        <p>Point estimate + 95% bootstrap CI + per-slice breakdown. Pass rule is <strong>conservative</strong>: lower CI bound must clear the threshold for higher-is-better metrics; upper CI bound must stay under for lower-is-better. A model whose true performance <em>might</em> be below the bar doesn't auto-promote.</p>
+      </div>
+    </div>
+
+<pre class="shell"><span class="comment"># Per-case Dice with per-organ slice breakdown</span>
+<span class="kw">from</span> csis.verification.distributional_graders <span class="kw">import</span> DiceGrader, Sample
+
+grader = DiceGrader(threshold=0.85, n_bootstrap=1000)
+result = grader.evaluate([
+    Sample(case_id=<span class="str">"c-042"</span>, payload={<span class="str">"pred_mask"</span>: pred, <span class="str">"true_mask"</span>: gold},
+           slices={<span class="str">"organ"</span>: <span class="str">"liver"</span>, <span class="str">"modality"</span>: <span class="str">"CT"</span>}),
+    <span class="comment"># ... 522 more cases</span>
+])
+
+<span class="comment"># result.point_estimate = 0.892</span>
+<span class="comment"># result.ci_lower / ci_upper = 0.871 / 0.913</span>
+<span class="comment"># result.passed = True  (lower CI bound clears the 0.85 threshold)</span>
+<span class="comment"># result.slices = [organ=liver: 0.94 [0.91, 0.96] PASS,</span>
+<span class="comment">#                  organ=pancreas: 0.71 [0.66, 0.76] FAIL, ...]</span></pre>
+
+    <p style="margin-top: 16px; color: var(--ink-dim); font-size: 15px;">
+      Concrete graders shipped: <code class="inline">DiceGrader</code>, <code class="inline">IoUGrader</code>, <code class="inline">LandmarkErrorGrader</code>, <code class="inline">AssdGrader</code>. Pure stdlib (no numpy). The cert (<code class="inline">VerifierCertificate.distributional_results</code>) carries both rubric and distributional results side-by-side — hash-preconditioned promotion semantics carry through unchanged.
+      <br><br>
+      <strong>Full design rationale + literature anchor + what Anthropic's Managed Agents could ship to enable this natively:</strong> <a class="inline" href="https://github.com/jim4226/CSIS/blob/main/brain/research/02-distributional-graders.md">brain/research/02-distributional-graders.md →</a>
+    </p>
+  </section>
+
   <section id="quick-start">
     <h3 class="section-title">Quick start</h3>
     <h4 class="section-h">Runs end-to-end on a mock backend. No API key required.</h4>
@@ -772,7 +814,7 @@
 <span class="cmd">cd</span> CSIS
 <span class="cmd">pip install</span> pydantic pytest
 
-<span class="comment"># Run the test suite (213 passing)</span>
+<span class="comment"># Run the test suite (244 passing)</span>
 <span class="cmd">python -m pytest</span> tests/ -v
 
 <span class="comment"># One full 8-step iteration end-to-end, mock backend</span>

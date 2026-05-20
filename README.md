@@ -4,7 +4,7 @@
 
 <p align="center">
   <img alt="phase" src="https://img.shields.io/badge/phase-0%20%E2%80%94%20runnable-d97757">
-  <img alt="tests" src="https://img.shields.io/badge/tests-213%20passing-788c5d">
+  <img alt="tests" src="https://img.shields.io/badge/tests-244%20passing-788c5d">
   <img alt="cycles" src="https://img.shields.io/badge/critique%E2%86%92fix%20cycles-9-6a9bcc">
   <img alt="findings" src="https://img.shields.io/badge/findings-99%20closed%20%C2%B7%200%20open-788c5d">
   <img alt="python" src="https://img.shields.io/badge/python-3.10%2B-6a9bcc">
@@ -57,7 +57,43 @@ flowchart LR
 - Constitution + tripwires + shutdown token + tier guard, all enforced as code
 - 24/7 daemon: curiosity-driven frontier-item generation, budget caps, watchdog, stop file, auto-snapshots
 - 3 domain adapters: PR maintenance (any git repo), self-improvement (this repo), Lean formal math (graceful fallback if Lean isn't installed)
-- 213 tests; every cycle's findings have regression tests
+- 244 tests; every cycle's findings have regression tests, plus the distributional grader stack added in cycle 10 (Dice / IoU / landmark-error / ASSD with bootstrap CIs + per-slice breakdown)
+
+## Distributional graders — outcomes-based evaluation
+
+Most agent-eval frameworks (HealthBench, LLM-Rubric, the CSIS V1 grader set) are **rubric-shaped**: each grader returns `passed: bool`. That's right for PR maintenance, lint pipelines, and CI gates — tasks with discrete acceptance criteria.
+
+It's wrong for tasks whose acceptance criterion is a continuous metric over a sample distribution: medical image segmentation (Dice / IoU / Hausdorff over N cases with per-organ slices), orthopedic reconstruction (ASSD in mm + landmark Euclidean error), calibration (ECE over a held-out set), drug-affinity prediction (Ki / IC50 ± log-units with per-target-family slicing). A `passed: bool` can't carry the CI, the slice breakdown, or the sample size that distribution-level eval needs.
+
+CSIS now ships a **distributional grader layer** alongside the rubric layer:
+
+```python
+from csis.verification.distributional_graders import DiceGrader, Sample
+
+grader = DiceGrader(threshold=0.85, n_bootstrap=1000)
+result = grader.evaluate([
+    Sample(case_id="c-042", payload={"pred_mask": pred, "true_mask": gold},
+           slices={"organ": "liver", "modality": "CT"}),
+    # ... 522 more cases
+])
+# result.point_estimate = 0.892
+# result.ci_lower / ci_upper = 0.871 / 0.913 (95% bootstrap percentile)
+# result.passed = True  (lower CI bound clears the 0.85 threshold)
+# result.slices = [organ=liver: 0.94 [0.91, 0.96] PASS,
+#                  organ=pancreas: 0.71 [0.66, 0.76] FAIL, ...]
+```
+
+Key design choices (full rationale in **[brain/research/02-distributional-graders.md](brain/research/02-distributional-graders.md)**):
+
+- **Conservative pass semantics** — `passed=True` requires the lower CI bound to clear the threshold (for higher-is-better) or the upper bound to stay under (for lower-is-better). A model with mean 0.87 but 95% CI [0.81, 0.93] **fails** against threshold 0.85. The point estimate cleared the bar; the bottom of the CI didn't.
+- **Per-slice breakdown** — every sample carries free-form slice labels (organ, modality, cohort, difficulty). The grader emits one `GraderSlice` per `(key, value)` pair with at least `slice_min_n` samples (default 5), each with its own CI and pass flag.
+- **Worst-slice critic hook** — `grader.worst_slices(result, k=3)` returns the slices closest to (or past) the threshold so the V2 critic stage attacks where the model is weakest.
+- **Pure stdlib** — `random.Random` + `statistics.mean` for the bootstrap; no numpy / scipy dependency. The contract surface is `DistributionalGraderResult`; production users swap in numpy-backed implementations under the same shape.
+- **Backward-compatible cert** — `VerifierCertificate` carries both `grader_results` (rubric) and `distributional_results` (distributional). Existing tasks default to empty `distributional_results`; the hash-preconditioned promotion semantics carry through unchanged.
+
+Concrete graders shipped: `DiceGrader`, `IoUGrader`, `LandmarkErrorGrader`, `AssdGrader`. 31 regression tests cover metric correctness, CI shape, pass-rule semantics, slice grouping, and schema round-trip.
+
+**Why this matters past medical imaging:** any agent domain where the right answer to "is the model good?" is *a number with uncertainty* rather than a checkbox needs this shape — coding agents (regression rate over N+30 commits), scientific reasoning (per-protein-family MAE), robotics (per-environment-type success rate). The full case for what Anthropic's Managed Agents could ship to enable this natively is in the research doc.
 
 **Honest Phase-0 deferrals (tracked in [brain/synthesis/01-validation.md](brain/synthesis/01-validation.md)):**
 
@@ -75,7 +111,7 @@ flowchart LR
 ```bash
 pip install pydantic pytest
 
-# Run the test suite (213 passing).
+# Run the test suite (244 passing).
 python -m pytest tests/ -v
 
 # Run one full iteration end-to-end (mock backend, no API key).
@@ -163,8 +199,9 @@ To resume cold: read `brain/BRAIN.html`, then the highest-numbered snapshot, the
 | Wrapped-backend invariant (LLM metering can't be bypassed) | `Coordinator.__init__` demands `_BackendTracker`; property setter re-validates on every reassignment | `test_H1_coordinator_rejects_unwrapped_backend` + `test_H3_coordinator_backend_setattr_rejected` |
 | TierMismatch cleanup is race-free | `writer_iteration_id` stamp on every candidate at write_candidate time; cleanup filters by stamp | `test_H4_sibling_write_during_consolidate_not_over_discarded` |
 | Lost-spend-under-lock-contention | record() appends to WAL on LockUnavailable; next successful record() drains it | `test_H5_record_under_lock_timeout_persists_to_wal` |
+| Distributional cert is bound to evidence, not point estimates | `DistributionalGraderResult` carries bootstrap CI + sample size; conservative `passed` rule requires lower-CI-bound clearing the threshold (higher-is-better) or upper bound staying under (lower-is-better) | `test_dice_grader_fails_when_ci_lower_below_threshold`, `test_landmark_grader_fails_when_ci_upper_exceeds_threshold` |
 
-213 tests total. Each cycle's findings have a regression test that proves the mitigation works. Full cycle history → **[CYCLES.md](CYCLES.md)**.
+244 tests total. Each cycle's findings have a regression test that proves the mitigation works. Full cycle history → **[CYCLES.md](CYCLES.md)**.
 
 ## How this was built
 
@@ -174,7 +211,7 @@ The pattern that emerged: each cycle, parallel red-team agents attack the prior 
 
 ## Status
 
-Phase 0. Runnable end-to-end on mock or real Anthropic backend. Architecture-document, critique trail, and 213 tests are the proof that's the right framing for "Phase-0 is done."
+Phase 0. Runnable end-to-end on mock or real Anthropic backend. Architecture-document, critique trail, and 244 tests are the proof that's the right framing for "Phase-0 is done."
 
 The system runs 24/7 in mock mode as a structural watchdog. Real-backend learning happens via `scripts/burst.py` on demand. Both paths are documented in [RUN.md](RUN.md).
 
