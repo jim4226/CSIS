@@ -240,6 +240,34 @@
     border-radius: 3px;
     color: var(--accent-deep);
   }
+  .failure-mode {
+    margin-top: 18px;
+    background: var(--danger-soft);
+    border-left: 3px solid var(--danger);
+    border-radius: 0 8px 8px 0;
+    padding: 14px 20px 14px 18px;
+    font-size: 14px;
+    line-height: 1.55;
+    color: #4a1f12;
+  }
+  .failure-mode .fm-label {
+    font-family: var(--mono);
+    font-size: 10.5px;
+    text-transform: uppercase;
+    letter-spacing: 1.4px;
+    color: var(--danger);
+    font-weight: 700;
+    margin-right: 8px;
+  }
+  .failure-mode strong { color: #2a0e07; }
+  .failure-mode code {
+    font-family: var(--mono);
+    font-size: 12px;
+    background: rgba(196, 84, 59, 0.10);
+    padding: 1px 5px;
+    border-radius: 3px;
+    color: var(--danger);
+  }
 
   /* ----- rationale cards ----- */
   .rationale {
@@ -722,6 +750,7 @@
     </div>
 
     <div class="figure-caption">Figure 1 · The 8-layer stack. <b>Orange-bordered</b> layers (L1, L2, L3, L5) are the builder path. <b>Blue-bordered</b> L4 is the only layer that runs on a structurally different LLM checkpoint (Sonnet-class verifying Opus-class). <b>Gold-bordered</b> L0 is the substrate. <b>Green-bordered</b> L7 wraps everything and is enforced as code, not as agent-prompt instructions. Dashed L6 is the explicit Phase-1 deferral.</div>
+    <div class="failure-mode"><span class="fm-label">what fails without this:</span> Safety properties get negotiated inside agent prompts. Any agent that's competent at jailbreaks can talk the property down — because the property lives <strong>at the agent layer</strong>, not below it. The shallow stack moves load-bearing invariants out of natural language and into the substrate, where prompts can't reach.</div>
   </div>
 
   <div class="rationale">
@@ -821,6 +850,7 @@
       <text x="470" y="58" font-size="11" class="mono dim" text-anchor="middle" font-style="italic">csis/memory/trust.py — IntEnum so `entry.trust &gt;= TrustLevel.VERIFIED` is a single integer compare</text>
     </svg>
     <div class="figure-caption">Figure 2 · The 6-level trust lattice. Solid green arrows = upgrades (each requires crossing a gate). Dashed red arrows = deprecation (always allowed from any non-raw level; terminal). The IntEnum ordering means trust comparisons are a single integer compare in hot paths — no string parsing, no enum-lookup tax.</div>
+    <div class="failure-mode"><span class="fm-label">what fails without this:</span> Trust becomes a free-text string and confidence collapses into authorization. An agent that asserts "I've verified this" gets treated the same as an artifact that <em>passed</em> verification. The lattice makes trust an integer ladder where the only path up runs through an explicit gate — so claiming a higher level is structurally impossible, not just discouraged.</div>
   </div>
 
   <table class="props">
@@ -916,6 +946,7 @@
       <text x="470" y="464" font-size="11" class="mono dim" text-anchor="middle">↑ each green arrow is `MemoryStore.promote(ids, precondition_hash=...)` · atomic candidate→live flip</text>
     </svg>
     <div class="figure-caption">Figure 3 · The 5-tier memory hierarchy. Every tier is structurally identical: orange candidate side (writes free; stamped with the iteration that wrote them), blue live side (read-only; only mutation path is <code>promote()</code>). The H4 cycle-9 <code>writer_iteration_id</code> stamp lives on the candidate side — every entry carries the iteration_id of whoever wrote it, so cleanup is race-free under any concurrency model.</div>
+    <div class="failure-mode"><span class="fm-label">what fails without this:</span> An unverified write becomes truth on the next read. Once a bad entry lands in memory, future iterations cite it, build on it, and consolidate it into deeper tiers. Poisoning <strong>compounds</strong>. The candidate/live split means nothing the agent writes is visible to its next thought until a verifier on a different checkpoint signs off — so a bad write can't bootstrap itself into belief.</div>
   </div>
 
   <div class="rationale">
@@ -1011,6 +1042,7 @@
       <text x="470" y="378" font-size="11" class="mono dim" text-anchor="middle" font-style="italic">F1 cycle-1 fix · assert_cross_checkpoint() requires ≥2 distinct identity components (model_id, backend, tool_set)</text>
     </svg>
     <div class="figure-caption">Figure 4 · V1+V2 verification on a structurally different checkpoint. Orange roles run on the builder model (Opus-class). Blue roles run on the verifier model (Sonnet-class). The Auditor refuses to sign if the cert's <code>builder_checkpoint</code> matches its <code>verifier_checkpoint</code>. The substrate makes this impossible to violate accidentally.</div>
+    <div class="failure-mode"><span class="fm-label">what fails without this:</span> The same model that produced the artifact rubber-stamps it. The Builder's blind spots <em>are</em> the Verifier's blind spots — same training corpus, same priors, same misunderstandings. This is cycle-1 finding <code>F1</code>: the entire substrate exists to make this impossible. Different <code>model_id</code> means at minimum a different snapshot of the world; not perfect, but structurally distinct enough that one model's confident wrong answer doesn't survive a second model's check.</div>
   </div>
 
   <div class="rationale">
@@ -1110,6 +1142,7 @@
       <text x="470" y="352" font-size="11" class="mono dim" text-anchor="middle">writer_iteration_id on every candidate makes cleanup race-free under any concurrency model</text>
     </svg>
     <div class="figure-caption">Figure 5 · Hash-preconditioned promotion as compare-and-swap. Success (green): live store unchanged between why-doc sign and promote → atomic flip succeeds. Failure (red): sibling moved the store; CAS fails atomically; nothing reaches live; iteration rolls back cleanly. <code>writer_iteration_id</code> on candidates makes the rollback race-free.</div>
+    <div class="failure-mode"><span class="fm-label">what fails without this:</span> A candidate verified against state-A promotes into state-B. Verification happened against a world that no longer exists by the time the write lands. Without the hash precondition, "I checked this works" silently degrades into "I checked this worked once" — and any sibling iteration that mutated the store in between just got its work overwritten by a stale verifier signature.</div>
   </div>
 
   <div class="rationale">
@@ -1218,6 +1251,7 @@
       <text x="470" y="452" font-size="11" class="mono dim" text-anchor="middle" font-style="italic">csis/dreams/ — mocked locally; real Anthropic Dreams API integration deferred to Phase 1</text>
     </svg>
     <div class="figure-caption">Figure 6 · The sleep/dreams cycle. Working+episodic live memory flows into the Dreams pipeline (offline; no agent prompts, no tool access). Dreams produce candidate entries in semantic/procedural/causal tiers. Those candidates go through <em>the same V1+V2 verification</em> as any other candidate. Nothing dreams produces auto-promotes.</div>
+    <div class="failure-mode"><span class="fm-label">what fails without this:</span> The agent dreams up a "good idea" mid-iteration and acts on it before any verifier sees it. There's no gap between cognition and commitment — a hallucination becomes a memory becomes a future plan in three steps. Offline consolidation puts a hard boundary between <em>thinking about improvement</em> and <em>actually changing live state</em>, so even Dreams' best output still has to clear the same V1+V2 bar.</div>
   </div>
 
   <div class="rationale">
