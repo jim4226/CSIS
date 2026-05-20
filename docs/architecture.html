@@ -8,6 +8,14 @@
 <meta property="og:title" content="CSIS · architecture in 6 diagrams">
 <meta property="og:description" content="The full architecture of CSIS in six interactive diagrams — every load-bearing invariant visualized with design rationale.">
 <meta property="og:url" content="https://jim4226.github.io/CSIS/architecture.html">
+<script type="importmap">
+{
+  "imports": {
+    "three": "https://cdn.jsdelivr.net/npm/three@0.166.0/build/three.module.js",
+    "three/addons/": "https://cdn.jsdelivr.net/npm/three@0.166.0/examples/jsm/"
+  }
+}
+</script>
 <style>
   :root {
     --bg: #fbf4e7;
@@ -328,6 +336,89 @@
     font-weight: 700;
   }
   .spec-table code {
+    font-family: var(--mono);
+    font-size: 12px;
+    background: var(--bg-soft);
+    padding: 1px 5px;
+    border-radius: 3px;
+    color: var(--accent-deep);
+  }
+
+  /* ----- 3D scene container ----- */
+  .three-stack {
+    position: relative;
+    width: 100%;
+    height: 560px;
+    background: linear-gradient(180deg, #fbf4e7 0%, #f6ecd6 100%);
+    border: 1px solid var(--border);
+    border-radius: 14px;
+    overflow: hidden;
+    box-shadow: var(--shadow-md);
+    margin: 28px 0 12px;
+  }
+  .three-stack canvas { display: block; cursor: grab; }
+  .three-stack canvas:active { cursor: grabbing; }
+  .three-stack-overlay {
+    position: absolute;
+    top: 14px;
+    left: 18px;
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--ink-dim);
+    background: rgba(255,255,255,0.85);
+    padding: 8px 12px;
+    border-radius: 6px;
+    backdrop-filter: blur(8px);
+    pointer-events: none;
+    line-height: 1.5;
+    max-width: 280px;
+  }
+  .three-stack-overlay strong { color: var(--accent); font-weight: 700; }
+  .three-stack-hint {
+    position: absolute;
+    bottom: 14px;
+    right: 18px;
+    font-family: var(--mono);
+    font-size: 10.5px;
+    color: var(--ink-faint);
+    background: rgba(255,255,255,0.85);
+    padding: 6px 10px;
+    border-radius: 6px;
+    pointer-events: none;
+  }
+  .three-stack-fallback {
+    padding: 60px 28px;
+    text-align: center;
+    color: var(--ink-dim);
+    font-family: var(--mono);
+    font-size: 13px;
+  }
+  .three-stack-description {
+    margin-top: 12px;
+    padding: 16px 20px;
+    background: var(--bg-card);
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    font-size: 13px;
+    line-height: 1.6;
+  }
+  .three-stack-description summary {
+    cursor: pointer;
+    font-family: var(--mono);
+    font-size: 11px;
+    text-transform: uppercase;
+    letter-spacing: 1.2px;
+    color: var(--accent);
+    font-weight: 700;
+    padding: 4px 0;
+  }
+  .three-stack-description summary::marker { color: var(--accent); }
+  .three-stack-description ol {
+    margin: 12px 0 4px 0;
+    padding-left: 22px;
+  }
+  .three-stack-description ol li { margin-bottom: 8px; }
+  .three-stack-description code {
     font-family: var(--mono);
     font-size: 12px;
     background: var(--bg-soft);
@@ -824,6 +915,31 @@
     <h4 class="section-h">Eight layers. One owner per invariant.</h4>
     <p class="section-intro">Click any layer to see what's inside it. The stack is intentionally shallow — every layer above relies on substrate-level guarantees below without re-implementing them. That's how safety properties stay load-bearing instead of negotiated case-by-case in agent prompts.</p>
   </div>
+
+  <!-- 3D stack: interactive Three.js scene -->
+  <div class="three-stack" id="three-stack" role="img" aria-label="Interactive 3D scene of the 8-layer CSIS stack. Eight floating colored slabs stacked vertically in a perspective view. From bottom: L0 substrate (gold) — capability tags and event log foundation. L1 agent runtime (orange) — Coordinator + 6 specialised roles. L2 memory hierarchy (orange) — 5 tiers candidate/live. L3 promotion (orange) — hash-CAS atomic flips. L4 verification (blue) — V1+V2 on a structurally different LLM checkpoint. L5 improvement (orange) — Dreams pipeline output goes here. L6 meta-improvement (translucent gold, dashed) — deferred to Phase 1. L7 safety envelope (green) — Constitution, TierGuard, tripwires, enforced AT THE SUBSTRATE. The scene auto-rotates slowly; drag to orbit, scroll to zoom, click any layer to expand its component list in the panel below the 2D diagram.">
+    <div class="three-stack-overlay">
+      <strong>Drag</strong> to orbit · <strong>Scroll</strong> to zoom · <strong>Click</strong> a layer to expand
+    </div>
+    <div class="three-stack-hint">8 layers · 1 owner each · real WebGL geometry</div>
+    <div class="three-stack-fallback" id="three-stack-fallback">Loading 3D stack… (requires WebGL + JS modules)</div>
+  </div>
+
+  <details class="three-stack-description" id="three-stack-description">
+    <summary>Full text description of the 3D scene (for screen readers + AI parsers)</summary>
+    <p>The scene renders the 8-layer CSIS stack as 8 stacked rectangular slabs in 3D space, each labeled with its layer ID and owning role. From the bottom up:</p>
+    <ol>
+      <li><strong>L0 · Substrate</strong> — gold slab — <code>EventLog</code> (hash-chained), <code>CapabilityTag</code>, <code>canonical_json_hash</code>, <code>TierGuard</code>. The only layer everyone trusts unconditionally.</li>
+      <li><strong>L1 · Agent runtime</strong> — orange slab — <code>Coordinator</code> drives the 8-step loop; delegates to Researcher, Builder, Verifier, Critic, Librarian, Auditor; delegation depth = 1.</li>
+      <li><strong>L2 · Memory hierarchy</strong> — orange slab — <code>MemoryStore</code> per tier (candidate ↔ live), <code>MemoryHierarchy</code> wraps 5 tiers, <code>TrustLevel</code> IntEnum, <code>writer_iteration_id</code> stamp.</li>
+      <li><strong>L3 · Promotion</strong> — orange slab — hash-preconditioned <code>store.promote()</code>; atomic candidate→live flip; <code>PromotionPreconditionFailure</code> on stale hash.</li>
+      <li><strong>L4 · Verification</strong> — blue slab (different checkpoint) — V1 pinned graders + V2 Critic on Sonnet-class verifying Opus-class builder; <code>assert_cross_checkpoint()</code> at cert build site.</li>
+      <li><strong>L5 · Improvement</strong> — orange slab — Dreams pipeline (offline; replay → consolidate → score); output is candidate entries, never auto-promotes.</li>
+      <li><strong>L6 · Meta-improvement</strong> — translucent dashed gold — deferred to Phase 1. Substrate-shape preserved.</li>
+      <li><strong>L7 · Safety envelope</strong> — green slab (top) — Constitution, TierGuard, Tripwires, ShutdownToken. Enforced at the substrate, not as agent-prompt instructions.</li>
+    </ol>
+    <p>Interaction: the scene auto-rotates slowly when idle. Drag with the mouse to orbit around the stack. Scroll to zoom. Click any slab to open the same detail panel as the 2D diagram below — including the layer's components and code path.</p>
+  </details>
 
   <div class="figure-wrap">
     <svg class="csis-svg" viewBox="0 0 920 580" xmlns="http://www.w3.org/2000/svg" aria-label="The 8-layer CSIS stack, clickable">
@@ -1904,6 +2020,196 @@ document.querySelectorAll(".stack-clickable").forEach((el) => {
 document.addEventListener("keydown", (e) => {
   if (e.key === "Escape") closeStackDetail();
 });
+
+// Expose so the Three.js module (separate scope) can call it
+window.showStackDetail = showStackDetail;
+</script>
+
+<!-- ============================================================ -->
+<!-- Three.js 3D stack scene                                       -->
+<!-- ============================================================ -->
+<script type="module">
+import * as THREE from 'three';
+import { OrbitControls } from 'three/addons/controls/OrbitControls.js';
+
+const container = document.getElementById('three-stack');
+const fallback = document.getElementById('three-stack-fallback');
+if (!container) { console.warn('three-stack container missing'); }
+else {
+  // Layer definitions: id, name, color, blurb, position from bottom, dashed flag
+  const layers = [
+    { id: 'L0', name: 'Substrate',         hex: 0xc89b3c, edge: 0x8a6e1c, y: 0.00, dashed: false },
+    { id: 'L1', name: 'Agent runtime',     hex: 0xe89977, edge: 0xb85e3f, y: 0.85, dashed: false },
+    { id: 'L2', name: 'Memory hierarchy',  hex: 0xe89977, edge: 0xb85e3f, y: 1.70, dashed: false },
+    { id: 'L3', name: 'Promotion',         hex: 0xe89977, edge: 0xb85e3f, y: 2.55, dashed: false },
+    { id: 'L4', name: 'Verification',      hex: 0x6a9bcc, edge: 0x1a3a5e, y: 3.40, dashed: false },
+    { id: 'L5', name: 'Improvement',       hex: 0xe89977, edge: 0xb85e3f, y: 4.25, dashed: false },
+    { id: 'L6', name: 'Meta (deferred)',   hex: 0xd6c995, edge: 0x8a7a52, y: 5.10, dashed: true  },
+    { id: 'L7', name: 'Safety envelope',   hex: 0x9cb37f, edge: 0x2a4a1a, y: 5.95, dashed: false },
+  ];
+
+  let width = container.clientWidth;
+  let height = container.clientHeight;
+
+  // Scene
+  const scene = new THREE.Scene();
+  scene.background = null; // let the gradient CSS show through
+
+  // Camera
+  const camera = new THREE.PerspectiveCamera(38, width / height, 0.1, 100);
+  camera.position.set(11, 6.5, 14);
+
+  // Renderer
+  const renderer = new THREE.WebGLRenderer({ antialias: true, alpha: true });
+  renderer.setPixelRatio(window.devicePixelRatio);
+  renderer.setSize(width, height);
+  container.appendChild(renderer.domElement);
+  if (fallback) fallback.style.display = 'none';
+
+  // Lights
+  scene.add(new THREE.AmbientLight(0xffffff, 0.55));
+  const keyLight = new THREE.DirectionalLight(0xffffff, 0.95);
+  keyLight.position.set(6, 12, 8);
+  scene.add(keyLight);
+  const fillLight = new THREE.DirectionalLight(0xfdf4d6, 0.35);
+  fillLight.position.set(-8, 4, -6);
+  scene.add(fillLight);
+
+  // Build the 8 slabs
+  const meshes = [];
+  const SLAB_W = 8.5, SLAB_H = 0.55, SLAB_D = 4.2;
+  layers.forEach((l) => {
+    const geo = new THREE.BoxGeometry(SLAB_W, SLAB_H, SLAB_D);
+    const mat = new THREE.MeshStandardMaterial({
+      color: l.hex,
+      metalness: 0.15,
+      roughness: 0.55,
+      transparent: l.dashed,
+      opacity: l.dashed ? 0.55 : 0.96,
+    });
+    const mesh = new THREE.Mesh(geo, mat);
+    mesh.position.y = l.y;
+    mesh.userData = l;
+    scene.add(mesh);
+    meshes.push(mesh);
+
+    // Edge outline
+    const edges = new THREE.EdgesGeometry(geo);
+    const edgeMat = new THREE.LineBasicMaterial({ color: l.edge, linewidth: 1.5 });
+    const line = new THREE.LineSegments(edges, edgeMat);
+    line.position.copy(mesh.position);
+    scene.add(line);
+
+    // Text label as Sprite (always faces camera)
+    const labelCanvas = document.createElement('canvas');
+    labelCanvas.width = 512; labelCanvas.height = 96;
+    const ctx = labelCanvas.getContext('2d');
+    ctx.fillStyle = 'rgba(255, 255, 255, 0.93)';
+    ctx.fillRect(0, 0, labelCanvas.width, labelCanvas.height);
+    ctx.strokeStyle = '#' + l.edge.toString(16).padStart(6, '0');
+    ctx.lineWidth = 4;
+    ctx.strokeRect(2, 2, labelCanvas.width - 4, labelCanvas.height - 4);
+    ctx.font = 'bold 36px ui-monospace, SF Mono, monospace';
+    ctx.fillStyle = '#' + l.edge.toString(16).padStart(6, '0');
+    ctx.textBaseline = 'middle';
+    ctx.fillText(l.id, 24, 48);
+    ctx.font = '34px -apple-system, Segoe UI, Inter, sans-serif';
+    ctx.fillStyle = '#1f1f1f';
+    ctx.fillText(l.name, 110, 50);
+    const tex = new THREE.CanvasTexture(labelCanvas);
+    tex.colorSpace = THREE.SRGBColorSpace;
+    const spriteMat = new THREE.SpriteMaterial({ map: tex, transparent: true });
+    const sprite = new THREE.Sprite(spriteMat);
+    sprite.position.set(SLAB_W / 2 + 2.2, l.y, 0);
+    sprite.scale.set(3.6, 0.68, 1);
+    scene.add(sprite);
+  });
+
+  // Controls
+  const controls = new OrbitControls(camera, renderer.domElement);
+  controls.target.set(0, 3.0, 0);
+  controls.enableDamping = true;
+  controls.dampingFactor = 0.08;
+  controls.autoRotate = true;
+  controls.autoRotateSpeed = 0.6;
+  controls.minDistance = 8;
+  controls.maxDistance = 28;
+  controls.maxPolarAngle = Math.PI * 0.55;
+  controls.minPolarAngle = Math.PI * 0.18;
+
+  // Pause autorotate when user interacts; resume after idle
+  let lastInteract = 0;
+  ['mousedown', 'touchstart', 'wheel'].forEach((ev) => {
+    container.addEventListener(ev, () => {
+      controls.autoRotate = false;
+      lastInteract = performance.now();
+    }, { passive: true });
+  });
+  // Respect prefers-reduced-motion
+  if (window.matchMedia && window.matchMedia('(prefers-reduced-motion: reduce)').matches) {
+    controls.autoRotate = false;
+  }
+
+  // Raycast click → trigger existing showStackDetail
+  const raycaster = new THREE.Raycaster();
+  const ndc = new THREE.Vector2();
+  let pressStartTime = 0, pressStartX = 0, pressStartY = 0;
+  renderer.domElement.addEventListener('pointerdown', (e) => {
+    pressStartTime = performance.now();
+    pressStartX = e.clientX; pressStartY = e.clientY;
+  });
+  renderer.domElement.addEventListener('pointerup', (e) => {
+    // Treat as click only if release happened within 350ms and < 6px drift
+    const dt = performance.now() - pressStartTime;
+    const dx = Math.abs(e.clientX - pressStartX), dy = Math.abs(e.clientY - pressStartY);
+    if (dt > 350 || dx > 6 || dy > 6) return;
+    const rect = renderer.domElement.getBoundingClientRect();
+    ndc.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
+    ndc.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
+    raycaster.setFromCamera(ndc, camera);
+    const hits = raycaster.intersectObjects(meshes);
+    if (hits.length > 0 && typeof window.showStackDetail === 'function') {
+      window.showStackDetail(hits[0].object.userData.id);
+      // brief flash effect on the hit slab
+      const hit = hits[0].object;
+      const origColor = hit.material.color.clone();
+      hit.material.color.set(0xffffff);
+      setTimeout(() => hit.material.color.copy(origColor), 200);
+    }
+  });
+
+  // Hover cursor change
+  renderer.domElement.addEventListener('pointermove', (e) => {
+    const rect = renderer.domElement.getBoundingClientRect();
+    ndc.x = ((e.clientX - rect.left) / rect.width) * 2 - 1;
+    ndc.y = -((e.clientY - rect.top) / rect.height) * 2 + 1;
+    raycaster.setFromCamera(ndc, camera);
+    const hits = raycaster.intersectObjects(meshes);
+    renderer.domElement.style.cursor = hits.length > 0 ? 'pointer' : 'grab';
+  });
+
+  // Responsive resize
+  const onResize = () => {
+    width = container.clientWidth;
+    height = container.clientHeight;
+    camera.aspect = width / height;
+    camera.updateProjectionMatrix();
+    renderer.setSize(width, height);
+  };
+  window.addEventListener('resize', onResize);
+
+  // Animation loop
+  function tick() {
+    requestAnimationFrame(tick);
+    // Resume autorotate after 8s idle
+    if (!controls.autoRotate && lastInteract && performance.now() - lastInteract > 8000) {
+      controls.autoRotate = true;
+    }
+    controls.update();
+    renderer.render(scene, camera);
+  }
+  tick();
+}
 </script>
 
 </body>
