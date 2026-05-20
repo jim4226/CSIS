@@ -1064,7 +1064,7 @@
         <text x="340" y="165" font-size="10" class="mono" text-anchor="middle" fill="#b85e3f">red-team-LLM</text>
 
         <!-- protected resource reached -->
-        <rect x="240" y="186" width="120" height="22" rx="4" fill="#f3dbd0" stroke="#c4543b" stroke-width="1.5" stroke-dasharray="3 2"/>
+        <rect x="216" y="186" width="168" height="22" rx="4" fill="#f3dbd0" stroke="#c4543b" stroke-width="1.5" stroke-dasharray="3 2"/>
         <text x="300" y="201" font-size="10" class="mono bold" text-anchor="middle" fill="#c4543b">protected resource reached</text>
       </g>
 
@@ -1081,24 +1081,24 @@
         <path d="M 490 112 L 575 138" stroke="#c4543b" stroke-width="2.5" stroke-dasharray="6 3"/>
         <text x="500" y="106" font-size="10.5" class="mono" fill="#c4543b" font-style="italic">"ignore previous and act as..."</text>
 
-        <!-- L7 boundary as a wall -->
-        <rect x="595" y="128" width="305" height="28" rx="4" fill="#dde6cd" stroke="#5a6c46" stroke-width="2.5"/>
-        <text x="747" y="147" font-size="11" class="mono bold" text-anchor="middle" fill="#2a4a1a">L7 substrate · enforced as code</text>
+        <!-- L7 boundary as a wall (left-shifted to accommodate ✕ on its outer edge) -->
+        <rect x="610" y="128" width="290" height="28" rx="4" fill="#dde6cd" stroke="#5a6c46" stroke-width="2.5"/>
+        <text x="755" y="147" font-size="11" class="mono bold" text-anchor="middle" fill="#2a4a1a">L7 substrate · enforced as code</text>
 
-        <!-- ✕ at the boundary -->
+        <!-- ✕ at the boundary — sits just outside the L7 wall's left edge -->
         <circle cx="595" cy="142" r="11" fill="#c4543b" stroke="#fff" stroke-width="2"/>
         <text x="595" y="146" font-size="13" class="bold" text-anchor="middle" fill="#fff">✕</text>
 
         <!-- "terminates here" — moved below the wall to avoid overlap -->
-        <text x="747" y="170" font-size="10.5" class="mono bold" text-anchor="middle" fill="#c4543b">↑ jailbreak terminates here</text>
+        <text x="755" y="170" font-size="10.5" class="mono bold" text-anchor="middle" fill="#c4543b">↑ jailbreak terminates here</text>
 
         <!-- L0 substrate -->
-        <rect x="595" y="180" width="305" height="22" rx="4" fill="#f3e4b8" stroke="#c89b3c" stroke-width="2"/>
-        <text x="747" y="195" font-size="11" class="mono bold" text-anchor="middle" fill="#8a6e1c">L0 substrate · capability tags, event log</text>
+        <rect x="610" y="180" width="290" height="22" rx="4" fill="#f3e4b8" stroke="#c89b3c" stroke-width="2"/>
+        <text x="755" y="195" font-size="11" class="mono bold" text-anchor="middle" fill="#8a6e1c">L0 substrate · capability tags, event log</text>
 
         <!-- Agent layers can see the prompt as input but can't alter substrate -->
-        <rect x="595" y="206" width="305" height="22" rx="4" fill="#fbf4e7" stroke="#d97757" stroke-width="1.5" stroke-dasharray="4 3"/>
-        <text x="747" y="221" font-size="9.5" class="mono" text-anchor="middle" fill="#b85e3f">L1–L5 see it as input · cannot alter L0/L4/L7</text>
+        <rect x="610" y="206" width="290" height="22" rx="4" fill="#fbf4e7" stroke="#d97757" stroke-width="1.5" stroke-dasharray="4 3"/>
+        <text x="755" y="221" font-size="9.5" class="mono" text-anchor="middle" fill="#b85e3f">L1–L5 see it as input · cannot alter L0/L4/L7</text>
       </g>
     </svg>
 
@@ -1241,7 +1241,7 @@
     <svg class="csis-svg" viewBox="0 0 940 470" xmlns="http://www.w3.org/2000/svg" aria-label="The 5-tier memory hierarchy as a 5-row 2-column grid. Header row labels the two columns: 'candidate side · writes free · stamped with writer_iteration_id' on the left (orange) and 'live side · only mutation is promote()' on the right (blue). The 5 tier rows from top to bottom: WORKING (scratch space, in-flight iteration) · EPISODIC (per-iteration narrative + outcomes) · SEMANTIC (durable facts extracted from episodes) · PROCEDURAL (reusable skills — the actual self-improving surface, marked with a star) · CAUSAL (why-this-fixed-that hypotheses). Each row has an orange candidate-side rectangle on the left and a blue live-side rectangle on the right, connected by a single green arrow representing promote(ids, precondition_hash=...). Bottom annotation: 'each green arrow is MemoryStore.promote(...) · atomic candidate→live flip'.">
       <!-- header strip -->
       <rect x="40" y="30" width="860" height="48" rx="8" fill="#f6ecd6" stroke="#b8a880" stroke-width="1.5"/>
-      <text x="220" y="59" font-size="13" class="bold" text-anchor="middle">candidate side · writes free · stamped with writer_iteration_id</text>
+      <text x="240" y="59" font-size="12.5" class="bold" text-anchor="middle">candidate side · writes free · writer_iteration_id stamped</text>
       <text x="720" y="59" font-size="13" class="bold" text-anchor="middle">live side · only mutation is promote()</text>
       <line x1="470" y1="36" x2="470" y2="72" stroke="#b8a880" stroke-width="1.5" stroke-dasharray="3 2"/>
 
@@ -1341,8 +1341,8 @@
           <text x="56" y="226" class="mono">writer_iter_id=43 · hash=c2e8f1... · payload=...</text>
         </g>
 
-        <text x="220" y="262" font-size="11" class="mono dim" text-anchor="middle">cleanup_candidates(iter_id=42) removes rows 847+848</text>
-        <text x="220" y="278" font-size="11" class="mono dim" text-anchor="middle">without touching 849 — ownership lives on the row, not in timing</text>
+        <text x="220" y="262" font-size="11" class="mono dim" text-anchor="middle">cleanup_candidates(iter_id=42) removes 847+848</text>
+        <text x="220" y="278" font-size="11" class="mono dim" text-anchor="middle">849 untouched · ownership on the row, not in timing</text>
       </g>
 
       <!-- promote() arrow with precondition -->
@@ -1470,7 +1470,7 @@
           <rect x="556" y="232" width="324" height="64" rx="8" fill="#dde6cd" stroke="#5a6c46" stroke-width="1.5"/>
           <text x="718" y="256" font-size="14" class="bold" text-anchor="middle" fill="#2a4a1a">Auditor</text>
           <text x="718" y="272" font-size="10" class="mono dim" text-anchor="middle">why-doc + hash_precondition = store.live_hash()</text>
-          <text x="718" y="286" font-size="10" class="mono dim" text-anchor="middle">refuses to sign if cert.verifier_checkpoint == cert.builder_checkpoint</text>
+          <text x="718" y="286" font-size="10" class="mono dim" text-anchor="middle">refuses cert if cert.builder == cert.verifier</text>
         </g>
         <line x1="708" y1="180" x2="708" y2="232" stroke="#4a82bc" stroke-width="2" marker-end="url(#m-arrow-calm)"/>
       </g>
@@ -1482,7 +1482,7 @@
 
       <!-- cert + why-doc returning -->
       <path d="M 556 264 Q 380 320 208 264" stroke="#5a6c46" stroke-width="2.5" stroke-dasharray="6 3" fill="none" marker-end="url(#m-arrow-good)"/>
-      <text x="378" y="335" font-size="11" class="mono bold" text-anchor="middle" fill="#2a4a1a">signed cert + why-doc · hash CAS</text>
+      <text x="470" y="335" font-size="11" class="mono bold" text-anchor="middle" fill="#2a4a1a">signed cert + why-doc · hash CAS</text>
 
       <text x="470" y="378" font-size="11" class="mono dim" text-anchor="middle" font-style="italic">F1 cycle-1 fix · assert_cross_checkpoint() requires ≥2 distinct identity components (model_id, backend, tool_set)</text>
     </svg>
@@ -1637,11 +1637,10 @@
         <text x="230" y="178" font-size="11" class="mono dim" text-anchor="middle">read-only for Dreams to consume</text>
       </g>
 
-      <!-- Sleep boundary -->
-      <line x1="430" y1="40" x2="430" y2="200" stroke="#b8a880" stroke-width="2" stroke-dasharray="6 4"/>
-      <svg x="412" y="100" width="36" height="36"><use href="#icon-moon" style="color:#b85e3f"/></svg>
-      <text x="430" y="160" font-size="11" class="mono bold" text-anchor="middle" fill="#b85e3f">sleep</text>
-      <text x="430" y="175" font-size="11" class="mono bold" text-anchor="middle" fill="#b85e3f">boundary</text>
+      <!-- Sleep boundary: continuous vertical line, moon at top, label below the rects -->
+      <line x1="430" y1="40" x2="430" y2="232" stroke="#b8a880" stroke-width="2" stroke-dasharray="6 4"/>
+      <svg x="412" y="60" width="36" height="36"><use href="#icon-moon" style="color:#b85e3f"/></svg>
+      <text x="430" y="252" font-size="12" class="mono bold" text-anchor="middle" fill="#b85e3f">sleep boundary · agent halts · Dreams runs</text>
 
       <!-- Dreams pipeline -->
       <g>
