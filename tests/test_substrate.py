@@ -98,6 +98,66 @@ def test_event_log_restores_after_reopen(tmp_path: Path) -> None:
     assert new_event.prev_hash == last_hash
 
 
+def test_event_log_two_instances_same_file_share_chain(tmp_path: Path) -> None:
+    """Snapshot-12: two EventLog instances writing the same JSONL must
+    share one linear chain. Pre-fix, each instance cached its own _seq
+    and the second writer's emit would land at a stale seq, breaking
+    the chain. With the in-emit re-read under the cross-process file
+    lock, both instances see each other's writes and stay in sync.
+    """
+    path = tmp_path / "events.jsonl"
+    log_a = EventLog(path)
+    log_b = EventLog(path)
+    # Interleave writes from both instances.
+    log_a.emit("coordinator", "a-1", {})
+    log_b.emit("coordinator", "b-1", {})
+    log_a.emit("coordinator", "a-2", {})
+    log_b.emit("coordinator", "b-2", {})
+    log_a.emit("coordinator", "a-3", {})
+
+    ok, reason = EventLog(path).verify_chain()
+    assert ok, f"chain broken: {reason}"
+    # Five events, seqs 0..4, single chain.
+    seqs = [e.event.seq for e in EventLog(path).iter_events()]
+    assert seqs == [0, 1, 2, 3, 4]
+
+
+def test_event_log_cross_process_serialization(tmp_path: Path) -> None:
+    """Snapshot-12 regression: spawn N subprocesses that each emit M
+    events to the same session.jsonl. The chain must remain intact
+    afterward, with N*M contiguous seqs and matching prev_hash links.
+    This is the actual condition the historical 5-break log failed.
+    """
+    import subprocess
+    import sys
+
+    path = tmp_path / "events.jsonl"
+    n_procs = 4
+    n_per = 25
+    script = f"""
+import sys, os
+sys.path.insert(0, {repr(str(Path(__file__).resolve().parent.parent))})
+from csis.substrate.event_log import EventLog
+log = EventLog({repr(str(path))})
+for i in range({n_per}):
+    log.emit("coordinator", "p" + str(os.getpid()) + ".tick", {{"i": i}})
+"""
+    procs = [
+        subprocess.Popen([sys.executable, "-c", script])
+        for _ in range(n_procs)
+    ]
+    for p in procs:
+        rc = p.wait(timeout=60)
+        assert rc == 0, f"subprocess exit {rc}"
+
+    ok, reason = EventLog(path).verify_chain()
+    assert ok, f"cross-process chain broken: {reason}"
+    seqs = [e.event.seq for e in EventLog(path).iter_events()]
+    assert seqs == list(range(n_procs * n_per)), (
+        f"expected contiguous 0..{n_procs * n_per - 1}, got {seqs[:5]}...{seqs[-5:]}"
+    )
+
+
 # ---- capability enforcement ----------------------------------------------
 
 

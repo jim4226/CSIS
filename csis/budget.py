@@ -29,6 +29,12 @@ from dataclasses import asdict, dataclass, field
 from datetime import datetime, timezone
 from pathlib import Path
 
+# Snapshot-12 refactor: the cross-process file lock now lives in
+# csis.substrate.file_lock so the EventLog can use the same primitive.
+# We re-export `LockUnavailable` and keep a `_file_lock` alias so the
+# rest of this module + any out-of-tree imports keep working unchanged.
+from csis.substrate.file_lock import LockUnavailable, file_lock as _file_lock  # noqa: F401
+
 
 # Same default price table as scripts/burst.py. Keep in sync.
 _PRICE_PER_1K = {
@@ -114,82 +120,10 @@ class BudgetCapExceeded(Exception):
     """Raised when an attempted call would push the day over the cap."""
 
 
-class LockUnavailable(RuntimeError):
-    """D6 (cycle-5) mitigation: raised when the OS doesn't support real
-    inter-process file locking. We refuse to start with a budget cap
-    enabled rather than silently disabling concurrency safety."""
-
-
-@contextlib.contextmanager
-def _file_lock(lock_path: Path):
-    """Cross-platform exclusive inter-process file lock.
-
-    On Windows uses msvcrt.locking; on POSIX uses fcntl.flock. If neither
-    is available we raise LockUnavailable (D6 fix — was: silently set
-    locked=True and pretend).
-
-    Cycle-4 C2 + cycle-5 D6 mitigation. The lock file is separate from
-    the data file so a corrupt data file doesn't strand the lock and
-    vice versa.
-    """
-    lock_path.parent.mkdir(parents=True, exist_ok=True)
-    f = open(lock_path, "a+b")
-    locked = False
-    try:
-        if sys.platform == "win32":
-            try:
-                import msvcrt  # type: ignore[import-not-found]
-            except ImportError as exc:
-                raise LockUnavailable(
-                    "msvcrt module unavailable on Windows; "
-                    "cannot enforce inter-process budget locking"
-                ) from exc
-            for _attempt in range(200):  # ~20s of waiting in 0.1s ticks
-                try:
-                    f.seek(0)
-                    msvcrt.locking(f.fileno(), msvcrt.LK_NBLCK, 1)
-                    locked = True
-                    break
-                # D6: catch broader exceptions, not just OSError. A
-                # PermissionError on a restricted Windows build used to
-                # crash __init__; now we retry then raise LockUnavailable.
-                except (OSError, PermissionError):
-                    time.sleep(0.1)
-            if not locked:
-                raise LockUnavailable(
-                    f"could not acquire budget lock at {lock_path} within 20s"
-                )
-        else:
-            try:
-                import fcntl  # type: ignore[import-not-found]
-            except ImportError as exc:
-                raise LockUnavailable(
-                    "fcntl module unavailable on this POSIX build; "
-                    "cannot enforce inter-process budget locking"
-                ) from exc
-            try:
-                fcntl.flock(f.fileno(), fcntl.LOCK_EX)
-                locked = True
-            except OSError as exc:
-                # ENOLCK on NFS / SMB — refuse rather than silently disable.
-                raise LockUnavailable(
-                    f"flock failed at {lock_path}: {exc!r} (NFS/SMB?)"
-                ) from exc
-        yield
-    finally:
-        try:
-            if locked and sys.platform == "win32":
-                import msvcrt  # type: ignore[import-not-found]
-                f.seek(0)
-                msvcrt.locking(f.fileno(), msvcrt.LK_UNLCK, 1)
-            elif locked:
-                try:
-                    import fcntl  # type: ignore[import-not-found]
-                    fcntl.flock(f.fileno(), fcntl.LOCK_UN)
-                except ImportError:
-                    pass
-        finally:
-            f.close()
+# LockUnavailable + _file_lock are imported at the top of this module from
+# csis.substrate.file_lock (snapshot-12 refactor). Keeping the names visible
+# at this scope so legacy imports (`from csis.budget import LockUnavailable`)
+# continue to work without modification.
 
 
 class BudgetTracker:

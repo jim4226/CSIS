@@ -7,6 +7,17 @@ only in harness memory.' Everything goes through this.
 Format: one JSON object per line (JSONL). Each line is a SignedEvent with
 a content hash that chains to the previous line's hash, giving us a poor
 person's hash chain for tamper-evidence.
+
+**Snapshot-12 fix (chain-integrity, cross-process):** ``emit()`` and
+``_restore_from_disk()`` now acquire an inter-process file lock for the
+read-current-state + write-line + advance-counter critical section. The
+previous threading.Lock only serialized callers in the SAME process, so
+two daemon instances (or daemon + burst.py running concurrently) racing
+on the same session.jsonl could each cache a stale ``_seq``, write
+overlapping seq values, and break the hash chain. The pre-snapshot-12
+session.jsonl in this repo accumulated 5 such breaks; they are quarantined
+to ``event_log/session.broken-pre-snap12.jsonl`` and a new chain starts
+fresh from genesis.
 """
 from __future__ import annotations
 
@@ -19,6 +30,8 @@ from pathlib import Path
 from typing import Any, Iterator
 
 from pydantic import BaseModel, Field
+
+from csis.substrate.file_lock import LockUnavailable, file_lock
 
 
 GENESIS_PREV_HASH: str = "0" * 64
@@ -83,8 +96,10 @@ class UnknownActorError(Exception):
 class EventLog:
     """Append-only JSONL event log with in-memory cache.
 
-    Thread-safe. The lock guards both the file write and the seq/prev_hash
-    update so concurrent emits stay consistent.
+    Thread-safe AND process-safe. The threading.Lock serializes intra-process
+    callers; the inter-process file lock (snapshot-12) serializes across
+    OS processes so two daemons (or daemon + burst.py) targeting the same
+    session.jsonl can't race on the seq counter and tear the hash chain.
 
     P7 mitigation: emit() rejects actor strings not in _ALLOWED_ACTORS so
     a sub-agent's payload cannot spoof a "verifier"-tier event.
@@ -94,6 +109,9 @@ class EventLog:
         self.path = Path(path)
         self.path.parent.mkdir(parents=True, exist_ok=True)
         self._lock = threading.Lock()
+        # Distinct lock file so a corrupt session.jsonl doesn't strand the
+        # lock (and vice versa). Matches the budget.py convention.
+        self._lock_path = self.path.with_suffix(self.path.suffix + ".lock")
         self._seq = 0
         self._prev_hash = GENESIS_PREV_HASH
         if self.path.exists():
@@ -108,13 +126,22 @@ class EventLog:
         """Append a new event. Returns the signed wrapper.
 
         Raises UnknownActorError if `actor` is not in the Phase-0 allow-list
-        (P7 mitigation)."""
+        (P7 mitigation).
+
+        Snapshot-12: acquires an inter-process file lock for the
+        read-tail / write-line / advance-counter critical section so
+        concurrent processes share a single linear hash chain.
+        """
         if actor not in _load_allowed_actors():
             raise UnknownActorError(
                 f"actor={actor!r} not in Phase-0 allow-list; "
                 f"add to csis.agents.base.ALLOWED_EMIT_ACTORS to introduce a new role."
             )
-        with self._lock:
+        with self._lock, file_lock(self._lock_path):
+            # Re-sync from disk under the lock so we see any sibling
+            # writes that landed since our last emit. This is the fix
+            # for the cross-process seq race that broke the chain.
+            self._restore_from_disk_unlocked()
             event = Event(
                 seq=self._seq,
                 timestamp=time.time(),
@@ -180,6 +207,23 @@ class EventLog:
     # ---- internal -------------------------------------------------------
 
     def _restore_from_disk(self) -> None:
+        """Public-ish wrapper: acquires the inter-process file lock and
+        reloads. Used at __init__ time; ``emit`` calls the _unlocked
+        variant since it already holds the lock."""
+        with file_lock(self._lock_path):
+            self._restore_from_disk_unlocked()
+
+    def _restore_from_disk_unlocked(self) -> None:
+        """Read the file's tail and update ``_seq``/``_prev_hash``.
+
+        Caller MUST hold ``self._lock`` and the inter-process file lock.
+        Used inside emit() so each append is based on the live file state
+        (not a stale process-local cache). Pre-snapshot-12 the cache could
+        drift behind a sibling daemon's writes, which caused the 5
+        chain breaks at iter.start events in the historical log.
+        """
+        if not self.path.exists():
+            return
         last_seq = -1
         last_hash = GENESIS_PREV_HASH
         with self.path.open("r", encoding="utf-8") as f:
