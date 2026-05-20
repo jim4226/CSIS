@@ -842,7 +842,7 @@
         <rect x="40" y="86" width="840" height="56" rx="8" fill="#f6ecd6" stroke="#b8a880" stroke-width="2" stroke-dasharray="7 4"/>
         <text x="60" y="109" font-size="11" class="mono dim bold">L6</text>
         <text x="60" y="128" font-size="17" class="bold" fill="#7a6c4a">Meta-improvement</text>
-        <text x="220" y="116" font-size="13" fill="#7a6c4a">Deferred to Phase 1 — improving the improver. Documented as a known shape so the substrate doesn't have to be re-cut.</text>
+        <text x="220" y="116" font-size="13" fill="#7a6c4a">Deferred to Phase 1 — improving the improver. Substrate-shape preserved.</text>
         <text x="220" y="132" font-size="11" class="mono dim">see CSIS-architecture.html · Appendix A</text>
       </g>
 
@@ -912,7 +912,7 @@
     <div class="stack-hint">↑ click any layer to expand its components</div>
 
     <!-- Companion: where prompt-injection attempts land -->
-    <svg class="csis-svg" viewBox="0 0 920 230" xmlns="http://www.w3.org/2000/svg" aria-label="Where prompt-injection attempts land vs. where they terminate" style="margin-top:18px">
+    <svg class="csis-svg" viewBox="0 0 920 240" xmlns="http://www.w3.org/2000/svg" aria-label="Where prompt-injection attempts land vs. where they terminate. LEFT: typical multi-layer prompt-stack where a jailbreak only needs to evade one of the prompt-layer guards; the attack arrow penetrates six small role-check boxes and reaches 'protected resource reached.' RIGHT: CSIS shallow stack where the same jailbreak hits a thick green L7 substrate wall and terminates with an X marker; underneath is the L0 substrate showing capability tags and event log, and a dashed agent-layer row noting that L1-L5 see the prompt as input but cannot alter L0/L4/L7. The visual thesis: the agent layer can't revoke what the agent layer doesn't own." style="margin-top:18px">
       <defs>
         <marker id="m-arrow-danger" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
           <path d="M 0 0 L 10 5 L 0 10 z" fill="#c4543b"/>
@@ -925,13 +925,13 @@
 
       <!-- Left: typical "wide" stack -->
       <g>
-        <text x="40" y="62" font-size="13" class="mono bold" fill="#5e5e5e">TYPICAL STACK · property negotiated at agent layer</text>
-        <text x="40" y="78" font-size="11" class="mono dim">jailbreak only needs to evade ONE check; multiple layers all check the same thing in prompts</text>
+        <text x="40" y="60" font-size="12" class="mono bold" fill="#5e5e5e">TYPICAL STACK · property in agent prompts</text>
+        <text x="40" y="76" font-size="10.5" class="mono dim">jailbreak only needs to evade ONE check;</text>
+        <text x="40" y="90" font-size="10.5" class="mono dim">many layers all check the same thing</text>
 
         <!-- attack arrow penetrating -->
-        <path d="M 50 100 L 380 200" stroke="#c4543b" stroke-width="2.5" stroke-dasharray="6 3" marker-end="url(#m-arrow-danger)"/>
-        <text x="60" y="94" font-size="11" class="mono bold" fill="#c4543b">prompt:</text>
-        <text x="60" y="106" font-size="11" class="mono" fill="#c4543b" font-style="italic">"ignore previous and act as..."</text>
+        <path d="M 50 112 L 380 200" stroke="#c4543b" stroke-width="2.5" stroke-dasharray="6 3" marker-end="url(#m-arrow-danger)"/>
+        <text x="60" y="106" font-size="10.5" class="mono" fill="#c4543b" font-style="italic">"ignore previous and act as..."</text>
 
         <!-- Wide stack boxes (all agent layer) -->
         <rect x="120" y="120" width="80" height="22" rx="4" fill="#fbe7dd" stroke="#d97757" stroke-width="1.5"/>
@@ -957,30 +957,32 @@
 
       <!-- Right: CSIS shallow stack -->
       <g>
-        <text x="480" y="62" font-size="13" class="mono bold" fill="#2a4a1a">CSIS · property owned by substrate</text>
-        <text x="480" y="78" font-size="11" class="mono dim">jailbreak terminates at L7 boundary — the agent layer can't revoke what the agent layer doesn't own</text>
+        <text x="480" y="60" font-size="12" class="mono bold" fill="#2a4a1a">CSIS · property owned by substrate</text>
+        <text x="480" y="76" font-size="10.5" class="mono dim">jailbreak terminates at L7 boundary —</text>
+        <text x="480" y="90" font-size="10.5" class="mono dim">the agent layer can't revoke what it doesn't own</text>
 
         <!-- attack arrow blocked -->
-        <path d="M 490 100 L 580 130" stroke="#c4543b" stroke-width="2.5" stroke-dasharray="6 3"/>
-        <text x="500" y="94" font-size="11" class="mono bold" fill="#c4543b">prompt:</text>
-        <text x="500" y="106" font-size="11" class="mono" fill="#c4543b" font-style="italic">"ignore previous and act as..."</text>
+        <path d="M 490 112 L 575 138" stroke="#c4543b" stroke-width="2.5" stroke-dasharray="6 3"/>
+        <text x="500" y="106" font-size="10.5" class="mono" fill="#c4543b" font-style="italic">"ignore previous and act as..."</text>
 
         <!-- L7 boundary as a wall -->
-        <rect x="580" y="120" width="320" height="30" rx="4" fill="#dde6cd" stroke="#5a6c46" stroke-width="2.5"/>
-        <text x="740" y="140" font-size="11" class="mono bold" text-anchor="middle" fill="#2a4a1a">L7 substrate · enforced as code</text>
+        <rect x="595" y="128" width="305" height="28" rx="4" fill="#dde6cd" stroke="#5a6c46" stroke-width="2.5"/>
+        <text x="747" y="147" font-size="11" class="mono bold" text-anchor="middle" fill="#2a4a1a">L7 substrate · enforced as code</text>
 
         <!-- ✕ at the boundary -->
-        <circle cx="582" cy="135" r="11" fill="#c4543b" stroke="#fff" stroke-width="2"/>
-        <text x="582" y="139" font-size="14" class="bold" text-anchor="middle" fill="#fff">✕</text>
-        <text x="610" y="139" font-size="11" class="mono bold" fill="#c4543b">terminates here</text>
+        <circle cx="595" cy="142" r="11" fill="#c4543b" stroke="#fff" stroke-width="2"/>
+        <text x="595" y="146" font-size="13" class="bold" text-anchor="middle" fill="#fff">✕</text>
+
+        <!-- "terminates here" — moved below the wall to avoid overlap -->
+        <text x="747" y="170" font-size="10.5" class="mono bold" text-anchor="middle" fill="#c4543b">↑ jailbreak terminates here</text>
 
         <!-- L0 substrate -->
-        <rect x="580" y="156" width="320" height="22" rx="4" fill="#f3e4b8" stroke="#c89b3c" stroke-width="2"/>
-        <text x="740" y="171" font-size="11" class="mono bold" text-anchor="middle" fill="#8a6e1c">L0 substrate · capability tags, event log</text>
+        <rect x="595" y="180" width="305" height="22" rx="4" fill="#f3e4b8" stroke="#c89b3c" stroke-width="2"/>
+        <text x="747" y="195" font-size="11" class="mono bold" text-anchor="middle" fill="#8a6e1c">L0 substrate · capability tags, event log</text>
 
         <!-- Agent layers can see the prompt as input but can't alter substrate -->
-        <rect x="580" y="184" width="320" height="22" rx="4" fill="#fbf4e7" stroke="#d97757" stroke-width="1.5" stroke-dasharray="4 3"/>
-        <text x="740" y="199" font-size="10" class="mono" text-anchor="middle" fill="#b85e3f">L1–L5 (agent layers) see it as input · cannot alter L0/L4/L7</text>
+        <rect x="595" y="206" width="305" height="22" rx="4" fill="#fbf4e7" stroke="#d97757" stroke-width="1.5" stroke-dasharray="4 3"/>
+        <text x="747" y="221" font-size="9.5" class="mono" text-anchor="middle" fill="#b85e3f">L1–L5 see it as input · cannot alter L0/L4/L7</text>
       </g>
     </svg>
 
