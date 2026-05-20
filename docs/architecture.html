@@ -269,6 +269,61 @@
     color: var(--danger);
   }
 
+  /* ----- threat & observability tables ----- */
+  .spec-table {
+    width: 100%;
+    border-collapse: collapse;
+    font-size: 13.5px;
+    line-height: 1.5;
+    margin-top: 20px;
+    background: var(--bg-card);
+    border-radius: 12px;
+    overflow: hidden;
+    box-shadow: var(--shadow-sm);
+  }
+  .spec-table thead th {
+    text-align: left;
+    background: var(--bg-deep);
+    color: var(--ink);
+    font-family: var(--mono);
+    font-size: 11px;
+    font-weight: 700;
+    text-transform: uppercase;
+    letter-spacing: 1.1px;
+    padding: 14px 18px;
+    border-bottom: 2px solid var(--border-deep);
+  }
+  .spec-table tbody td {
+    padding: 14px 18px;
+    border-bottom: 1px solid var(--border);
+    vertical-align: top;
+  }
+  .spec-table tbody tr:last-child td { border-bottom: none; }
+  .spec-table tbody tr:hover { background: var(--bg-soft); }
+  .spec-table td.adv {
+    font-weight: 600;
+    color: var(--danger);
+    width: 30%;
+  }
+  .spec-table td.invariant {
+    color: var(--ink);
+    width: 35%;
+  }
+  .spec-table td.layer {
+    font-family: var(--mono);
+    font-size: 12px;
+    color: var(--accent-deep);
+    width: 35%;
+  }
+  .spec-table code {
+    font-family: var(--mono);
+    font-size: 12px;
+    background: var(--bg-soft);
+    padding: 1px 5px;
+    border-radius: 3px;
+    color: var(--accent-deep);
+  }
+
   /* ----- rationale cards ----- */
   .rationale {
     display: grid;
@@ -637,15 +692,105 @@
 <div class="toc">
   <div class="toc-label">contents</div>
   <ol>
+    <li><a href="#threats">Threat model — what we assume the agent will try</a></li>
     <li><a href="#stack">The 8-layer stack — interactive</a></li>
     <li><a href="#trust">The 6-level trust lattice</a></li>
     <li><a href="#memory">The 5-tier memory hierarchy</a></li>
     <li><a href="#verification">V1 + V2 cross-checkpoint verification</a></li>
     <li><a href="#promotion">Hash-preconditioned CAS promotion</a></li>
     <li><a href="#dreams">Sleep / Dreams consolidation</a></li>
+    <li><a href="#observability">How you know it's working — observability</a></li>
     <li><a href="#patterns">Two patterns from 10 cycles</a></li>
   </ol>
 </div>
+
+<!-- ============================================================ -->
+<!-- THREAT MODEL -->
+<!-- ============================================================ -->
+<section id="threats">
+  <div class="section-head">
+    <h3 class="section-label"><span class="num">0</span> threat model <svg width="16" height="16" style="color:var(--accent)"><use href="#icon-shield"/></svg></h3>
+    <h4 class="section-h">The adversaries the substrate is designed to catch.</h4>
+    <p class="section-intro">Every invariant below exists because of a specific class of failure. The table makes the threat model explicit: <strong>what the adversary tries</strong> · <strong>what invariant is at risk</strong> · <strong>which layer catches it</strong>. The point isn't that the substrate is unbreakable — it's that each defense lives at the layer where the attack can be enumerated, not in agent prompts that can be talked around.</p>
+  </div>
+
+  <table class="spec-table">
+    <thead>
+      <tr>
+        <th>Adversary capability</th>
+        <th>Invariant at risk</th>
+        <th>Layer that catches it</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td class="adv">Prompt-injected request to bypass a safety property</td>
+        <td class="invariant">Safety is enforced at the substrate, not as agent-prompt text. The agent layer cannot revoke it because the agent layer doesn't own it.</td>
+        <td class="layer">L7 · Constitution + TierGuard · <code>csis/safety/</code></td>
+      </tr>
+      <tr>
+        <td class="adv">Builder model argues it should self-verify ("just check your own work")</td>
+        <td class="invariant">Verifier checkpoint must differ from builder checkpoint by ≥2 identity components.</td>
+        <td class="layer">L4 · Auditor refuses cert if <code>cert.builder == cert.verifier</code> · cycle-1 F1</td>
+      </tr>
+      <tr>
+        <td class="adv">Same-model collusion: builder + verifier share blind spots in build</td>
+        <td class="invariant">Different <code>model_id</code> means different training, different priors, different blind spots.</td>
+        <td class="layer">L4 · <code>assert_cross_checkpoint()</code> at cert build site</td>
+      </tr>
+      <tr>
+        <td class="adv">Race: sibling iteration mutates store between sign and promote</td>
+        <td class="invariant">Promotion is atomic vs. exact store state at sign time.</td>
+        <td class="layer">L3 · hash-CAS <code>store.promote(hash_precondition=...)</code></td>
+      </tr>
+      <tr>
+        <td class="adv">Bad write becomes truth on next read; poisoning compounds</td>
+        <td class="invariant">Candidate writes never appear in live reads; only path is signed promotion.</td>
+        <td class="layer">L3 · candidate/live split · <code>writer_iteration_id</code> stamp (H4)</td>
+      </tr>
+      <tr>
+        <td class="adv">Dreamed-up "improvement" auto-promotes without a verifier</td>
+        <td class="invariant">Sleep/Dreams runs offline; output is <em>candidates</em>, not commits.</td>
+        <td class="layer">L5 · Dreams pipeline · no tool access, no agent prompts</td>
+      </tr>
+      <tr>
+        <td class="adv">Trust-level claim ("I verified") gets read as authorization</td>
+        <td class="invariant">Trust is an integer ladder. Only path up is through an explicit gate.</td>
+        <td class="layer">L2 · <code>TrustLevel</code> IntEnum + upgrade-gate checks</td>
+      </tr>
+      <tr>
+        <td class="adv">Subclass attack: expose <code>_wrapped</code> backend to extract underlying client</td>
+        <td class="invariant">Every LLM call routes through one wrap site (finite chokepoint, not perimeter).</td>
+        <td class="layer">L0/L1 · <code>Coordinator.__init__</code> refuses any backend that isn't <code>_BackendTracker</code> (cycle-9 H1)</td>
+      </tr>
+      <tr>
+        <td class="adv">Forensic replay claims wrong sequence of events</td>
+        <td class="invariant">Hash-chained event log; any reorder/insertion breaks the chain.</td>
+        <td class="layer">L0 · <code>EventLog.verify_chain()</code> + per-event salt</td>
+      </tr>
+      <tr>
+        <td class="adv">V1 graders silently drift mid-task (test mutation, threshold relaxation)</td>
+        <td class="invariant">Graders are source-hashed at task start; mid-task drift rejected.</td>
+        <td class="layer">L4 · pinned <code>grader_source_hash</code> in cert</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div class="rationale">
+    <div class="rationale-card">
+      <div class="label">why explicit</div>
+      <h5>Spelling out the adversary is the spine of every other section</h5>
+      <p>The invariants below aren't decorative — each one is the answer to a specific row in the table above. Without the threat model, a reader has to reverse-engineer the design from inference. With it, every later diagram becomes "oh, this is how we catch row N."</p>
+      <p>The list isn't exhaustive (no list of attacks ever is). It's the set of attack classes that fell out of 10 cycles of red-team → fix → regression-test. New rows get added when a critique cycle finds something not on the list.</p>
+    </div>
+    <div class="rationale-card">
+      <div class="label">what we don't claim</div>
+      <h5>This isn't a proof of safety</h5>
+      <p>Listing what we catch is not the same as listing what we'd miss. Two known classes the substrate does <em>not</em> defend against in Phase 0: closure-cell mutation by privileged code in the same Python process (H2), and POSIX unlink-during-lock by another OS user (H11). Both are deferred to Phase 1 (process-level isolation).</p>
+      <p>Honesty about the perimeter matters more than the size of the perimeter. Anything on the deferred list is in <a class="inline" href="https://github.com/jim4226/CSIS/blob/main/CYCLES.md">CYCLES.md</a> with its rationale.</p>
+    </div>
+  </div>
+</section>
 
 <!-- ============================================================ -->
 <!-- 1. STACK -->
@@ -742,6 +887,79 @@
       <text x="895" y="280" font-size="11" class="mono" fill="#5a6c46" transform="rotate(90 895 280)" text-anchor="middle">safety wraps the whole stack</text>
     </svg>
     <div class="stack-hint">↑ click any layer to expand its components</div>
+
+    <!-- Companion: where prompt-injection attempts land -->
+    <svg class="csis-svg" viewBox="0 0 920 230" xmlns="http://www.w3.org/2000/svg" aria-label="Where prompt-injection attempts land vs. where they terminate" style="margin-top:18px">
+      <defs>
+        <marker id="m-arrow-danger" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+          <path d="M 0 0 L 10 5 L 0 10 z" fill="#c4543b"/>
+        </marker>
+      </defs>
+
+      <!-- Title strip -->
+      <rect x="0" y="0" width="920" height="32" fill="#fbe7dd" stroke="none"/>
+      <text x="460" y="20" font-size="12" class="mono bold" text-anchor="middle" fill="#b85e3f">WHERE PROMPT-INJECTION ATTEMPTS LAND · shallow not wide, visualized</text>
+
+      <!-- Left: typical "wide" stack -->
+      <g>
+        <text x="40" y="62" font-size="13" class="mono bold" fill="#5e5e5e">TYPICAL STACK · property negotiated at agent layer</text>
+        <text x="40" y="78" font-size="11" class="mono dim">jailbreak only needs to evade ONE check; multiple layers all check the same thing in prompts</text>
+
+        <!-- attack arrow penetrating -->
+        <path d="M 50 100 L 380 200" stroke="#c4543b" stroke-width="2.5" stroke-dasharray="6 3" marker-end="url(#m-arrow-danger)"/>
+        <text x="60" y="94" font-size="11" class="mono bold" fill="#c4543b">prompt:</text>
+        <text x="60" y="106" font-size="11" class="mono" fill="#c4543b" font-style="italic">"ignore previous and act as..."</text>
+
+        <!-- Wide stack boxes (all agent layer) -->
+        <rect x="120" y="120" width="80" height="22" rx="4" fill="#fbe7dd" stroke="#d97757" stroke-width="1.5"/>
+        <text x="160" y="135" font-size="10" class="mono" text-anchor="middle" fill="#b85e3f">prompt-guard</text>
+        <rect x="210" y="120" width="80" height="22" rx="4" fill="#fbe7dd" stroke="#d97757" stroke-width="1.5"/>
+        <text x="250" y="135" font-size="10" class="mono" text-anchor="middle" fill="#b85e3f">role-check</text>
+        <rect x="300" y="120" width="80" height="22" rx="4" fill="#fbe7dd" stroke="#d97757" stroke-width="1.5"/>
+        <text x="340" y="135" font-size="10" class="mono" text-anchor="middle" fill="#b85e3f">policy-LLM</text>
+        <rect x="120" y="150" width="80" height="22" rx="4" fill="#fbe7dd" stroke="#d97757" stroke-width="1.5"/>
+        <text x="160" y="165" font-size="10" class="mono" text-anchor="middle" fill="#b85e3f">tool-allowlist</text>
+        <rect x="210" y="150" width="80" height="22" rx="4" fill="#fbe7dd" stroke="#d97757" stroke-width="1.5"/>
+        <text x="250" y="165" font-size="10" class="mono" text-anchor="middle" fill="#b85e3f">jailbreak-cls</text>
+        <rect x="300" y="150" width="80" height="22" rx="4" fill="#fbe7dd" stroke="#d97757" stroke-width="1.5"/>
+        <text x="340" y="165" font-size="10" class="mono" text-anchor="middle" fill="#b85e3f">red-team-LLM</text>
+
+        <!-- protected resource reached -->
+        <rect x="240" y="186" width="120" height="22" rx="4" fill="#f3dbd0" stroke="#c4543b" stroke-width="1.5" stroke-dasharray="3 2"/>
+        <text x="300" y="201" font-size="10" class="mono bold" text-anchor="middle" fill="#c4543b">protected resource reached</text>
+      </g>
+
+      <!-- Divider -->
+      <line x1="460" y1="50" x2="460" y2="220" stroke="#e7d8b5" stroke-width="1.5" stroke-dasharray="4 4"/>
+
+      <!-- Right: CSIS shallow stack -->
+      <g>
+        <text x="480" y="62" font-size="13" class="mono bold" fill="#2a4a1a">CSIS · property owned by substrate</text>
+        <text x="480" y="78" font-size="11" class="mono dim">jailbreak terminates at L7 boundary — the agent layer can't revoke what the agent layer doesn't own</text>
+
+        <!-- attack arrow blocked -->
+        <path d="M 490 100 L 580 130" stroke="#c4543b" stroke-width="2.5" stroke-dasharray="6 3"/>
+        <text x="500" y="94" font-size="11" class="mono bold" fill="#c4543b">prompt:</text>
+        <text x="500" y="106" font-size="11" class="mono" fill="#c4543b" font-style="italic">"ignore previous and act as..."</text>
+
+        <!-- L7 boundary as a wall -->
+        <rect x="580" y="120" width="320" height="30" rx="4" fill="#dde6cd" stroke="#5a6c46" stroke-width="2.5"/>
+        <text x="740" y="140" font-size="11" class="mono bold" text-anchor="middle" fill="#2a4a1a">L7 substrate · enforced as code</text>
+
+        <!-- ✕ at the boundary -->
+        <circle cx="582" cy="135" r="11" fill="#c4543b" stroke="#fff" stroke-width="2"/>
+        <text x="582" y="139" font-size="14" class="bold" text-anchor="middle" fill="#fff">✕</text>
+        <text x="610" y="139" font-size="11" class="mono bold" fill="#c4543b">terminates here</text>
+
+        <!-- L0 substrate -->
+        <rect x="580" y="156" width="320" height="22" rx="4" fill="#f3e4b8" stroke="#c89b3c" stroke-width="2"/>
+        <text x="740" y="171" font-size="11" class="mono bold" text-anchor="middle" fill="#8a6e1c">L0 substrate · capability tags, event log</text>
+
+        <!-- Agent layers can see the prompt as input but can't alter substrate -->
+        <rect x="580" y="184" width="320" height="22" rx="4" fill="#fbf4e7" stroke="#d97757" stroke-width="1.5" stroke-dasharray="4 3"/>
+        <text x="740" y="199" font-size="10" class="mono" text-anchor="middle" fill="#b85e3f">L1–L5 (agent layers) see it as input · cannot alter L0/L4/L7</text>
+      </g>
+    </svg>
 
     <!-- Detail panel (JS-populated) -->
     <div class="stack-detail" id="stack-detail" aria-live="polite">
@@ -1280,11 +1498,82 @@
 </section>
 
 <!-- ============================================================ -->
-<!-- 7. PATTERNS -->
+<!-- OBSERVABILITY -->
+<!-- ============================================================ -->
+<section id="observability">
+  <div class="section-head">
+    <h3 class="section-label"><span class="num">7</span> observability <svg width="16" height="16" style="color:var(--accent)"><use href="#icon-eye"/></svg></h3>
+    <h4 class="section-h">How you know V1+V2 is actually working in production.</h4>
+    <p class="section-intro">A guarantee you can't observe might as well not exist. Every invariant in the threat-model table has a corresponding signal — either a counter, a log entry, or a test that fails if the invariant is broken. The dashboard surfaces the live ones; the event log and test suite capture the rest. Nothing here requires trusting an agent's self-report.</p>
+  </div>
+
+  <table class="spec-table">
+    <thead>
+      <tr>
+        <th>Signal</th>
+        <th>What it tells you</th>
+        <th>How to read it</th>
+      </tr>
+    </thead>
+    <tbody>
+      <tr>
+        <td class="adv">Cross-checkpoint refusal count</td>
+        <td class="invariant">Number of times the Auditor refused to sign because <code>cert.builder_checkpoint == cert.verifier_checkpoint</code>. Should normally be zero in production; non-zero means an operator misconfiguration was caught at the gate.</td>
+        <td class="layer">live dashboard · event log query · <code>csis/ui/</code></td>
+      </tr>
+      <tr>
+        <td class="adv">Hash-CAS failure rate</td>
+        <td class="invariant">Percent of promotion attempts rejected because the live store hash changed between cert sign and promote. Non-zero is healthy under concurrency; a sudden spike means contention.</td>
+        <td class="layer">dashboard panel · <code>store.promote()</code> return values</td>
+      </tr>
+      <tr>
+        <td class="adv">Distributional cert per-slice CI bounds</td>
+        <td class="invariant">For every signed cert, the worst-performing slice's CI lower bound. Reveals tail failures (rare organs, hard landmarks) the point estimate would hide.</td>
+        <td class="layer">cert payload <code>.distributional_results[].slices</code> · dashboard</td>
+      </tr>
+      <tr>
+        <td class="adv">Event log integrity</td>
+        <td class="invariant">Hash chain verifies end-to-end. Any reorder, insertion, or tampering breaks the chain at the point of corruption.</td>
+        <td class="layer"><code>EventLog.verify_chain()</code> · cron-able</td>
+      </tr>
+      <tr>
+        <td class="adv">Regression test count + pass rate</td>
+        <td class="invariant">244 tests gate every commit. A regression means a critique-cycle finding got re-broken; the test that originally caught it now fails.</td>
+        <td class="layer"><code>python -m pytest tests/ -q</code> · CI</td>
+      </tr>
+      <tr>
+        <td class="adv">Cycle audit trail</td>
+        <td class="invariant">Every finding (99 across 10 cycles), every fix, every regression test. New findings get filed under <code>brain/critiques/</code>; closed ones get a row in <code>CYCLES.md</code>.</td>
+        <td class="layer"><a class="inline" href="https://github.com/jim4226/CSIS/blob/main/CYCLES.md">CYCLES.md</a> · <code>brain/critiques/</code></td>
+      </tr>
+      <tr>
+        <td class="adv">Tripwire fires</td>
+        <td class="invariant">Substrate-level tripwires (file I/O outside allowlist, network call from a sandboxed role, etc.) write to the event log <em>and</em> halt the iteration. Zero false-negatives is the target; every false-positive becomes a regression test.</td>
+        <td class="layer"><a class="inline" href="playground.html">tripwire playground</a> · event log</td>
+      </tr>
+    </tbody>
+  </table>
+
+  <div class="rationale">
+    <div class="rationale-card">
+      <div class="label">design principle</div>
+      <h5>An invariant without a counter is a promise without a thermometer</h5>
+      <p>Every row in the threat-model table maps to at least one row in this table. If we add a defense, we add the signal that proves it's still active. The reverse is also true: a signal that's been zero for months either means the defense works, or that it's no longer hooked up — the dashboard surfaces the difference.</p>
+    </div>
+    <div class="rationale-card">
+      <div class="label">what live looks like</div>
+      <h5>Open the dashboard against a stopped or running daemon</h5>
+      <p>The dashboard reads from on-disk artifacts only — event log, budget JSONs, memory store snapshots, daemon heartbeat. No coupling to the running process, so you can boot it against a stopped state and still inspect the full trail of what happened. <a class="inline" href="dashboard-demo.html">Simulated demo here</a>; live one at <code>python -m csis.ui</code>.</p>
+    </div>
+  </div>
+</section>
+
+<!-- ============================================================ -->
+<!-- 8. PATTERNS -->
 <!-- ============================================================ -->
 <section id="patterns">
   <div class="section-head">
-    <h3 class="section-label"><span class="num">7</span> what 10 cycles taught us</h3>
+    <h3 class="section-label"><span class="num">8</span> what 10 cycles taught us</h3>
     <h4 class="section-h">Two patterns that fell out of running this against itself.</h4>
     <p class="section-intro">After 10 cycles of red-team → fix → regression-test (full trail in <a class="inline" href="https://github.com/jim4226/CSIS/blob/main/CYCLES.md">CYCLES.md</a>), two structural patterns kept reappearing across four architectural pivots. They generalize past CSIS to most agent-system design.</p>
   </div>
