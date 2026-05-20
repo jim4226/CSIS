@@ -149,21 +149,73 @@ Single-page dashboard, polls every 2s, read-only. Shows:
 
 The dashboard reads from on-disk artifacts only (event log, budget JSONs, memory store, daemon heartbeat). No coupling to the running daemon — you can boot the dashboard against a stopped state and still see the trail of what happened.
 
-## Architecture map
+## Architecture
 
-| Spec layer (`CSIS-architecture.html`) | Code |
+> **Full visual walkthrough with five diagrams** (8-layer stack, 6-level trust lattice, 5-tier memory hierarchy, V1+V2 cross-checkpoint verification, hash-CAS promotion) lives at **[https://jim4226.github.io/CSIS/architecture.html](https://jim4226.github.io/CSIS/architecture.html)** — that's the canonical architecture document. The diagrams + design rationale below are summary-level so you can read the README on GitHub and still get the shape.
+
+### The 8-layer stack
+
+```mermaid
+flowchart TB
+    L7["<b>L7 · Safety envelope</b><br/>Constitution · TierGuard · Tripwires · ShutdownToken · WrappedBackend invariant<br/><i>csis/safety/ — enforced AT THE SUBSTRATE, not as agent-prompt instructions</i>"]:::safety
+    L6["<b>L6 · Meta-improvement</b><br/><i>deferred to Phase 1 — improving the improver</i>"]:::deferred
+    L5["<b>L5 · Improvement (I1-I3)</b><br/>Procedural-tier skill accumulation — the actual self-improving surface, gated by everything below"]:::builder
+    L4["<b>L4 · Verification &amp; critic</b><br/>V1 pinned graders (rubric + distributional) · V2 critic falsifies · cert is cross-checkpoint signed<br/><i>csis/verification/ — runs on a structurally different LLM checkpoint than the Builder</i>"]:::verify
+    L3["<b>L3 · Curiosity &amp; frontier</b><br/>Frontier-item generator: seeds + gap-driven + rollback follow-ups · salt threaded for forensic replay"]:::builder
+    L2["<b>L2 · Memory hierarchy</b><br/>5 tiers × candidate/live · 6 trust levels · hash-preconditioned <code>promote()</code> is the only mutation primitive<br/><i>csis/memory/store.py — writer_iteration_id stamp on every candidate (cycle-9 H4)</i>"]:::builder
+    L1["<b>L1 · Agent runtime</b><br/>Coordinator runs the 8-step loop · delegates to Researcher / Builder / Critic / Verifier / Librarian / Auditor<br/><i>csis/agents/coordinator.py — delegation depth = 1</i>"]:::builder
+    L0["<b>L0 · Substrate</b><br/>event log (hash-chained) · capability tags · canonical JSON hashing<br/><i>csis/substrate/ — the only layer everyone trusts unconditionally</i>"]:::substrate
+
+    L7 --> L6 --> L5 --> L4 --> L3 --> L2 --> L1 --> L0
+
+    classDef substrate fill:#efe2c3,stroke:#c89b3c,stroke-width:2px,color:#2a2a2a
+    classDef builder fill:#fbf4e7,stroke:#d97757,stroke-width:2px,color:#2a2a2a
+    classDef verify fill:#dbe7f3,stroke:#4a82bc,stroke-width:2px,color:#1a3a5e
+    classDef safety fill:#dde6cd,stroke:#5a6c46,stroke-width:2px,color:#2a4a1a
+    classDef deferred fill:#f6ecd6,stroke:#b8a880,stroke-width:2px,color:#8a7c5a
+```
+
+> Orange-bordered layers (L1, L2, L3, L5) are the **builder path** — what does the work. Blue-bordered L4 is the only layer that runs on a **structurally different LLM checkpoint** (Sonnet-class verifying Opus-class). Gold-bordered L0 is the substrate everyone trusts unconditionally. Green-bordered L7 wraps the whole stack and is enforced as code, not as agent-prompt instructions.
+
+### The 6-level trust lattice
+
+```mermaid
+flowchart LR
+    raw([raw<br/><sub>just-observed</sub>]):::raw -->|stored| untrusted([untrusted<br/><sub>may be poisoned</sub>]):::untrusted
+    untrusted -->|Verifier check| candidate([candidate<br/><sub>awaiting Auditor</sub>]):::candidate
+    candidate -->|cert signed<br/>cross-checkpoint| verified([verified<br/><sub>citable as ground truth</sub>]):::verified
+    verified -->|why-doc + hash CAS| promoted([promoted<br/><sub>citable as ground truth</sub>]):::promoted
+
+    candidate -.->|deprecate| deprecated([deprecated<br/><sub>terminal · auditor only</sub>]):::deprecated
+    verified -.->|deprecate| deprecated
+    promoted -.->|deprecate| deprecated
+
+    classDef raw fill:#f6ecd6,stroke:#b8a880,color:#2a2a2a
+    classDef untrusted fill:#fbf4e7,stroke:#c89b3c,color:#2a2a2a
+    classDef candidate fill:#fbf4e7,stroke:#d97757,color:#2a2a2a
+    classDef verified fill:#dbe7f3,stroke:#4a82bc,color:#1a3a5e
+    classDef promoted fill:#dde6cd,stroke:#5a6c46,color:#2a4a1a
+    classDef deprecated fill:#f3dbd0,stroke:#b85e3f,color:#5a2a1a
+```
+
+> **The only path UP is through a gate.** Dashed red arrows show deprecation — always allowed from any non-raw level; terminal once reached. The lattice is an `IntEnum` so `entry.trust >= TrustLevel.VERIFIED` is a single integer compare in hot paths. Source: [`csis/memory/trust.py`](csis/memory/trust.py).
+
+### Code map
+
+| Spec layer | Code |
 |---|---|
 | L0 — Substrate | [`csis/substrate/`](csis/substrate/) — event log (hash-chained), capability tags, hashing |
 | L1 — Agent runtime | [`csis/agents/coordinator.py`](csis/agents/coordinator.py) — the 8-step loop driver |
 | L2 — Memory hierarchy | [`csis/memory/`](csis/memory/) — 6 trust levels, 5-tier hierarchy, hash-preconditioned `promote()` |
-| L3 — Curiosity & frontier | [`csis/curiosity.py`](csis/curiosity.py) — frontier-item generator (seeds + gap-driven + rollback follow-ups) |
-| L4 — Verification & critic | [`csis/verification/`](csis/verification/) — V1 pinned graders, V2 critic, cross-checkpoint cert |
+| L3 — Curiosity & frontier | [`csis/curiosity.py`](csis/curiosity.py) — frontier-item generator |
+| L4 — Verification & critic | [`csis/verification/`](csis/verification/) — V1 pinned + distributional graders, V2 critic, cross-checkpoint cert |
 | L5 — Improvement (I1–I3) | [`csis/improvement/skill_library.py`](csis/improvement/skill_library.py) — procedural-tier accumulation |
-| L6 — Meta-improvement | *deferred to Phase 1* |
+| L6 — Meta-improvement | *deferred to Phase 1 — see [`CSIS-architecture.html`](CSIS-architecture.html) Appendix A* |
 | L7 — Safety envelope | [`csis/safety/`](csis/safety/) — constitution, tier guard, tripwires, shutdown |
-| Sleep / consolidation | [`csis/dreams/`](csis/dreams/) — mock Dream pipeline + quality scoring + partial-output redaction |
+| Sleep / consolidation | [`csis/dreams/`](csis/dreams/) — mock Dream pipeline + partial-output redaction |
+| Live monitoring | [`csis/ui/`](csis/ui/) — stdlib HTTP dashboard with `--allow-control` write actions |
 
-The full eight-layer stack and the per-role tier matrix are in `CSIS-architecture.html` §3 and §5.
+Full per-role tier matrix, cross-checkpoint requirements, and design rationale per layer: **[architecture.html](https://jim4226.github.io/CSIS/architecture.html)**.
 
 ## The "brain" auto-save catalog
 
