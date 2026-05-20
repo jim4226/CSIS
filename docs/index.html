@@ -855,7 +855,7 @@ result = grader.evaluate([
     <h3 class="section-title">What this is NOT a claim about</h3>
     <h4 class="section-h">Where the system genuinely doesn't deliver yet.</h4>
     <ul style="color: var(--ink-dim); line-height: 1.7; max-width: 760px;">
-      <li><b>Not a proof of safety.</b> 213 tests + 99 findings closed are evidence of careful engineering, not certification of safe behavior under adversarial conditions. Cycle 9 H2/H11 deferrals are explicit about this.</li>
+      <li><b>Not a proof of safety.</b> 244 tests + 99 findings closed are evidence of careful engineering, not certification of safe behavior under adversarial conditions. Cycle 9 H2/H11 deferrals are explicit about this.</li>
       <li><b>The LLM backend is mock by default.</b> Real Anthropic calls are gated behind <code class="inline">--backend anthropic</code> + an <code class="inline">ANTHROPIC_API_KEY</code> + cost ceilings + WAL-backed budget metering. No agent is currently improving itself at production scale on this codebase.</li>
       <li><b>"Self-improving" in Phase 0 means the infrastructure for self-improvement is working and tested.</b> Real learning happens via <code class="inline">scripts/burst.py</code> on demand. The longer-arc framing is in <a class="inline" href="https://github.com/jim4226/CSIS/blob/main/CSIS-architecture.html">CSIS-architecture.html</a> Appendix A.</li>
     </ul>
