@@ -303,17 +303,29 @@
   .spec-table td.adv {
     font-weight: 600;
     color: var(--danger);
-    width: 30%;
+    width: 25%;
   }
   .spec-table td.invariant {
     color: var(--ink);
-    width: 35%;
+    width: 28%;
   }
   .spec-table td.layer {
     font-family: var(--mono);
     font-size: 12px;
     color: var(--accent-deep);
-    width: 35%;
+    width: 25%;
+  }
+  .spec-table td.observed {
+    font-family: var(--mono);
+    font-size: 11.5px;
+    color: var(--good-deep);
+    width: 22%;
+    font-weight: 600;
+  }
+  .spec-table td.observed::before {
+    content: "→ ";
+    color: var(--good);
+    font-weight: 700;
   }
   .spec-table code {
     font-family: var(--mono);
@@ -720,6 +732,7 @@
         <th>Adversary capability</th>
         <th>Invariant at risk</th>
         <th>Layer that catches it</th>
+        <th>Observed via (§7)</th>
       </tr>
     </thead>
     <tbody>
@@ -727,51 +740,61 @@
         <td class="adv">Prompt-injected request to bypass a safety property</td>
         <td class="invariant">Safety is enforced at the substrate, not as agent-prompt text. The agent layer cannot revoke it because the agent layer doesn't own it.</td>
         <td class="layer">L7 · Constitution + TierGuard · <code>csis/safety/</code></td>
+        <td class="observed">Tripwire fires · event-log integrity</td>
       </tr>
       <tr>
         <td class="adv">Builder model argues it should self-verify ("just check your own work")</td>
         <td class="invariant">Verifier checkpoint must differ from builder checkpoint by ≥2 identity components.</td>
         <td class="layer">L4 · Auditor refuses cert if <code>cert.builder == cert.verifier</code> · cycle-1 F1</td>
+        <td class="observed">Cross-checkpoint refusal count</td>
       </tr>
       <tr>
         <td class="adv">Same-model collusion: builder + verifier share blind spots in build</td>
         <td class="invariant">Different <code>model_id</code> means different training, different priors, different blind spots.</td>
         <td class="layer">L4 · <code>assert_cross_checkpoint()</code> at cert build site</td>
+        <td class="observed">Cross-checkpoint refusal count</td>
       </tr>
       <tr>
         <td class="adv">Race: sibling iteration mutates store between sign and promote</td>
         <td class="invariant">Promotion is atomic vs. exact store state at sign time.</td>
         <td class="layer">L3 · hash-CAS <code>store.promote(hash_precondition=...)</code></td>
+        <td class="observed">Hash-CAS failure rate</td>
       </tr>
       <tr>
         <td class="adv">Bad write becomes truth on next read; poisoning compounds</td>
         <td class="invariant">Candidate writes never appear in live reads; only path is signed promotion.</td>
         <td class="layer">L3 · candidate/live split · <code>writer_iteration_id</code> stamp (H4)</td>
+        <td class="observed">Distributional cert per-slice CI · regression tests</td>
       </tr>
       <tr>
         <td class="adv">Dreamed-up "improvement" auto-promotes without a verifier</td>
         <td class="invariant">Sleep/Dreams runs offline; output is <em>candidates</em>, not commits.</td>
         <td class="layer">L5 · Dreams pipeline · no tool access, no agent prompts</td>
+        <td class="observed">Cross-checkpoint refusal · cert per-slice</td>
       </tr>
       <tr>
         <td class="adv">Trust-level claim ("I verified") gets read as authorization</td>
         <td class="invariant">Trust is an integer ladder. Only path up is through an explicit gate.</td>
         <td class="layer">L2 · <code>TrustLevel</code> IntEnum + upgrade-gate checks</td>
+        <td class="observed">Event log (upgrade-gate entries)</td>
       </tr>
       <tr>
         <td class="adv">Subclass attack: expose <code>_wrapped</code> backend to extract underlying client</td>
         <td class="invariant">Every LLM call routes through one wrap site (finite chokepoint, not perimeter).</td>
         <td class="layer">L0/L1 · <code>Coordinator.__init__</code> refuses any backend that isn't <code>_BackendTracker</code> (cycle-9 H1)</td>
+        <td class="observed">Regression tests (H1 test)</td>
       </tr>
       <tr>
         <td class="adv">Forensic replay claims wrong sequence of events</td>
         <td class="invariant">Hash-chained event log; any reorder/insertion breaks the chain.</td>
         <td class="layer">L0 · <code>EventLog.verify_chain()</code> + per-event salt</td>
+        <td class="observed">Event-log integrity check</td>
       </tr>
       <tr>
         <td class="adv">V1 graders silently drift mid-task (test mutation, threshold relaxation)</td>
         <td class="invariant">Graders are source-hashed at task start; mid-task drift rejected.</td>
         <td class="layer">L4 · pinned <code>grader_source_hash</code> in cert</td>
+        <td class="observed">Regression tests · cert grader-hash audit</td>
       </tr>
     </tbody>
   </table>
@@ -1163,7 +1186,93 @@
 
       <text x="470" y="464" font-size="11" class="mono dim" text-anchor="middle">↑ each green arrow is `MemoryStore.promote(ids, precondition_hash=...)` · atomic candidate→live flip</text>
     </svg>
-    <div class="figure-caption">Figure 3 · The 5-tier memory hierarchy. Every tier is structurally identical: orange candidate side (writes free; stamped with the iteration that wrote them), blue live side (read-only; only mutation path is <code>promote()</code>). The H4 cycle-9 <code>writer_iteration_id</code> stamp lives on the candidate side — every entry carries the iteration_id of whoever wrote it, so cleanup is race-free under any concurrency model.</div>
+
+    <!-- Companion: one tier, zoomed in -->
+    <svg class="csis-svg" viewBox="0 0 940 340" xmlns="http://www.w3.org/2000/svg" aria-label="One tier zoomed in: candidate-live split internals" style="margin-top:22px">
+      <defs>
+        <marker id="m-arrow-promote" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
+          <path d="M 0 0 L 10 5 L 0 10 z" fill="#5a6c46"/>
+        </marker>
+        <marker id="m-arrow-reject" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
+          <path d="M 0 0 L 10 5 L 0 10 z" fill="#c4543b"/>
+        </marker>
+      </defs>
+
+      <!-- Title strip -->
+      <rect x="0" y="0" width="940" height="32" fill="#f6ecd6" stroke="none"/>
+      <text x="470" y="20" font-size="12" class="mono bold" text-anchor="middle" fill="#7a6c4a">ONE TIER, ZOOMED IN · how the candidate ↔ live split actually works</text>
+
+      <!-- Candidate panel -->
+      <g>
+        <rect x="30" y="52" width="380" height="244" rx="12" fill="#fbf4e7" stroke="#d97757" stroke-width="2" filter="drop-shadow(0 2px 6px rgba(217,119,87,0.10))"/>
+        <text x="220" y="78" font-size="13" class="mono bold" text-anchor="middle" fill="#b85e3f">CANDIDATE · writes free · cleanup race-free</text>
+        <text x="220" y="94" font-size="10.5" class="mono dim" text-anchor="middle">any iteration may append; nothing here is visible to live reads</text>
+
+        <!-- Entry rows -->
+        <g font-family="ui-monospace, monospace" font-size="10.5" fill="#4a3a1a">
+          <rect x="44" y="108" width="352" height="38" rx="6" fill="#ffffff" stroke="#d97757" stroke-width="1.2"/>
+          <text x="56" y="123" class="mono bold" fill="#b85e3f">entry #847</text>
+          <text x="56" y="138" class="mono">writer_iter_id=42 · hash=a3f7c2... · payload=...</text>
+
+          <rect x="44" y="152" width="352" height="38" rx="6" fill="#ffffff" stroke="#d97757" stroke-width="1.2"/>
+          <text x="56" y="167" class="mono bold" fill="#b85e3f">entry #848</text>
+          <text x="56" y="182" class="mono">writer_iter_id=42 · hash=b9d1e4... · payload=...</text>
+
+          <rect x="44" y="196" width="352" height="38" rx="6" fill="#ffffff" stroke="#d97757" stroke-width="1.2"/>
+          <text x="56" y="211" class="mono bold" fill="#b85e3f">entry #849</text>
+          <text x="56" y="226" class="mono">writer_iter_id=43 · hash=c2e8f1... · payload=...</text>
+        </g>
+
+        <text x="220" y="262" font-size="11" class="mono dim" text-anchor="middle">cleanup_candidates(iter_id=42) removes rows 847+848</text>
+        <text x="220" y="278" font-size="11" class="mono dim" text-anchor="middle">without touching 849 — ownership lives on the row, not in timing</text>
+      </g>
+
+      <!-- promote() arrow with precondition -->
+      <g>
+        <rect x="425" y="138" width="100" height="72" rx="8" fill="#dde6cd" stroke="#5a6c46" stroke-width="2"/>
+        <text x="475" y="160" font-size="11" class="mono bold" text-anchor="middle" fill="#2a4a1a">promote()</text>
+        <text x="475" y="178" font-size="9.5" class="mono" text-anchor="middle" fill="#4a5a3a">checks</text>
+        <text x="475" y="192" font-size="9.5" class="mono" text-anchor="middle" fill="#4a5a3a">hash_precondition</text>
+        <text x="475" y="206" font-size="9.5" class="mono bold" text-anchor="middle" fill="#5a6c46">→ atomic flip</text>
+        <line x1="410" y1="174" x2="425" y2="174" stroke="#5a6c46" stroke-width="2" marker-end="url(#m-arrow-promote)"/>
+        <line x1="525" y1="174" x2="540" y2="174" stroke="#5a6c46" stroke-width="2" marker-end="url(#m-arrow-promote)"/>
+      </g>
+
+      <!-- Live panel -->
+      <g>
+        <rect x="540" y="52" width="380" height="244" rx="12" fill="#dbe7f3" stroke="#4a82bc" stroke-width="2" filter="drop-shadow(0 2px 6px rgba(74,130,188,0.10))"/>
+        <text x="730" y="78" font-size="13" class="mono bold" text-anchor="middle" fill="#1a3a5e">LIVE · read-only · only mutation is promote()</text>
+        <text x="730" y="94" font-size="10.5" class="mono dim" text-anchor="middle">next iteration's reads come from here, not candidate</text>
+
+        <!-- Live entry rows (locked) -->
+        <g font-family="ui-monospace, monospace" font-size="10.5" fill="#1a3a5e">
+          <rect x="554" y="108" width="352" height="38" rx="6" fill="#ffffff" stroke="#4a82bc" stroke-width="1.2"/>
+          <svg x="560" y="119" width="14" height="14"><use href="#icon-lock" style="color:#4a82bc"/></svg>
+          <text x="582" y="123" class="mono bold" fill="#1a3a5e">entry #847 (live)</text>
+          <text x="582" y="138" class="mono">writer_iter_id=42 · hash=a3f7c2... · sealed</text>
+
+          <rect x="554" y="152" width="352" height="38" rx="6" fill="#ffffff" stroke="#4a82bc" stroke-width="1.2"/>
+          <svg x="560" y="163" width="14" height="14"><use href="#icon-lock" style="color:#4a82bc"/></svg>
+          <text x="582" y="167" class="mono bold" fill="#1a3a5e">entry #848 (live)</text>
+          <text x="582" y="182" class="mono">writer_iter_id=42 · hash=b9d1e4... · sealed</text>
+        </g>
+
+        <!-- Rejected direct write attempt -->
+        <g>
+          <rect x="554" y="208" width="352" height="56" rx="6" fill="#f3dbd0" stroke="#c4543b" stroke-width="1.5" stroke-dasharray="4 3"/>
+          <circle cx="572" cy="236" r="11" fill="#c4543b" stroke="#fff" stroke-width="2"/>
+          <text x="572" y="240" font-size="13" class="bold" text-anchor="middle" fill="#fff">✕</text>
+          <text x="592" y="228" font-size="10.5" class="mono bold" fill="#c4543b">direct write to live</text>
+          <text x="592" y="244" font-size="10" class="mono" fill="#c4543b">no API path exists · refused at the type level</text>
+          <text x="592" y="258" font-size="10" class="mono" fill="#c4543b">also refused: promote() with stale hash_precondition</text>
+        </g>
+      </g>
+
+      <!-- Bottom annotation -->
+      <text x="470" y="324" font-size="11" class="mono" text-anchor="middle" fill="#7a6c4a">two structural commitments: (1) writes never see live until promote() · (2) writer_iteration_id makes cleanup race-free across all five tiers</text>
+    </svg>
+
+    <div class="figure-caption">Figure 3 · The 5-tier memory hierarchy. Every tier is structurally identical: orange candidate side (writes free; stamped with the iteration that wrote them), blue live side (read-only; only mutation path is <code>promote()</code>). The H4 cycle-9 <code>writer_iteration_id</code> stamp lives on the candidate side — every entry carries the iteration_id of whoever wrote it, so cleanup is race-free under any concurrency model. <b>The zoom-in shows what's actually inside one of those orange/blue boxes</b> — the candidate side carries unsealed entries the next iteration can't see; the live side is sealed; the only legal arrow between them is <code>promote()</code>.</div>
     <div class="failure-mode"><span class="fm-label">what fails without this:</span> An unverified write becomes truth on the next read. Once a bad entry lands in memory, future iterations cite it, build on it, and consolidate it into deeper tiers. Poisoning <strong>compounds</strong>. The candidate/live split means nothing the agent writes is visible to its next thought until a verifier on a different checkpoint signs off — so a bad write can't bootstrap itself into belief.</div>
   </div>
 
@@ -1513,6 +1622,7 @@
         <th>Signal</th>
         <th>What it tells you</th>
         <th>How to read it</th>
+        <th>Catches threat (§0)</th>
       </tr>
     </thead>
     <tbody>
@@ -1520,36 +1630,43 @@
         <td class="adv">Cross-checkpoint refusal count</td>
         <td class="invariant">Number of times the Auditor refused to sign because <code>cert.builder_checkpoint == cert.verifier_checkpoint</code>. Should normally be zero in production; non-zero means an operator misconfiguration was caught at the gate.</td>
         <td class="layer">live dashboard · event log query · <code>csis/ui/</code></td>
+        <td class="observed">Builder self-verify · same-model collusion · dream auto-promote</td>
       </tr>
       <tr>
         <td class="adv">Hash-CAS failure rate</td>
         <td class="invariant">Percent of promotion attempts rejected because the live store hash changed between cert sign and promote. Non-zero is healthy under concurrency; a sudden spike means contention.</td>
         <td class="layer">dashboard panel · <code>store.promote()</code> return values</td>
+        <td class="observed">Race on store between sign and promote</td>
       </tr>
       <tr>
         <td class="adv">Distributional cert per-slice CI bounds</td>
         <td class="invariant">For every signed cert, the worst-performing slice's CI lower bound. Reveals tail failures (rare organs, hard landmarks) the point estimate would hide.</td>
         <td class="layer">cert payload <code>.distributional_results[].slices</code> · dashboard</td>
+        <td class="observed">Bad write becomes truth · dream auto-promote (tail failures)</td>
       </tr>
       <tr>
         <td class="adv">Event log integrity</td>
         <td class="invariant">Hash chain verifies end-to-end. Any reorder, insertion, or tampering breaks the chain at the point of corruption.</td>
         <td class="layer"><code>EventLog.verify_chain()</code> · cron-able</td>
+        <td class="observed">Forensic replay tampering · trust-level claim audit</td>
       </tr>
       <tr>
         <td class="adv">Regression test count + pass rate</td>
         <td class="invariant">244 tests gate every commit. A regression means a critique-cycle finding got re-broken; the test that originally caught it now fails.</td>
         <td class="layer"><code>python -m pytest tests/ -q</code> · CI</td>
+        <td class="observed">Subclass attack · grader drift · cycle-9 H1+H4 fixes</td>
       </tr>
       <tr>
         <td class="adv">Cycle audit trail</td>
         <td class="invariant">Every finding (99 across 10 cycles), every fix, every regression test. New findings get filed under <code>brain/critiques/</code>; closed ones get a row in <code>CYCLES.md</code>.</td>
         <td class="layer"><a class="inline" href="https://github.com/jim4226/CSIS/blob/main/CYCLES.md">CYCLES.md</a> · <code>brain/critiques/</code></td>
+        <td class="observed">New attack classes not yet in §0</td>
       </tr>
       <tr>
         <td class="adv">Tripwire fires</td>
         <td class="invariant">Substrate-level tripwires (file I/O outside allowlist, network call from a sandboxed role, etc.) write to the event log <em>and</em> halt the iteration. Zero false-negatives is the target; every false-positive becomes a regression test.</td>
         <td class="layer"><a class="inline" href="playground.html">tripwire playground</a> · event log</td>
+        <td class="observed">Prompt-injection attempts to bypass safety</td>
       </tr>
     </tbody>
   </table>
