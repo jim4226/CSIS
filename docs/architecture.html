@@ -942,7 +942,7 @@
   </details>
 
   <div class="figure-wrap">
-    <svg class="csis-svg" viewBox="0 0 920 580" xmlns="http://www.w3.org/2000/svg" aria-label="The 8-layer CSIS stack, clickable">
+    <svg class="csis-svg" viewBox="0 0 920 580" xmlns="http://www.w3.org/2000/svg" aria-label="The 8-layer CSIS stack rendered as 8 stacked rounded rectangles, top to bottom: L7 Safety envelope (green) — Constitution, TierGuard, Tripwires, ShutdownToken, WrappedBackend invariant; enforced at the substrate, not as agent-prompt instructions. L6 Meta-improvement (dashed gold) — deferred to Phase 1. L5 Improvement (orange) — Dreams pipeline. L4 Verification (blue, different LLM checkpoint) — V1 pinned graders + V2 Critic on Sonnet-class verifying Opus-class builder. L3 Promotion (orange) — hash-preconditioned CAS atomic flip. L2 Memory hierarchy (orange) — 5 tiers, candidate/live per tier. L1 Agent runtime (orange) — Coordinator runs the 8-step loop, delegates to 6 specialised roles (Researcher, Builder, Verifier, Critic, Librarian, Auditor), delegation depth = 1. L0 Substrate (gold) — hash-chained event log, capability tags, canonical JSON hashing; the only layer everyone trusts unconditionally. A dashed bracket on the right side spans the full height labeled 'safety wraps the whole stack'. Every layer rectangle is keyboard-focusable and click-expandable.">
       <!-- L7 safety envelope (top) -->
       <g class="stack-clickable" data-layer="L7" tabindex="0" role="button" aria-label="L7 Safety envelope">
         <rect x="40" y="20" width="840" height="56" rx="8" fill="#dde6cd" stroke="#5a6c46" stroke-width="2"/>
@@ -1139,7 +1139,7 @@
   </div>
 
   <div class="figure-wrap">
-    <svg class="csis-svg" viewBox="0 0 940 340" xmlns="http://www.w3.org/2000/svg" aria-label="Trust lattice state machine">
+    <svg class="csis-svg" viewBox="0 0 940 340" xmlns="http://www.w3.org/2000/svg" aria-label="The 6-level trust lattice as a directed state machine. Six nodes left-to-right: RAW (level 0, gray) — provenance unknown. UNTRUSTED (level 1, ink-dim) — quarantined, not deletable. CANDIDATE (level 2, orange) — written but not verified. VERIFIED (level 3, blue) — V1+V2 cert signed by Critic + Auditor. PROMOTED (level 4, green) — atomic CAS to live; the only readable state by next iteration. DEPRECATED (level 5, deep red, terminal) — replaced by a newer promoted entry, retained for audit. Solid green arrows connect levels left-to-right showing legal upgrades, each labeled with the gate that authorizes it (e.g. 'write_candidate', 'V1+V2 cert signed', 'hash-CAS promote'). Dashed red arrows from CANDIDATE, VERIFIED, and PROMOTED all point down to DEPRECATED — deprecation is always allowed from any non-raw level. The IntEnum encoding (level 0..5) means trust comparisons are a single integer compare in the hot path.">
       <!-- 6 nodes laid out horizontally -->
       <g>
         <rect x="20" y="130" width="124" height="84" rx="10" fill="#f6ecd6" stroke="#b8a880" stroke-width="2"/>
@@ -1238,7 +1238,7 @@
   </div>
 
   <div class="figure-wrap">
-    <svg class="csis-svg" viewBox="0 0 940 470" xmlns="http://www.w3.org/2000/svg" aria-label="5-tier memory hierarchy">
+    <svg class="csis-svg" viewBox="0 0 940 470" xmlns="http://www.w3.org/2000/svg" aria-label="The 5-tier memory hierarchy as a 5-row 2-column grid. Header row labels the two columns: 'candidate side · writes free · stamped with writer_iteration_id' on the left (orange) and 'live side · only mutation is promote()' on the right (blue). The 5 tier rows from top to bottom: WORKING (scratch space, in-flight iteration) · EPISODIC (per-iteration narrative + outcomes) · SEMANTIC (durable facts extracted from episodes) · PROCEDURAL (reusable skills — the actual self-improving surface, marked with a star) · CAUSAL (why-this-fixed-that hypotheses). Each row has an orange candidate-side rectangle on the left and a blue live-side rectangle on the right, connected by a single green arrow representing promote(ids, precondition_hash=...). Bottom annotation: 'each green arrow is MemoryStore.promote(...) · atomic candidate→live flip'.">
       <!-- header strip -->
       <rect x="40" y="30" width="860" height="48" rx="8" fill="#f6ecd6" stroke="#b8a880" stroke-width="1.5"/>
       <text x="220" y="59" font-size="13" class="bold" text-anchor="middle">candidate side · writes free · stamped with writer_iteration_id</text>
@@ -1306,7 +1306,7 @@
     </svg>
 
     <!-- Companion: one tier, zoomed in -->
-    <svg class="csis-svg" viewBox="0 0 940 340" xmlns="http://www.w3.org/2000/svg" aria-label="One tier zoomed in: candidate-live split internals" style="margin-top:22px">
+    <svg class="csis-svg" viewBox="0 0 940 340" xmlns="http://www.w3.org/2000/svg" aria-label="Zoom-in companion showing one tier's internals. Three panels left-to-right. LEFT (orange CANDIDATE panel): three sample entry rows labeled entry #847 (writer_iter_id=42, hash=a3f7c2..., payload), entry #848 (writer_iter_id=42, hash=b9d1e4...), entry #849 (writer_iter_id=43, hash=c2e8f1...). Bottom caption: 'cleanup_candidates(iter_id=42) removes rows 847+848 without touching 849 — ownership lives on the row, not in timing.' CENTER (green promote() box): labeled 'promote()' with sub-text 'checks hash_precondition → atomic flip'; arrows enter from left panel and exit to right panel. RIGHT (blue LIVE panel): two sealed entries with lock icons — entry #847 (live, sealed) and entry #848 (live, sealed); below them a red dashed box with ✕ marker labeled 'direct write to live · no API path exists · refused at the type level · also refused: promote() with stale hash_precondition'. Bottom annotation: 'two structural commitments: (1) writes never see live until promote() · (2) writer_iteration_id makes cleanup race-free across all five tiers.'" style="margin-top:22px">
       <defs>
         <marker id="m-arrow-promote" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
           <path d="M 0 0 L 10 5 L 0 10 z" fill="#5a6c46"/>
@@ -1421,7 +1421,7 @@
   </div>
 
   <div class="figure-wrap">
-    <svg class="csis-svg" viewBox="0 0 940 390" xmlns="http://www.w3.org/2000/svg" aria-label="V1+V2 cross-checkpoint verification">
+    <svg class="csis-svg" viewBox="0 0 940 390" xmlns="http://www.w3.org/2000/svg" aria-label="V1+V2 cross-checkpoint verification flow. Two large rounded rectangles side-by-side representing the two checkpoint identities. LEFT (orange BUILDER CHECKPOINT, model_id=claude-opus-4-7): contains three role boxes — Researcher (proposes plan), Builder (produces artifact) with arrow from Researcher to Builder, and Librarian (writes candidates) below. RIGHT (blue VERIFIER CHECKPOINT, model_id=claude-sonnet-4-6): contains three role boxes — Verifier (V1 graders, pinned, plus distributional cert), Critic (V2 falsifies on worst slices), and Auditor (signs why-doc with hash_precondition equal to store.live_hash(); refuses to sign if cert.verifier_checkpoint equals cert.builder_checkpoint) shown as a green box at the bottom of the verifier side. A dashed orange arrow labeled 'artifact crosses checkpoint boundary' goes from the Builder box on the left to the Verifier box on the right. A dashed green return arrow labeled 'signed cert + why-doc · hash CAS' curves from the Auditor back to the Librarian on the builder side. Bottom italic note: 'F1 cycle-1 fix · assert_cross_checkpoint() requires ≥2 distinct identity components (model_id, backend, tool_set).'">
       <!-- Builder checkpoint -->
       <g>
         <rect x="40" y="36" width="384" height="320" rx="14" fill="#fbf4e7" stroke="#d97757" stroke-width="2" filter="drop-shadow(0 2px 6px rgba(217,119,87,0.12))"/>
@@ -1517,7 +1517,7 @@
   </div>
 
   <div class="figure-wrap">
-    <svg class="csis-svg" viewBox="0 0 940 380" xmlns="http://www.w3.org/2000/svg" aria-label="Hash-CAS promotion timeline">
+    <svg class="csis-svg" viewBox="0 0 940 380" xmlns="http://www.w3.org/2000/svg" aria-label="Hash-preconditioned CAS promotion as a side-by-side success/failure timeline. TOP TRACK (green, SUCCESS path): time flows left to right. T0 — Auditor reads store.live_hash() = HASH_A and signs the why-doc with hash_precondition=HASH_A. T1 — no sibling writer mutates the store. T2 — store.promote(ids, hash_precondition=HASH_A) is called; precondition matches current live hash; atomic flip executes; candidate becomes live; iteration succeeds. BOTTOM TRACK (red, FAILURE path): same timeline. T0 — Auditor signs why-doc with hash_precondition=HASH_A. T1 — a sibling iteration's promote() lands and mutates the store to HASH_B. T2 — this iteration's store.promote(ids, hash_precondition=HASH_A) is called; precondition no longer matches current live hash; PromotionPreconditionFailure is raised atomically; nothing reaches live; this iteration rolls back cleanly using writer_iteration_id to identify its own candidate writes for cleanup (race-free).">
       <!-- Timeline axis -->
       <text x="470" y="26" font-size="13" class="mono dim" text-anchor="middle">time →</text>
       <line x1="60" y1="44" x2="880" y2="44" stroke="#b8a880" stroke-width="2"/>
@@ -1617,7 +1617,7 @@
   </div>
 
   <div class="figure-wrap">
-    <svg class="csis-svg" viewBox="0 0 940 460" xmlns="http://www.w3.org/2000/svg" aria-label="Sleep / Dreams consolidation flow">
+    <svg class="csis-svg" viewBox="0 0 940 460" xmlns="http://www.w3.org/2000/svg" aria-label="Sleep / Dreams consolidation pipeline as a left-to-right flow with a sleep boundary in the middle. LEFT (DAY phase): two stacked boxes — 'working memory (live)' and 'episodic memory (live)' — representing what the agent accumulated during the day's iterations. MIDDLE: a vertical sleep boundary line with a moon icon labeled 'sleep transition · agent halts'. RIGHT (NIGHT phase): the Dreams pipeline shown as three sequential stages — REPLAY (reads working+episodic live; no tool access, no agent prompts) → CONSOLIDATE (produces draft semantic/procedural/causal candidate entries) → SCORE (rank candidates by replay-coverage and consistency). After SCORE, an arrow exits to the right pointing at a final output box labeled 'candidate entries (semantic/procedural/causal)'. Below that output, another arrow points down to a final box labeled 'same V1+V2 verification stack · same cross-checkpoint cert · same hash-CAS promote' — emphasizing that nothing Dreams produces auto-promotes; everything goes through the same gates as any other candidate.">
       <!-- Day phase -->
       <g>
         <rect x="40" y="30" width="380" height="180" rx="14" fill="#fbf4e7" stroke="#d97757" stroke-width="2" filter="drop-shadow(0 2px 6px rgba(217,119,87,0.10))"/>
