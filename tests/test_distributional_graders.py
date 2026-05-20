@@ -27,11 +27,18 @@ from csis.config import CSISConfig
 from csis.contracts import Artifact
 from csis.substrate.hashing import hash_artifact
 from csis.verification.distributional import (
+    DistributionalGraderSpec,
     DistributionalSample,
     DistributionalThreshold,
     RollingBaseline,
     distributional_grader,
+    make_classification_registry,
     make_clinical_imaging_registry,
+    make_distributional_registry,
+    make_forecasting_registry,
+    make_llm_eval_registry,
+    make_recommendation_registry,
+    make_search_ranking_registry,
     update_baselines_after_promotion,
 )
 from csis.verification.graders import GraderRegistry
@@ -289,6 +296,169 @@ def test_clinical_registry_baseline_persists_across_promotions(tmp_path: Path) -
     fresh_reg, fresh_baselines = make_clinical_imaging_registry(baseline_root=tmp_path)
     assert len(fresh_baselines["dice_score"].history) == 3
     assert fresh_baselines["dice_score"].baseline_stats("p10") is not None
+
+
+# ---- Cross-domain registries ------------------------------------------
+
+
+def test_generic_builder_accepts_any_spec_list(tmp_path: Path) -> None:
+    """The generic builder is the load-bearing API; the per-domain
+    factories are thin wrappers. Verify a hand-rolled spec list works
+    end-to-end."""
+    specs = [
+        DistributionalGraderSpec(
+            name="custom_metric",
+            threshold=DistributionalThreshold(
+                floor=0.50, op=">=", summary_stat="mean", min_samples=5,
+                max_regression=0.05, regression_stat="p10",
+            ),
+        ),
+    ]
+    reg, baselines = make_distributional_registry(specs, baseline_root=tmp_path)
+    ok, drifted = reg.verify_pinned_hashes()
+    assert ok and not drifted
+    assert "custom_metric" in baselines
+
+    art = _artifact_with_payload({"custom_metric": {"values": [0.6] * 10}})
+    results = {r.grader: r for r in reg.evaluate(art)}
+    assert results["custom_metric"].passed
+
+
+def test_search_ranking_registry_clean_artifact_passes() -> None:
+    reg, _ = make_search_ranking_registry()
+    art = _artifact_with_payload({
+        "ndcg_at_10": {"values": [0.70] * 100},
+        "mrr": {"values": [0.55] * 100},
+        "recall_at_10": {"values": [0.80] * 100},
+    })
+    failed = [r for r in reg.evaluate(art) if not r.passed]
+    assert not failed, [(r.grader, r.detail) for r in failed]
+
+
+def test_search_ranking_registry_rejects_ndcg_below_floor() -> None:
+    reg, _ = make_search_ranking_registry()
+    art = _artifact_with_payload({
+        "ndcg_at_10": {"values": [0.40] * 100},  # below 0.55 floor
+        "mrr": {"values": [0.55] * 100},
+        "recall_at_10": {"values": [0.80] * 100},
+    })
+    results = {r.grader: r for r in reg.evaluate(art)}
+    assert not results["ndcg_at_10"].passed
+    assert "FAIL" in results["ndcg_at_10"].detail
+
+
+def test_forecasting_registry_clean_artifact_passes() -> None:
+    reg, _ = make_forecasting_registry()
+    art = _artifact_with_payload({
+        "mae": {"values": [3.0] * 30},          # below 5.0 floor
+        "crps": {"values": [1.5] * 30},         # below 2.0
+        "pinball_loss_p90": {"values": [1.2] * 30},  # below 1.5
+    })
+    failed = [r for r in reg.evaluate(art) if not r.passed]
+    assert not failed, [(r.grader, r.detail) for r in failed]
+
+
+def test_forecasting_registry_lower_is_better_op_inverts_correctly() -> None:
+    """Forecasting metrics are all lower-is-better; a MAE that doubles
+    over baseline must trip the regression check even if it still clears
+    the absolute floor."""
+    reg, baselines = make_forecasting_registry()
+    # Seed baseline with strong history: p90 ~ 3.0
+    for _ in range(5):
+        baselines["mae"].append({"p90": 3.0, "mean": 2.5}, artifact_id="prev")
+    # Current artifact: mean 4.5 (below 5.0 floor — passes mean check)
+    # but p90 = 6.0 (regression of 3.0 from baseline p90, way over 0.5 budget)
+    vs = [4.0] * 27 + [6.0] * 3
+    art = _artifact_with_payload({
+        "mae": {"values": vs},
+        "crps": {"values": [1.5] * 30},
+        "pinball_loss_p90": {"values": [1.2] * 30},
+    })
+    results = {r.grader: r for r in reg.evaluate(art)}
+    assert not results["mae"].passed
+    assert "regression=" in results["mae"].detail
+
+
+def test_classification_registry_clean_artifact_passes() -> None:
+    reg, _ = make_classification_registry()
+    art = _artifact_with_payload({
+        "f1_macro": {"values": [0.85] * 10},
+        "roc_auc": {"values": [0.90] * 10},
+        "precision_at_recall_90": {"values": [0.80] * 10},
+    })
+    failed = [r for r in reg.evaluate(art) if not r.passed]
+    assert not failed, [(r.grader, r.detail) for r in failed]
+
+
+def test_llm_eval_registry_passes_on_pass_at_1_above_floor() -> None:
+    reg, _ = make_llm_eval_registry()
+    # 60 of 100 prompts pass = 0.60 pass rate (exactly at the floor with >=).
+    pass_vals = [1.0] * 60 + [0.0] * 40
+    # win rate above baseline
+    win_vals = [1.0] * 55 + [0.0] * 45
+    # judge scores median = 8.0
+    judge_vals = [8.0] * 50
+    art = _artifact_with_payload({
+        "pass_at_1": {"values": pass_vals},
+        "win_rate_vs_baseline": {"values": win_vals},
+        "judge_score": {"values": judge_vals},
+    })
+    results = {r.grader: r for r in reg.evaluate(art)}
+    assert results["pass_at_1"].passed
+    assert results["win_rate_vs_baseline"].passed
+    assert results["judge_score"].passed
+
+
+def test_llm_eval_registry_catches_win_rate_regression_against_baseline() -> None:
+    """LLM eval pass_at_1 / win_rate are 0/1 — regression check fires on
+    mean, not p10 (per-prompt p10 is degenerate on binary data)."""
+    reg, baselines = make_llm_eval_registry()
+    # Established baseline: win rate ~ 0.65
+    for _ in range(5):
+        baselines["win_rate_vs_baseline"].append(
+            {"mean": 0.65, "p10": 0.0}, artifact_id="prev",
+        )
+    # Current artifact: 55 wins (mean 0.55, still at floor) — drop of 0.10
+    # vs baseline mean of 0.65, exceeds the 0.05 regression budget.
+    win_vals = [1.0] * 55 + [0.0] * 45
+    art = _artifact_with_payload({
+        "pass_at_1": {"values": [1.0] * 60 + [0.0] * 40},
+        "win_rate_vs_baseline": {"values": win_vals},
+        "judge_score": {"values": [8.0] * 50},
+    })
+    results = {r.grader: r for r in reg.evaluate(art)}
+    assert not results["win_rate_vs_baseline"].passed
+    assert "regression=" in results["win_rate_vs_baseline"].detail
+
+
+def test_recommendation_registry_clean_artifact_passes() -> None:
+    reg, _ = make_recommendation_registry()
+    art = _artifact_with_payload({
+        "hit_at_10": {"values": [0.35] * 200},
+        "ndcg_at_10": {"values": [0.45] * 200},
+        "catalog_coverage": {"values": [0.30]},  # single number, min_samples=1
+    })
+    failed = [r for r in reg.evaluate(art) if not r.passed]
+    assert not failed, [(r.grader, r.detail) for r in failed]
+
+
+def test_every_preset_registry_pins_cleanly_and_passes_drift_check() -> None:
+    """Cycle-9-style structural check: every preset registry must be
+    pinnable AND every pinned grader's source hash must verify. Catches
+    regressions where a new preset accidentally shadows an existing
+    grader name with a structurally different closure."""
+    for factory in (
+        make_clinical_imaging_registry,
+        make_search_ranking_registry,
+        make_forecasting_registry,
+        make_classification_registry,
+        make_llm_eval_registry,
+        make_recommendation_registry,
+    ):
+        reg, baselines = factory()
+        ok, drifted = reg.verify_pinned_hashes()
+        assert ok and not drifted, f"{factory.__name__}: drift={drifted}"
+        assert len(reg.pinned) == len(baselines), factory.__name__
 
 
 # ---- End-to-end: Coordinator runs the loop with the clinical registry --

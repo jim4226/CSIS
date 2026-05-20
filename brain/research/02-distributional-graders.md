@@ -2,7 +2,7 @@
 
 **Where it lives in the architecture.** `CSIS-architecture.html` §10 (verification stack) splits the Verifier into V1 (programmatic graders) → V5 (calibration). The PR-maintenance grader set in `csis/verification/graders.py` is V1, binary: `tests_pass`, `lint`, `typecheck`, `coverage_delta`, `diff_scope`, `perf_regression`. That covers the "code and math" domains where ground truth is yes/no. It does not cover the "fuzzy domain" §16 explicitly flags as Open Research Question #1.
 
-This doc specifies a second flavor of V1 grader — *distributional* — that handles the case where the "good" criterion is a scalar metric over a held-out sample (Dice score, anatomical landmark RMSE, Hausdorff95, boundary F-score, nDCG@k, CRPS, MRR), and shows how it links back to the loop's continuous-improvement promise.
+This doc specifies a second flavor of V1 grader — *distributional* — that handles the case where the "good" criterion is a scalar metric over a held-out sample. The same primitive applies across at least six domains we've sketched configs for: clinical imaging, search ranking, forecasting, classification, LLM eval, and recommendation. Clinical is one example of the shape, not the special case.
 
 ---
 
@@ -10,11 +10,19 @@ This doc specifies a second flavor of V1 grader — *distributional* — that ha
 
 A binary grader collapses an artifact to a single bit. That is the right abstraction when the underlying check is mechanical: pytest exit code is 0 or it isn't; mypy errors or it doesn't.
 
-Many real eval problems are not mechanical:
+Many real eval problems are not mechanical. They all share the same shape — central tendency + tail watermark + held-out sample — but the units, direction, and tail-relevant statistic differ:
 
-- **Clinical imaging** — a 2D-X-ray-to-3D-bone-reconstruction model has a Dice score per held-out scan. The model is "good" when the *distribution* of Dice scores across the held-out cohort clears a threshold AND the *tail* (the worst cases) doesn't regress vs the model already in production. Median-of-50 Dice = 0.93 with a p10 = 0.55 is a different model than median 0.92 / p10 = 0.88, even if the means are identical.
-- **Search ranking** — nDCG@10 on a held-out query log, with the same tail-watermark requirement.
-- **Forecasting** — CRPS over a backtest window.
+| Domain | Metric (one of many) | Direction | Tail statistic | Why the tail matters |
+|---|---|---|---|---|
+| Clinical imaging | Dice score | higher | p10 | The worst-segmented cases are the ones that hurt patients |
+| Clinical imaging | Landmark RMSE (mm) | lower | p90 | Sub-mm precision must hold on the hardest scans |
+| Search ranking | nDCG@10 | higher | p10 | The lowest-served queries drive user churn |
+| Forecasting | MAE | lower | p90 | The worst-forecast windows blow up inventory |
+| Classification | F1-macro | higher | p10 | The worst-served class is a fairness failure |
+| LLM eval | win-rate vs baseline | higher | mean | Per-prompt 0/1 — mean *is* the tail signal |
+| Recommendation | Hit@10 | higher | p10 | The lowest-served user segments are the churn cohort |
+
+Median-of-50 Dice = 0.93 with a p10 = 0.55 is a different model than median 0.92 / p10 = 0.88, even if the means are identical. Same logic for every row above.
 
 The binary V1 graders cannot express "the metric's distribution clears a threshold AND does not regress vs the rolling baseline of recent promoted artifacts." V5 calibration (Phase 2 — Brier / log-loss against held-out outcomes) is the right home for long-horizon confidence calibration, not for the per-iteration gate.
 
@@ -71,18 +79,40 @@ class DistributionalThreshold:
 
 Crucially: the closure does NOT mutate the baseline at evaluate time. Promoting the baseline pre-decision would let a failing artifact contaminate the very watermark its successor will be measured against.
 
-### 2.3 The clinical-imaging example registry
+### 2.3 The generic registry builder + preset spec packs
 
-`make_clinical_imaging_registry(baseline_root=...)` ships a four-metric V1 set tuned for the orthopedic-imaging case:
+```python
+@dataclass
+class DistributionalGraderSpec:
+    name: str
+    threshold: DistributionalThreshold
 
-| Metric | Direction | Floor | Summary stat | Regression rule (tail watermark) |
-|---|---|---|---|---|
-| `dice_score` | higher-is-better | ≥ 0.85 | mean | p10 must not drop > 0.02 below baseline p10 |
-| `boundary_f1` | higher-is-better | ≥ 0.70 | median | p10 must not drop > 0.03 below baseline p10 |
-| `landmark_rmse` | lower-is-better | ≤ 1.0 mm | p90 | p90 must not exceed baseline p90 by > 0.10 mm |
-| `hausdorff_95` | lower-is-better | ≤ 2.5 mm | p90 | p90 must not exceed baseline p90 by > 0.20 mm |
+def make_distributional_registry(
+    specs: list[DistributionalGraderSpec],
+    *,
+    baseline_root: Path | None = None,
+    window: int = 50,
+) -> tuple[GraderRegistry, dict[str, RollingBaseline]]: ...
+```
 
-All four pin into the same `GraderRegistry` the existing Verifier uses — so F6 (pinned-grader source-hash drift), cross-checkpoint signing, the V2 critic, the cert build, and the auditor's why-doc all keep working unchanged.
+A "spec pack" is a list of `(name, threshold)` pairs. The builder pairs each spec with a `RollingBaseline` (in-memory or persisted under `baseline_root/<name>.baseline.json`) and pins the resulting grader into a fresh `GraderRegistry`. Adding a new domain = adding a new spec pack.
+
+Six preset packs ship in this module, with thin convenience factories around the generic builder:
+
+| Factory | Spec pack | Metrics |
+|---|---|---|
+| `make_clinical_imaging_registry` | `CLINICAL_IMAGING_SPECS` | `dice_score`, `boundary_f1`, `landmark_rmse`, `hausdorff_95` |
+| `make_search_ranking_registry` | `SEARCH_RANKING_SPECS` | `ndcg_at_10`, `mrr`, `recall_at_10` |
+| `make_forecasting_registry` | `FORECASTING_SPECS` | `mae`, `crps`, `pinball_loss_p90` |
+| `make_classification_registry` | `CLASSIFICATION_SPECS` | `f1_macro`, `roc_auc`, `precision_at_recall_90` |
+| `make_llm_eval_registry` | `LLM_EVAL_SPECS` | `pass_at_1`, `win_rate_vs_baseline`, `judge_score` |
+| `make_recommendation_registry` | `RECOMMENDATION_SPECS` | `hit_at_10`, `ndcg_at_10`, `catalog_coverage` |
+
+Floors and regression budgets in the presets are conservative-typical, not authoritative — adopters copy the closest pack and tune to their problem.
+
+Note on **binary-valued metrics** (LLM `pass_at_1`, `win_rate_vs_baseline`): per-prompt outcomes are 0/1, so per-iteration p10 is degenerate. For these the regression watermark is `mean` (= pass rate / win rate), and the spec pack reflects that. The same `DistributionalThreshold` primitive handles continuous Dice scores and binary win-rates without branching.
+
+All pinned graders compose with the existing Verifier — F6 (pinned-grader source-hash drift), cross-checkpoint signing, V2 critic, cert build, and auditor why-doc all keep working unchanged. The `test_every_preset_registry_pins_cleanly_and_passes_drift_check` test enforces this structurally.
 
 ---
 
@@ -130,8 +160,9 @@ Composition with V5 (Phase 2): the same persisted baselines feed calibration sco
 
 ## 5. Tests
 
-[`tests/test_distributional_graders.py`](../../tests/test_distributional_graders.py) — 20 tests, covering:
+[`tests/test_distributional_graders.py`](../../tests/test_distributional_graders.py) — 30 tests, covering:
 
+**Primitives**
 - Summary statistics correctness (mean, median, p10, p90, single-value edge case)
 - Rolling-baseline window enforcement and JSON persistence (write → fresh process → load → baseline survives)
 - Median-of-p10s robust to a single outlier promoted iteration
@@ -139,8 +170,19 @@ Composition with V5 (Phase 2): the same persisted baselines feed calibration sco
 - The silent-regression case (mean still clears floor, p10 collapsed → regression check fails)
 - "No baseline yet" first-iteration case
 - F6 pinning + drift detection holds with distributional graders in the registry
-- Clinical-imaging registry happy path + sub-mm-precision-broken failure case
-- Baseline persists across promotions; fresh-process registry reads the watermark cold
-- **End-to-end:** Coordinator runs the full 8-step loop with the clinical registry, the cert carries every distributional grader's full metrics dict, the artifact promotes, the baseline updates, the next iteration's grader sees the tighter watermark.
 
-Full suite: 237 passing (217 → 237).
+**Cross-domain registries**
+- Generic builder accepts any spec list, pins cleanly, evaluates end-to-end
+- Search-ranking happy path + nDCG-below-floor failure
+- Forecasting happy path + lower-is-better p90 regression check fires correctly
+- Classification happy path
+- LLM eval happy path on `pass_at_1` + win-rate regression-against-baseline failure (binary-valued metric path)
+- Recommendation happy path
+- Clinical imaging happy path + sub-mm-precision-broken failure case
+- **Structural invariant:** every preset registry pins cleanly AND every pinned grader's source hash verifies — catches regressions where a new preset shadows an existing grader name with a structurally different closure
+
+**Loop integration**
+- Baseline persists across promotions; fresh-process registry reads the watermark cold
+- Coordinator runs the full 8-step loop with the clinical registry, the cert carries every distributional grader's full metrics dict, the artifact promotes, the baseline updates, the next iteration's grader sees the tighter watermark
+
+Full suite: 247 passing (217 → 247).

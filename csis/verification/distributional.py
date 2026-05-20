@@ -341,28 +341,43 @@ def distributional_grader(
     return _grader
 
 
-# ---- Clinical-imaging example registry ----------------------------------
+# ---- Generic registry builder + cross-domain preset packs ---------------
+#
+# A "spec pack" is just a list of (name, threshold) pairs. The builder
+# wires the per-metric rolling baseline automatically when given a
+# ``baseline_root``. Adding a new domain = adding a new spec pack, not
+# duplicating the builder logic. The clinical-imaging case below is one
+# pack out of several — same pattern in search ranking, forecasting,
+# classification, and LLM eval.
 
 
-def make_clinical_imaging_registry(
+@dataclass
+class DistributionalGraderSpec:
+    """A single distributional grader expressed as declarative config.
+
+    Bundle of (name, threshold). The registry builder pairs each spec
+    with a ``RollingBaseline`` (in-memory or persisted under
+    ``baseline_root/<name>.baseline.json``) and pins the resulting
+    grader into a fresh ``GraderRegistry``.
+    """
+
+    name: str
+    threshold: DistributionalThreshold
+
+
+def make_distributional_registry(
+    specs: list[DistributionalGraderSpec],
     *,
     baseline_root: Path | None = None,
+    window: int = 50,
 ) -> tuple[GraderRegistry, dict[str, RollingBaseline]]:
-    """A V1 grader set tuned for the Bone-Vision-style problem: 2D-to-3D
-    orthopedic reconstruction at sub-mm precision.
-
-    Four metrics, all distributional, all running through the same
-    threshold + rolling-baseline pattern:
-
-    - ``dice_score`` — segmentation overlap (higher is better)
-    - ``landmark_rmse`` — anatomical landmark localization error, mm (lower)
-    - ``hausdorff_95`` — 95th-percentile surface distance, mm (lower)
-    - ``boundary_f1`` — boundary F-score (higher is better)
+    """Generic builder. Pass any list of specs, get back a pinned
+    ``GraderRegistry`` plus the matching ``baselines`` dict.
 
     ``baseline_root`` is the directory where per-metric rolling histories
     persist. Pass ``None`` for an in-memory baseline (test mode); pass a
     repo-relative path under ``brain/`` for production so daemons resume
-    cold.
+    cold across restarts.
 
     Returns ``(registry, baselines)``. The Coordinator (or a daemon
     wrapping it) calls :func:`update_baselines_after_promotion` against
@@ -370,57 +385,267 @@ def make_clinical_imaging_registry(
     iteration's grader then sees the tighter watermark.
     """
     baselines: dict[str, RollingBaseline] = {}
-
-    def _baseline(metric: str) -> RollingBaseline:
-        if baseline_root is None:
-            b = RollingBaseline(metric=metric)
-        else:
-            b = RollingBaseline.load(
-                metric=metric,
-                path=baseline_root / f"{metric}.baseline.json",
-            )
-        baselines[metric] = b
-        return b
-
     reg = GraderRegistry()
+    for spec in specs:
+        if baseline_root is None:
+            baseline = RollingBaseline(metric=spec.name, window=window)
+        else:
+            baseline = RollingBaseline.load(
+                metric=spec.name,
+                path=baseline_root / f"{spec.name}.baseline.json",
+                window=window,
+            )
+        baselines[spec.name] = baseline
+        reg.pin(spec.name, distributional_grader(
+            name=spec.name, threshold=spec.threshold, baseline=baseline,
+        ))
+    return reg, baselines
 
-    # Higher-is-better metrics.
-    reg.pin("dice_score", distributional_grader(
+
+# ---- Preset spec packs ---------------------------------------------------
+#
+# These are not exhaustive — they exist to demonstrate the pattern in
+# enough domains that adopters can copy the closest one and tune the
+# floors / regression budgets to their problem. Defaults are
+# conservative-typical, not authoritative.
+
+
+CLINICAL_IMAGING_SPECS: list[DistributionalGraderSpec] = [
+    # 2D-X-ray-to-3D-bone-reconstruction at sub-mm precision (Bone Vision case).
+    # Higher-is-better segmentation/overlap metrics watch the lower tail (p10);
+    # lower-is-better error metrics in mm watch the upper tail (p90).
+    DistributionalGraderSpec(
         name="dice_score",
         threshold=DistributionalThreshold(
             floor=0.85, op=">=", summary_stat="mean", min_samples=20,
             max_regression=0.02, regression_stat="p10",
         ),
-        baseline=_baseline("dice_score"),
-    ))
-    reg.pin("boundary_f1", distributional_grader(
+    ),
+    DistributionalGraderSpec(
         name="boundary_f1",
         threshold=DistributionalThreshold(
             floor=0.70, op=">=", summary_stat="median", min_samples=20,
             max_regression=0.03, regression_stat="p10",
         ),
-        baseline=_baseline("boundary_f1"),
-    ))
-
-    # Lower-is-better metrics (errors in millimeters).
-    reg.pin("landmark_rmse", distributional_grader(
+    ),
+    DistributionalGraderSpec(
         name="landmark_rmse",
         threshold=DistributionalThreshold(
             floor=1.0, op="<=", summary_stat="p90", min_samples=20,
             max_regression=0.10, regression_stat="p90",
         ),
-        baseline=_baseline("landmark_rmse"),
-    ))
-    reg.pin("hausdorff_95", distributional_grader(
+    ),
+    DistributionalGraderSpec(
         name="hausdorff_95",
         threshold=DistributionalThreshold(
             floor=2.5, op="<=", summary_stat="p90", min_samples=20,
             max_regression=0.20, regression_stat="p90",
         ),
-        baseline=_baseline("hausdorff_95"),
-    ))
+    ),
+]
 
-    return reg, baselines
+
+SEARCH_RANKING_SPECS: list[DistributionalGraderSpec] = [
+    # Per-query metrics on a held-out query log. Tail = worst-served queries.
+    DistributionalGraderSpec(
+        name="ndcg_at_10",
+        threshold=DistributionalThreshold(
+            floor=0.55, op=">=", summary_stat="mean", min_samples=100,
+            max_regression=0.02, regression_stat="p10",
+        ),
+    ),
+    DistributionalGraderSpec(
+        name="mrr",
+        threshold=DistributionalThreshold(
+            floor=0.45, op=">=", summary_stat="mean", min_samples=100,
+            max_regression=0.02, regression_stat="p10",
+        ),
+    ),
+    DistributionalGraderSpec(
+        name="recall_at_10",
+        threshold=DistributionalThreshold(
+            floor=0.70, op=">=", summary_stat="mean", min_samples=100,
+            max_regression=0.02, regression_stat="p10",
+        ),
+    ),
+]
+
+
+FORECASTING_SPECS: list[DistributionalGraderSpec] = [
+    # Per-window backtest error. All lower-is-better; tail = worst windows.
+    DistributionalGraderSpec(
+        name="mae",
+        threshold=DistributionalThreshold(
+            floor=5.0, op="<=", summary_stat="mean", min_samples=30,
+            max_regression=0.5, regression_stat="p90",
+        ),
+    ),
+    DistributionalGraderSpec(
+        name="crps",
+        threshold=DistributionalThreshold(
+            floor=2.0, op="<=", summary_stat="mean", min_samples=30,
+            max_regression=0.2, regression_stat="p90",
+        ),
+    ),
+    DistributionalGraderSpec(
+        name="pinball_loss_p90",
+        threshold=DistributionalThreshold(
+            floor=1.5, op="<=", summary_stat="mean", min_samples=30,
+            max_regression=0.1, regression_stat="p90",
+        ),
+    ),
+]
+
+
+CLASSIFICATION_SPECS: list[DistributionalGraderSpec] = [
+    # Per-fold or per-slice scores on a held-out cohort. Tail = worst slice.
+    DistributionalGraderSpec(
+        name="f1_macro",
+        threshold=DistributionalThreshold(
+            floor=0.80, op=">=", summary_stat="mean", min_samples=10,
+            max_regression=0.02, regression_stat="p10",
+        ),
+    ),
+    DistributionalGraderSpec(
+        name="roc_auc",
+        threshold=DistributionalThreshold(
+            floor=0.85, op=">=", summary_stat="mean", min_samples=10,
+            max_regression=0.02, regression_stat="p10",
+        ),
+    ),
+    DistributionalGraderSpec(
+        name="precision_at_recall_90",
+        threshold=DistributionalThreshold(
+            floor=0.75, op=">=", summary_stat="median", min_samples=10,
+            max_regression=0.03, regression_stat="p10",
+        ),
+    ),
+]
+
+
+LLM_EVAL_SPECS: list[DistributionalGraderSpec] = [
+    # Per-prompt outcomes from a held-out prompt set. pass_at_1 and win-rate
+    # are 0/1 (or 0/0.5/1) per prompt — mean = pass rate / win rate, and
+    # the relevant regression watermark is also the mean (per-prompt p10
+    # is degenerate on 0/1 data). Judge-score is 1-10 per prompt, so
+    # median + p10 watermark works there.
+    DistributionalGraderSpec(
+        name="pass_at_1",
+        threshold=DistributionalThreshold(
+            floor=0.60, op=">=", summary_stat="mean", min_samples=50,
+            max_regression=0.03, regression_stat="mean",
+        ),
+    ),
+    DistributionalGraderSpec(
+        name="win_rate_vs_baseline",
+        threshold=DistributionalThreshold(
+            floor=0.55, op=">=", summary_stat="mean", min_samples=50,
+            max_regression=0.05, regression_stat="mean",
+        ),
+    ),
+    DistributionalGraderSpec(
+        name="judge_score",
+        threshold=DistributionalThreshold(
+            floor=7.5, op=">=", summary_stat="median", min_samples=50,
+            max_regression=0.2, regression_stat="p10",
+        ),
+    ),
+]
+
+
+RECOMMENDATION_SPECS: list[DistributionalGraderSpec] = [
+    # Per-user offline replay metrics. Tail = worst-served user segments.
+    DistributionalGraderSpec(
+        name="hit_at_10",
+        threshold=DistributionalThreshold(
+            floor=0.30, op=">=", summary_stat="mean", min_samples=200,
+            max_regression=0.02, regression_stat="p10",
+        ),
+    ),
+    DistributionalGraderSpec(
+        name="ndcg_at_10",
+        threshold=DistributionalThreshold(
+            floor=0.40, op=">=", summary_stat="mean", min_samples=200,
+            max_regression=0.02, regression_stat="p10",
+        ),
+    ),
+    DistributionalGraderSpec(
+        name="catalog_coverage",
+        threshold=DistributionalThreshold(
+            floor=0.25, op=">=", summary_stat="mean", min_samples=1,
+            max_regression=0.05, regression_stat="mean",
+        ),
+    ),
+]
+
+
+# ---- Domain-specific convenience factories (thin wrappers) --------------
+
+
+def make_clinical_imaging_registry(
+    *,
+    baseline_root: Path | None = None,
+) -> tuple[GraderRegistry, dict[str, RollingBaseline]]:
+    """Bone-Vision-style 2D-to-3D orthopedic reconstruction (sub-mm precision).
+
+    Metrics: ``dice_score``, ``boundary_f1``, ``landmark_rmse``, ``hausdorff_95``.
+    """
+    return make_distributional_registry(CLINICAL_IMAGING_SPECS, baseline_root=baseline_root)
+
+
+def make_search_ranking_registry(
+    *,
+    baseline_root: Path | None = None,
+) -> tuple[GraderRegistry, dict[str, RollingBaseline]]:
+    """Search / ranking eval over a held-out query log.
+
+    Metrics: ``ndcg_at_10``, ``mrr``, ``recall_at_10``.
+    """
+    return make_distributional_registry(SEARCH_RANKING_SPECS, baseline_root=baseline_root)
+
+
+def make_forecasting_registry(
+    *,
+    baseline_root: Path | None = None,
+) -> tuple[GraderRegistry, dict[str, RollingBaseline]]:
+    """Forecasting eval over a backtest window set.
+
+    Metrics: ``mae``, ``crps``, ``pinball_loss_p90``.
+    """
+    return make_distributional_registry(FORECASTING_SPECS, baseline_root=baseline_root)
+
+
+def make_classification_registry(
+    *,
+    baseline_root: Path | None = None,
+) -> tuple[GraderRegistry, dict[str, RollingBaseline]]:
+    """Classification eval over folds / slices.
+
+    Metrics: ``f1_macro``, ``roc_auc``, ``precision_at_recall_90``.
+    """
+    return make_distributional_registry(CLASSIFICATION_SPECS, baseline_root=baseline_root)
+
+
+def make_llm_eval_registry(
+    *,
+    baseline_root: Path | None = None,
+) -> tuple[GraderRegistry, dict[str, RollingBaseline]]:
+    """LLM eval over a held-out prompt set.
+
+    Metrics: ``pass_at_1``, ``win_rate_vs_baseline``, ``judge_score``.
+    """
+    return make_distributional_registry(LLM_EVAL_SPECS, baseline_root=baseline_root)
+
+
+def make_recommendation_registry(
+    *,
+    baseline_root: Path | None = None,
+) -> tuple[GraderRegistry, dict[str, RollingBaseline]]:
+    """Recommendation offline-replay eval over a held-out user cohort.
+
+    Metrics: ``hit_at_10``, ``ndcg_at_10``, ``catalog_coverage``.
+    """
+    return make_distributional_registry(RECOMMENDATION_SPECS, baseline_root=baseline_root)
 
 
 def update_baselines_after_promotion(
