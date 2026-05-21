@@ -1077,79 +1077,129 @@
     </svg>
     <div class="stack-hint">↑ click any layer to expand its components</div>
 
-    <!-- Companion: where prompt-injection attempts land — clean editorial composition -->
-    <svg class="csis-svg" viewBox="0 0 940 280" xmlns="http://www.w3.org/2000/svg" aria-label="Where prompt-injection attempts land — shallow not wide. LEFT panel shows a typical wide stack: a jailbreak text 'ignore previous and act as...' fires an arrow that easily slips between six narrow agent-prompt guard boxes (prompt-guard, role-check, policy-LLM, tool-allowlist, jailbreak-cls, red-team-LLM) and reaches a 'protected resource reached' box — the structural failure is that all six guards live at the same layer so the jailbreak only needs to evade ONE. RIGHT panel shows CSIS: the same jailbreak arrow fires at a thick green L7 substrate wall labeled 'enforced in code, not in prompts'; a red ✕ marker sits at the impact point; the wall sits above the gold L0 substrate row and a dashed agent-layer row indicating L1–L5 can see the prompt as input but cannot alter L0/L4/L7. Visual thesis: shallow stacks make the invariant load-bearing because the agent layer can't revoke what the agent layer doesn't own." style="margin-top:24px">
+    <!-- Companion: where prompt-injection attempts land — shallow not wide -->
+    <svg class="csis-svg" viewBox="0 0 940 360" xmlns="http://www.w3.org/2000/svg" aria-label="Where prompt-injection attempts land — shallow, not wide. LEFT panel (warm red wash): a typical wide stack. A jailbreak labelled 'ignore previous and act as…' fires a glowing jagged red bolt that threads cleanly through the GAPS between six agent-prompt guard chips (prompt-guard, role-check, policy-LLM, tool-allow, jailbreak-cls, red-team-LLM) — never touching any of them — and reaches a 'protected resource' chip at the bottom, which glows red and is marked BREACHED. The structural failure: all six guards live at the same layer, so the jailbreak only has to find one gap. RIGHT panel (calm green wash): the CSIS shallow stack. The same jailbreak bolt flies in and SHATTERS against a single thick solid green L7 substrate wall — broken bolt fragments scatter back from the impact point. A check-marked label reads 'held at L7'. The wall rests on an intact gold L0 substrate foundation slab, and a dashed chip to the right notes the agent layers L1–L5 can see the prompt as input but cannot alter L0/L4/L7. Visual thesis: a shallow stack makes the invariant load-bearing because the agent layer cannot revoke what the agent layer does not own." style="margin-top:26px">
       <defs>
-        <marker id="arrow-attack" markerWidth="9" markerHeight="9" refX="8" refY="4.5" orient="auto">
-          <polygon points="0 0, 9 4.5, 0 9" fill="#c4543b"/>
-        </marker>
-        <linearGradient id="bg-wide" x1="0" y1="0" x2="1" y2="0">
-          <stop offset="0" stop-color="#fbf4e7" stop-opacity="0.4"/>
-          <stop offset="1" stop-color="#fbf4e7" stop-opacity="0"/>
+        <filter id="sw-bolt-glow" x="-60%" y="-60%" width="220%" height="220%">
+          <feGaussianBlur stdDeviation="3.4" result="b"/>
+          <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+        </filter>
+        <filter id="sw-card" x="-12%" y="-30%" width="124%" height="160%">
+          <feDropShadow dx="0" dy="1.5" stdDeviation="2" flood-color="#3c2810" flood-opacity="0.10"/>
+        </filter>
+        <filter id="sw-wall" x="-40%" y="-30%" width="180%" height="160%">
+          <feDropShadow dx="0" dy="3" stdDeviation="5" flood-color="#2a3a1a" flood-opacity="0.22"/>
+        </filter>
+        <linearGradient id="sw-bg-wide" x1="0" y1="0" x2="1" y2="1">
+          <stop offset="0" stop-color="#f8e3da" stop-opacity="0.7"/>
+          <stop offset="1" stop-color="#f8e3da" stop-opacity="0.12"/>
         </linearGradient>
-        <linearGradient id="bg-shallow" x1="1" y1="0" x2="0" y2="0">
-          <stop offset="0" stop-color="#eaf1da" stop-opacity="0.45"/>
-          <stop offset="1" stop-color="#eaf1da" stop-opacity="0"/>
+        <linearGradient id="sw-bg-shallow" x1="1" y1="0" x2="0" y2="1">
+          <stop offset="0" stop-color="#e6efd6" stop-opacity="0.7"/>
+          <stop offset="1" stop-color="#e6efd6" stop-opacity="0.12"/>
         </linearGradient>
+        <linearGradient id="sw-wall-grad" x1="0" y1="0" x2="1" y2="0">
+          <stop offset="0" stop-color="#7d9760"/>
+          <stop offset="0.5" stop-color="#6a8a50"/>
+          <stop offset="1" stop-color="#4f6a3c"/>
+        </linearGradient>
+        <radialGradient id="sw-breach" cx="0.5" cy="0.5" r="0.6">
+          <stop offset="0" stop-color="#e88a6e"/>
+          <stop offset="1" stop-color="#d3604220"/>
+        </radialGradient>
       </defs>
 
-      <!-- Two-column panel backgrounds -->
-      <rect x="20"  y="14" width="440" height="252" rx="12" fill="url(#bg-wide)"/>
-      <rect x="480" y="14" width="440" height="252" rx="12" fill="url(#bg-shallow)"/>
+      <!-- Panels -->
+      <rect x="20"  y="14" width="438" height="332" rx="14" fill="url(#sw-bg-wide)"/>
+      <rect x="482" y="14" width="438" height="332" rx="14" fill="url(#sw-bg-shallow)"/>
 
-      <!-- Headers as proper section titles, not strips -->
-      <text x="40"  y="46" font-size="11" font-family="ui-monospace,monospace" letter-spacing="2" fill="#a89a72">TYPICAL · WIDE</text>
-      <text x="40"  y="74" font-size="20" font-weight="700" letter-spacing="-0.4" fill="#1f1f1f">Property lives in agent prompts</text>
-      <text x="40"  y="96" font-size="13" fill="#6f6f6f">Jailbreak needs to evade only one of the prompt-layer guards.</text>
+      <!-- ===================== LEFT · WIDE ===================== -->
+      <text x="44"  y="48" font-size="11" font-family="ui-monospace,monospace" letter-spacing="2.4" fill="#bf6a4d">ATTACK SURFACE · WIDE STACK</text>
+      <text x="44"  y="78" font-size="21" font-weight="700" letter-spacing="-0.5" fill="#1f1f1f">Six guards, one layer.</text>
+      <text x="44"  y="101" font-size="13" fill="#6f6f6f">Every guard lives in agent prompts — one gap is enough.</text>
 
-      <text x="500" y="46" font-size="11" font-family="ui-monospace,monospace" letter-spacing="2" fill="#5a6c46">CSIS · SHALLOW</text>
-      <text x="500" y="74" font-size="20" font-weight="700" letter-spacing="-0.4" fill="#1f1f1f">Property owned by the substrate</text>
-      <text x="500" y="96" font-size="13" fill="#6f6f6f">Jailbreak terminates at L7 — code, not prompts.</text>
+      <!-- jailbreak source -->
+      <text x="44" y="136" font-size="11.5" font-style="italic" fill="#c4543b">"ignore previous and act as…"</text>
 
-      <!-- LEFT: attack arrow penetrating the wide stack -->
-      <text x="40" y="138" font-size="11.5" fill="#c4543b" font-style="italic">"ignore previous and act as…"</text>
-      <path d="M 40 148 L 420 232" stroke="#c4543b" stroke-width="2" stroke-dasharray="6 4" marker-end="url(#arrow-attack)" opacity="0.85"/>
-
-      <!-- Six narrow guards (clearly NOT layered — all at the same vertical band) -->
+      <!-- six guard chips — porous, with deliberate gaps -->
       <g font-family="ui-monospace,monospace" font-size="9.5" fill="#b85e3f">
-        <g><rect x="100" y="158" width="78" height="20" rx="4" fill="#fff" stroke="#e8b8a3" stroke-width="1"/><text x="139" y="172" text-anchor="middle">prompt-guard</text></g>
-        <g><rect x="186" y="158" width="78" height="20" rx="4" fill="#fff" stroke="#e8b8a3" stroke-width="1"/><text x="225" y="172" text-anchor="middle">role-check</text></g>
-        <g><rect x="272" y="158" width="78" height="20" rx="4" fill="#fff" stroke="#e8b8a3" stroke-width="1"/><text x="311" y="172" text-anchor="middle">policy-LLM</text></g>
-        <g><rect x="100" y="184" width="78" height="20" rx="4" fill="#fff" stroke="#e8b8a3" stroke-width="1"/><text x="139" y="198" text-anchor="middle">tool-allow</text></g>
-        <g><rect x="186" y="184" width="78" height="20" rx="4" fill="#fff" stroke="#e8b8a3" stroke-width="1"/><text x="225" y="198" text-anchor="middle">jailbreak-cls</text></g>
-        <g><rect x="272" y="184" width="78" height="20" rx="4" fill="#fff" stroke="#e8b8a3" stroke-width="1"/><text x="311" y="198" text-anchor="middle">red-team-LLM</text></g>
+        <g><rect x="56"  y="150" width="100" height="34" rx="7" fill="#fff" stroke="#ecc4b3" stroke-width="1" filter="url(#sw-card)"/><text x="106" y="171" text-anchor="middle">prompt-guard</text></g>
+        <g><rect x="188" y="150" width="100" height="34" rx="7" fill="#fff" stroke="#ecc4b3" stroke-width="1" filter="url(#sw-card)"/><text x="238" y="171" text-anchor="middle">role-check</text></g>
+        <g><rect x="320" y="150" width="100" height="34" rx="7" fill="#fff" stroke="#ecc4b3" stroke-width="1" filter="url(#sw-card)"/><text x="370" y="171" text-anchor="middle">policy-LLM</text></g>
+        <g><rect x="56"  y="200" width="100" height="34" rx="7" fill="#fff" stroke="#ecc4b3" stroke-width="1" filter="url(#sw-card)"/><text x="106" y="221" text-anchor="middle">tool-allow</text></g>
+        <g><rect x="188" y="200" width="100" height="34" rx="7" fill="#fff" stroke="#ecc4b3" stroke-width="1" filter="url(#sw-card)"/><text x="238" y="221" text-anchor="middle">jailbreak-cls</text></g>
+        <g><rect x="320" y="200" width="100" height="34" rx="7" fill="#fff" stroke="#ecc4b3" stroke-width="1" filter="url(#sw-card)"/><text x="370" y="221" text-anchor="middle">red-team-LLM</text></g>
       </g>
 
-      <!-- Reached -->
-      <rect x="240" y="222" width="200" height="22" rx="4" fill="#f3dbd0" stroke="#c4543b" stroke-width="1.2" stroke-dasharray="3 2"/>
-      <text x="340" y="237" font-size="11" font-family="ui-monospace,monospace" font-weight="700" text-anchor="middle" fill="#c4543b">protected resource reached</text>
+      <!-- the bolt threads the GAPS — never touches a guard -->
+      <path d="M40 124 L96 150 L172 142 L168 196 L176 250 L268 270 L320 286"
+            fill="none" stroke="#c4543b" stroke-width="3" stroke-linejoin="round"
+            stroke-linecap="round" filter="url(#sw-bolt-glow)" opacity="0.95"/>
+      <text x="196" y="197" font-size="9" font-family="ui-monospace,monospace" fill="#c4543b" opacity="0.8">↳ threads the gaps · touches nothing</text>
 
-      <!-- Vertical hairline divider -->
-      <line x1="470" y1="32" x2="470" y2="252" stroke="#e0d4b0" stroke-width="1" stroke-dasharray="3 4"/>
+      <!-- breached resource -->
+      <rect x="232" y="296" width="196" height="34" rx="8" fill="url(#sw-breach)" stroke="#c4543b" stroke-width="1.6"/>
+      <circle cx="256" cy="313" r="10" fill="#c4543b"/>
+      <text x="256" y="317" font-size="11" font-weight="700" text-anchor="middle" fill="#fff">✕</text>
+      <text x="276" y="310" font-size="11.5" font-weight="700" fill="#7c2f18">protected resource</text>
+      <text x="276" y="324" font-size="9.5" font-family="ui-monospace,monospace" letter-spacing="1.5" fill="#c4543b">BREACHED</text>
 
-      <!-- RIGHT: same attack, terminates at L7 -->
-      <text x="500" y="138" font-size="11.5" fill="#c4543b" font-style="italic">"ignore previous and act as…"</text>
-      <path d="M 500 148 L 612 172" stroke="#c4543b" stroke-width="2" stroke-dasharray="6 4" opacity="0.85"/>
+      <!-- divider -->
+      <line x1="470" y1="40" x2="470" y2="320" stroke="#e0d4b0" stroke-width="1" stroke-dasharray="2 5"/>
 
-      <!-- L7 wall (thicker, more weight) -->
-      <rect x="616" y="158" width="276" height="34" rx="6" fill="#dde6cd" stroke="#5a6c46" stroke-width="2"/>
-      <text x="754" y="172" font-size="11" font-family="ui-monospace,monospace" font-weight="700" letter-spacing="1.5" text-anchor="middle" fill="#5a6c46">L7</text>
-      <text x="754" y="188" font-size="12" font-weight="700" text-anchor="middle" fill="#2a4a1a">enforced in code, not in prompts</text>
+      <!-- ===================== RIGHT · SHALLOW ===================== -->
+      <text x="506" y="48" font-size="11" font-family="ui-monospace,monospace" letter-spacing="2.4" fill="#5a7a48">ATTACK SURFACE · SHALLOW STACK</text>
+      <text x="506" y="78" font-size="21" font-weight="700" letter-spacing="-0.5" fill="#1f1f1f">One wall, owned by the substrate.</text>
+      <text x="506" y="101" font-size="13" fill="#6f6f6f">L7 is enforced in code — not a prompt the agent can talk down.</text>
 
-      <!-- ✕ marker at impact (outside wall) -->
-      <circle cx="612" cy="175" r="11" fill="#c4543b" stroke="#fff" stroke-width="2"/>
-      <text x="612" y="179" font-size="12" font-weight="700" text-anchor="middle" fill="#fff">✕</text>
+      <text x="506" y="150" font-size="11.5" font-style="italic" fill="#c4543b">"ignore previous and act as…"</text>
 
-      <!-- Caption under wall -->
-      <text x="754" y="206" font-size="11" font-family="ui-monospace,monospace" text-anchor="middle" fill="#5a6c46" font-weight="700">↑ jailbreak terminates here</text>
+      <!-- the bolt flies in and shatters on the wall -->
+      <path d="M512 168 L566 158 L612 180 L662 166 L700 188"
+            fill="none" stroke="#c4543b" stroke-width="3" stroke-linejoin="round"
+            stroke-linecap="round" filter="url(#sw-bolt-glow)" opacity="0.95"/>
+      <!-- shatter shards bouncing back from impact -->
+      <g fill="#c4543b" opacity="0.9">
+        <path d="M702 188 L688 168 L698 178 Z"/>
+        <path d="M702 188 L690 210 L700 198 Z"/>
+        <path d="M702 188 L674 192 L690 188 Z"/>
+        <path d="M702 188 L680 150 L694 172 Z"/>
+        <circle cx="678" cy="226" r="3"/>
+        <circle cx="664" cy="160" r="2.4"/>
+        <circle cx="660" cy="208" r="2"/>
+      </g>
 
-      <!-- L0 substrate row beneath -->
-      <rect x="616" y="218" width="276" height="22" rx="5" fill="#f3e4b8" stroke="#c89b3c" stroke-width="1.5"/>
-      <text x="754" y="233" font-size="11" font-family="ui-monospace,monospace" font-weight="700" text-anchor="middle" fill="#8a6e1c">L0 · capability tags · event log</text>
+      <!-- the L7 wall — solid, thick, with depth -->
+      <rect x="710" y="120" width="58" height="170" rx="6" fill="url(#sw-wall-grad)" filter="url(#sw-wall)"/>
+      <rect x="710" y="120" width="58" height="9" rx="4" fill="#ffffff" opacity="0.22"/>
+      <rect x="760" y="126" width="8" height="158" rx="3" fill="#3a4f2a" opacity="0.55"/>
+      <text x="739" y="150" font-size="14" font-weight="700" text-anchor="middle" fill="#ffffff">L7</text>
+      <text x="739" y="210" font-size="10.5" font-family="ui-monospace,monospace" fill="#dce6cf" transform="rotate(90 739 210)" letter-spacing="2" text-anchor="middle">SUBSTRATE WALL</text>
 
-      <!-- Agent-input row -->
-      <rect x="616" y="244" width="276" height="20" rx="5" fill="#fde7d8" stroke="#d97757" stroke-width="1.2" stroke-dasharray="4 3"/>
-      <text x="754" y="258" font-size="10" font-family="ui-monospace,monospace" text-anchor="middle" fill="#b85e3f">L1–L5 see it as input · cannot alter L0/L4/L7</text>
+      <!-- held confirmation -->
+      <g transform="translate(640, 256)">
+        <circle cx="11" cy="11" r="12" fill="#6a8a50"/>
+        <path d="M5.5 11.5 L9.2 15 L16.5 7.5" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>
+        <text x="30" y="9" font-size="11.5" font-weight="700" fill="#4a6238">held at L7</text>
+        <text x="30" y="23" font-size="9.5" font-family="ui-monospace,monospace" fill="#6a8a50">attack terminates in code</text>
+      </g>
+
+      <!-- intact substrate to the right of the wall -->
+      <g transform="translate(792, 132)">
+        <rect x="0" y="0" width="112" height="40" rx="8" fill="#f3e4b8" stroke="#d8b65e" stroke-width="1.2" filter="url(#sw-card)"/>
+        <text x="56" y="17" font-size="10" font-family="ui-monospace,monospace" font-weight="700" text-anchor="middle" fill="#8a6e1c">L0 · intact</text>
+        <text x="56" y="31" font-size="8.5" font-family="ui-monospace,monospace" text-anchor="middle" fill="#a98a3a">capability tags · log</text>
+      </g>
+      <g transform="translate(792, 184)">
+        <rect x="0" y="0" width="112" height="44" rx="8" fill="#fbeee2" stroke="#e2b79c" stroke-width="1.1" stroke-dasharray="4 3"/>
+        <text x="56" y="17" font-size="9.5" font-family="ui-monospace,monospace" font-weight="700" text-anchor="middle" fill="#b85e3f">L1–L5</text>
+        <text x="56" y="30" font-size="8.5" font-family="ui-monospace,monospace" text-anchor="middle" fill="#b85e3f">see input only ·</text>
+        <text x="56" y="40" font-size="8.5" font-family="ui-monospace,monospace" text-anchor="middle" fill="#b85e3f">can't alter L0/L4/L7</text>
+      </g>
+
+      <!-- foundation line the wall stands on -->
+      <rect x="560" y="298" width="344" height="6" rx="3" fill="#d8b65e" opacity="0.6"/>
+      <text x="732" y="324" font-size="9.5" font-family="ui-monospace,monospace" text-anchor="middle" fill="#a89a72">one wall · enforced once · everything above inherits it</text>
     </svg>
 
     <!-- Detail panel (JS-populated) -->
@@ -1189,139 +1239,190 @@
   </div>
 
   <div class="figure-wrap">
-    <svg class="csis-svg" viewBox="0 0 940 440" xmlns="http://www.w3.org/2000/svg" aria-label="The 6-level trust lattice rendered as an ascending ladder with gates between rungs. Six trust levels rise from bottom to top: level 0 RAW (gray, just observed) → level 1 UNTRUSTED (gold, stored not verified) → level 2 CANDIDATE (orange, verifier check passed) → level 3 VERIFIED (blue, cert signed cross-checkpoint) → level 4 PROMOTED (green, hash-CAS atomic flip done; this is the only level readable as ground truth by the next iteration). Between each pair of rungs is a labeled GATE box describing the structural check that must pass to upgrade (write to storage, basic Verifier check, V1+V2 cert signed cross-checkpoint, hash-CAS atomic flip). On the right is a separate red terminal level 5 DEPRECATED — three dashed red downgrade arrows curve from CANDIDATE, VERIFIED, and PROMOTED all into DEPRECATED, showing that deprecation is always allowed from any non-raw level and is terminal. A small monospace annotation at the bottom notes that the IntEnum encoding (0..5) makes 'entry.trust >= TrustLevel.VERIFIED' a single integer compare on the hot path.">
+    <svg class="csis-svg" viewBox="0 0 940 724" xmlns="http://www.w3.org/2000/svg" aria-label="The 6-level trust lattice rendered as an ascending ladder. Each level is a card whose elevation (drop-shadow depth) literally encodes its trust — RAW sits flat on the page, PROMOTED floats highest. From bottom to top: level 0 RAW (gray, just-observed, in-memory only), level 1 UNTRUSTED (gold, stored on disk, may be poisoned, never deletable), level 2 CANDIDATE (orange, basic Verifier check passed, writes free, not visible to live reads), level 3 VERIFIED (blue, V1+V2 cert signed cross-checkpoint), level 4 PROMOTED (green, hash-CAS atomic flip done — the only level the next iteration reads as truth, marked with a star). A gradient spine on the left runs gray-to-green bottom-to-top, threading circular level medallions numbered 0 to 4. Between each pair of medallions sits a circular gate seal with a lock glyph and a label: GATE 1 write to storage, GATE 2 basic Verifier check, GATE 3 cert signed cross-checkpoint, GATE 4 hash-CAS atomic flip. To the lower right is a separate dimmed terminal card, LEVEL 5 DEPRECATED, with three dashed red downgrade arrows curving down into it from CANDIDATE, VERIFIED, and PROMOTED — deprecation is always allowed from any non-raw level and is terminal. Footer: the IntEnum encoding makes entry.trust >= TrustLevel.VERIFIED a single integer compare on the hot path.">
       <defs>
-        <linearGradient id="bg-lattice" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0" stop-color="#fdfaf3"/>
-          <stop offset="1" stop-color="#f7eedb"/>
+        <linearGradient id="tl-bg" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0" stop-color="#fdfbf5"/>
+          <stop offset="1" stop-color="#f5ecd7"/>
         </linearGradient>
-        <filter id="rung-shadow" x="-10%" y="-30%" width="120%" height="160%">
-          <feDropShadow dx="0" dy="2" stdDeviation="3" flood-color="#3c2810" flood-opacity="0.08"/>
+        <linearGradient id="tl-spine" x1="0" y1="1" x2="0" y2="0">
+          <stop offset="0" stop-color="#b4aea0"/>
+          <stop offset="0.42" stop-color="#d6b35a"/>
+          <stop offset="0.72" stop-color="#7d9bc4"/>
+          <stop offset="1" stop-color="#6a8a50"/>
+        </linearGradient>
+        <linearGradient id="tl-c-promoted" x1="0" y1="0" x2="0.5" y2="1">
+          <stop offset="0" stop-color="#eef3e3"/><stop offset="1" stop-color="#ffffff"/>
+        </linearGradient>
+        <linearGradient id="tl-c-verified" x1="0" y1="0" x2="0.5" y2="1">
+          <stop offset="0" stop-color="#e6eef7"/><stop offset="1" stop-color="#ffffff"/>
+        </linearGradient>
+        <linearGradient id="tl-c-candidate" x1="0" y1="0" x2="0.5" y2="1">
+          <stop offset="0" stop-color="#fce9dc"/><stop offset="1" stop-color="#ffffff"/>
+        </linearGradient>
+        <linearGradient id="tl-c-untrusted" x1="0" y1="0" x2="0.5" y2="1">
+          <stop offset="0" stop-color="#f7edcf"/><stop offset="1" stop-color="#fffdf6"/>
+        </linearGradient>
+        <linearGradient id="tl-c-raw" x1="0" y1="0" x2="0.5" y2="1">
+          <stop offset="0" stop-color="#efebe1"/><stop offset="1" stop-color="#faf8f2"/>
+        </linearGradient>
+        <radialGradient id="tl-med-shine" cx="0.35" cy="0.3" r="0.8">
+          <stop offset="0" stop-color="#ffffff" stop-opacity="0.55"/>
+          <stop offset="0.6" stop-color="#ffffff" stop-opacity="0"/>
+        </radialGradient>
+        <filter id="tl-flat" x="-20%" y="-40%" width="140%" height="200%">
+          <feDropShadow dx="0" dy="1" stdDeviation="1.4" flood-color="#3c2810" flood-opacity="0.10"/>
         </filter>
-        <marker id="arrow-down" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto">
-          <polygon points="0 0, 8 4, 0 8" fill="#b85e3f"/>
+        <filter id="tl-mid" x="-20%" y="-60%" width="140%" height="240%">
+          <feDropShadow dx="0" dy="4" stdDeviation="6" flood-color="#3c2810" flood-opacity="0.12"/>
+        </filter>
+        <filter id="tl-high" x="-25%" y="-90%" width="150%" height="300%">
+          <feDropShadow dx="0" dy="2" stdDeviation="2" flood-color="#3c2810" flood-opacity="0.10"/>
+          <feDropShadow dx="0" dy="12" stdDeviation="16" flood-color="#3c2810" flood-opacity="0.16"/>
+        </filter>
+        <filter id="tl-hero" x="-30%" y="-110%" width="160%" height="340%">
+          <feDropShadow dx="0" dy="2" stdDeviation="2" flood-color="#3c2810" flood-opacity="0.10"/>
+          <feDropShadow dx="0" dy="14" stdDeviation="20" flood-color="#3c2810" flood-opacity="0.16"/>
+          <feDropShadow dx="0" dy="0" stdDeviation="10" flood-color="#6a8a50" flood-opacity="0.30"/>
+        </filter>
+        <filter id="tl-med-shadow" x="-60%" y="-60%" width="220%" height="220%">
+          <feDropShadow dx="0" dy="2" stdDeviation="3.5" flood-color="#3c2810" flood-opacity="0.22"/>
+        </filter>
+        <marker id="tl-dn" markerWidth="8.5" markerHeight="8.5" refX="7" refY="4.25" orient="auto">
+          <path d="M0 0 L8.5 4.25 L0 8.5 L2.4 4.25 Z" fill="#c4543b"/>
         </marker>
       </defs>
 
-      <rect x="0" y="0" width="940" height="440" fill="url(#bg-lattice)" rx="14"/>
+      <rect x="0" y="0" width="940" height="724" fill="url(#tl-bg)" rx="16"/>
 
-      <!-- Vertical axis: integer encoding -->
-      <line x1="78" y1="50" x2="78" y2="396" stroke="#c8b890" stroke-width="1"/>
-      <g font-family="ui-monospace,monospace" font-size="10.5" fill="#8a8579" text-anchor="end">
-        <text x="68" y="394">0</text>
-        <text x="68" y="338">1</text>
-        <text x="68" y="282">2</text>
-        <text x="68" y="226">3</text>
-        <text x="68" y="170">4</text>
+      <!-- Eyebrow + tiny key -->
+      <text x="48" y="46" font-size="11" font-family="ui-monospace,monospace" letter-spacing="2.5" fill="#a89a72">TRUST LATTICE · INTEGER-ORDERED · 0 → 4</text>
+      <g transform="translate(700, 36)">
+        <line x1="0" y1="6" x2="22" y2="6" stroke="#6a8a50" stroke-width="2.5"/>
+        <text x="30" y="10" font-size="10.5" font-family="ui-monospace,monospace" fill="#6a8a50">climb = pass a gate</text>
       </g>
-      <text x="42" y="52" font-size="10" font-family="ui-monospace,monospace" letter-spacing="1.5" fill="#8a8579">INT</text>
+      <g transform="translate(700, 54)">
+        <line x1="0" y1="6" x2="22" y2="6" stroke="#c4543b" stroke-width="2" stroke-dasharray="4 3"/>
+        <text x="30" y="10" font-size="10.5" font-family="ui-monospace,monospace" fill="#c4543b">downgrade = always allowed</text>
+      </g>
 
-      <!-- Rungs (rendered bottom-up so highest is at top of frame) -->
-      <!-- RUNG 4: PROMOTED -->
+      <!-- Spine: gradient, gray at base → green at apex, with an apex arrowhead -->
+      <line x1="150" y1="688" x2="150" y2="118" stroke="url(#tl-spine)" stroke-width="6" stroke-linecap="round"/>
+      <path d="M150 102 L141 123 L150 117 L159 123 Z" fill="#6a8a50"/>
+
+      <!-- ============ RUNG 4 · PROMOTED (floats highest) ============ -->
       <g>
-        <rect x="100" y="146" width="430" height="50" rx="10" fill="#dde6cd" filter="url(#rung-shadow)"/>
-        <rect x="100" y="146" width="4" height="50" rx="2" fill="#5a6c46"/>
-        <text x="124" y="176" font-size="18" font-weight="700" letter-spacing="-0.3" fill="#2a4a1a">promoted</text>
-        <text x="244" y="170" font-size="12" fill="#3a3a3a">why-doc signed · hash CAS matched · atomic flip done</text>
-        <text x="244" y="186" font-family="ui-monospace,monospace" font-size="11" fill="#5a6c46" font-weight="700">★ the only level next iteration reads as truth</text>
-      </g>
-
-      <!-- RUNG 3: VERIFIED -->
-      <g>
-        <rect x="100" y="202" width="430" height="50" rx="10" fill="#e2ecf6" filter="url(#rung-shadow)"/>
-        <rect x="100" y="202" width="4" height="50" rx="2" fill="#4a82bc"/>
-        <text x="124" y="232" font-size="18" font-weight="700" letter-spacing="-0.3" fill="#1a3a5e">verified</text>
-        <text x="244" y="226" font-size="12" fill="#3a3a3a">V1+V2 cert signed cross-checkpoint</text>
-        <text x="244" y="242" font-family="ui-monospace,monospace" font-size="11" fill="#3a6da0">Critic + Auditor approved; cross-checkpoint structural</text>
-      </g>
-
-      <!-- RUNG 2: CANDIDATE -->
-      <g>
-        <rect x="100" y="258" width="430" height="50" rx="10" fill="#fde7d8" filter="url(#rung-shadow)"/>
-        <rect x="100" y="258" width="4" height="50" rx="2" fill="#d97757"/>
-        <text x="124" y="288" font-size="18" font-weight="700" letter-spacing="-0.3" fill="#1f1f1f">candidate</text>
-        <text x="244" y="282" font-size="12" fill="#3a3a3a">basic Verifier check passed · awaiting cross-checkpoint cert</text>
-        <text x="244" y="298" font-family="ui-monospace,monospace" font-size="11" fill="#b85e3f">writes free here · not visible to live reads</text>
-      </g>
-
-      <!-- RUNG 1: UNTRUSTED -->
-      <g>
-        <rect x="100" y="314" width="430" height="50" rx="10" fill="#f3e4b8" filter="url(#rung-shadow)" opacity="0.85"/>
-        <rect x="100" y="314" width="4" height="50" rx="2" fill="#c89b3c"/>
-        <text x="124" y="344" font-size="18" font-weight="700" letter-spacing="-0.3" fill="#1f1f1f">untrusted</text>
-        <text x="244" y="338" font-size="12" fill="#3a3a3a">stored on disk · may be poisoned · quarantined for audit</text>
-        <text x="244" y="354" font-family="ui-monospace,monospace" font-size="11" fill="#8a6e1c">never deletable · forensic trail preserved</text>
-      </g>
-
-      <!-- RUNG 0: RAW -->
-      <g>
-        <rect x="100" y="370" width="430" height="50" rx="10" fill="#f0e8d4" opacity="0.7"/>
-        <rect x="100" y="370" width="4" height="50" rx="2" fill="#a89a72"/>
-        <text x="124" y="400" font-size="18" font-weight="700" letter-spacing="-0.3" fill="#5e5e5e">raw</text>
-        <text x="244" y="394" font-size="12" fill="#6f6f6f">just-observed · no provenance, no processing</text>
-        <text x="244" y="410" font-family="ui-monospace,monospace" font-size="11" fill="#8a8579">in-memory only · never persisted in this state</text>
-      </g>
-
-      <!-- Gates between rungs (right column) -->
-      <g font-family="ui-monospace,monospace">
-        <!-- Gate: candidate → verified -->
-        <g>
-          <text x="556" y="246" font-size="10.5" fill="#8a8579">GATE 3</text>
-          <text x="556" y="262" font-size="12" font-weight="700" fill="#5a6c46">cert signed cross-checkpoint</text>
-          <text x="556" y="278" font-size="11" fill="#6f6f6f">Verifier model_id ≠ Builder model_id</text>
+        <rect x="170" y="92" width="474" height="80" rx="16" fill="url(#tl-c-promoted)" stroke="#cfdcc0" stroke-width="1" filter="url(#tl-hero)"/>
+        <text x="222" y="128" font-size="23" font-weight="700" letter-spacing="-0.5" fill="#2f4a1c">promoted</text>
+        <text x="222" y="150" font-size="12.5" fill="#5a5a5a">why-doc signed · hash-CAS matched · atomic flip complete</text>
+        <g transform="translate(560, 116)">
+          <path d="M14 0 L17.6 9.2 L27.4 9.9 L19.9 16.3 L22.3 25.9 L14 20.6 L5.7 25.9 L8.1 16.3 L0.6 9.9 L10.4 9.2 Z" fill="#6a8a50"/>
         </g>
-        <!-- Gate: verified → promoted -->
-        <g>
-          <text x="556" y="190" font-size="10.5" fill="#8a8579">GATE 4</text>
-          <text x="556" y="206" font-size="12" font-weight="700" fill="#5a6c46">hash-CAS atomic flip</text>
-          <text x="556" y="222" font-size="11" fill="#6f6f6f">store.promote(precondition_hash=...)</text>
-        </g>
-        <!-- Gate: untrusted → candidate -->
-        <g>
-          <text x="556" y="302" font-size="10.5" fill="#8a8579">GATE 2</text>
-          <text x="556" y="318" font-size="12" font-weight="700" fill="#5a6c46">basic Verifier check</text>
-          <text x="556" y="334" font-size="11" fill="#6f6f6f">graders pass + structural smoke</text>
-        </g>
-        <!-- Gate: raw → untrusted -->
-        <g>
-          <text x="556" y="358" font-size="10.5" fill="#8a8579">GATE 1</text>
-          <text x="556" y="374" font-size="12" font-weight="700" fill="#5a6c46">write to storage</text>
-          <text x="556" y="390" font-size="11" fill="#6f6f6f">canonical hash + actor allow-list</text>
-        </g>
+        <text x="610" y="146" font-size="9.5" font-family="ui-monospace,monospace" text-anchor="middle" fill="#6a8a50" font-weight="700">read as truth</text>
+        <!-- medallion -->
+        <circle cx="150" cy="132" r="33" fill="#6a8a50" stroke="#ffffff" stroke-width="3.5" filter="url(#tl-med-shadow)"/>
+        <circle cx="150" cy="132" r="33" fill="url(#tl-med-shine)"/>
+        <text x="150" y="142" font-size="26" font-weight="700" text-anchor="middle" fill="#ffffff">4</text>
       </g>
 
-      <!-- Vertical arrow showing upgrade path -->
-      <g stroke="#5a6c46" stroke-width="2" fill="none">
-        <line x1="540" y1="396" x2="540" y2="164" marker-end="url(#m-arrow-good)"/>
+      <!-- gate 4 -->
+      <g transform="translate(0, 200)">
+        <circle cx="150" cy="0" r="19" fill="#ffffff" stroke="#6a8a50" stroke-width="2" filter="url(#tl-flat)"/>
+        <svg x="139" y="-11" width="22" height="22"><use href="#icon-lock" style="color:#6a8a50"/></svg>
+        <text x="200" y="-4" font-size="10" font-family="ui-monospace,monospace" letter-spacing="1.5" fill="#9a9486">GATE 4</text>
+        <text x="200" y="13" font-size="13.5" font-weight="700" fill="#4a6238">hash-CAS atomic flip</text>
+        <text x="470" y="9" font-size="11" font-family="ui-monospace,monospace" fill="#8a8579">store.promote(precondition_hash=…)</text>
       </g>
 
-      <!-- Right column: terminal DEPRECATED state with downgrade arrows -->
+      <!-- ============ RUNG 3 · VERIFIED ============ -->
       <g>
-        <rect x="760" y="232" width="155" height="106" rx="12" fill="#f3dbd0" stroke="#b85e3f" stroke-width="1.5" filter="url(#rung-shadow)"/>
-        <rect x="760" y="232" width="4" height="106" rx="2" fill="#b85e3f"/>
-        <text x="838" y="256" font-family="ui-monospace,monospace" font-size="10.5" letter-spacing="1.5" text-anchor="middle" fill="#b85e3f">LEVEL 5 · TERMINAL</text>
-        <text x="838" y="280" font-size="18" font-weight="700" letter-spacing="-0.3" text-anchor="middle" fill="#7c2f18">deprecated</text>
-        <text x="838" y="302" font-size="11.5" text-anchor="middle" fill="#7c2f18">superseded or</text>
-        <text x="838" y="318" font-size="11.5" text-anchor="middle" fill="#7c2f18">contradicted</text>
-        <text x="838" y="334" font-family="ui-monospace,monospace" font-size="10" text-anchor="middle" fill="#b85e3f">no path out · retained for audit</text>
+        <rect x="170" y="240" width="474" height="76" rx="15" fill="url(#tl-c-verified)" stroke="#d2deec" stroke-width="1" filter="url(#tl-high)"/>
+        <text x="222" y="276" font-size="22" font-weight="700" letter-spacing="-0.5" fill="#1c3c5e">verified</text>
+        <text x="222" y="297" font-size="12.5" fill="#5a5a5a">V1 + V2 certificate signed on a different checkpoint</text>
+        <circle cx="150" cy="278" r="31" fill="#4a82bc" stroke="#ffffff" stroke-width="3.5" filter="url(#tl-med-shadow)"/>
+        <circle cx="150" cy="278" r="31" fill="url(#tl-med-shine)"/>
+        <text x="150" y="288" font-size="25" font-weight="700" text-anchor="middle" fill="#ffffff">3</text>
       </g>
 
-      <!-- Downgrade arrows from CANDIDATE, VERIFIED, PROMOTED → DEPRECATED -->
-      <g stroke="#b85e3f" stroke-width="1.3" fill="none" stroke-dasharray="4 3">
-        <path d="M 530 283 Q 660 283 760 285" marker-end="url(#arrow-down)"/>
-        <path d="M 530 227 Q 660 250 760 272" marker-end="url(#arrow-down)"/>
-        <path d="M 530 171 Q 660 220 760 260" marker-end="url(#arrow-down)"/>
+      <!-- gate 3 -->
+      <g transform="translate(0, 344)">
+        <circle cx="150" cy="0" r="19" fill="#ffffff" stroke="#6a8a50" stroke-width="2" filter="url(#tl-flat)"/>
+        <svg x="139" y="-11" width="22" height="22"><use href="#icon-lock" style="color:#6a8a50"/></svg>
+        <text x="200" y="-4" font-size="10" font-family="ui-monospace,monospace" letter-spacing="1.5" fill="#9a9486">GATE 3</text>
+        <text x="200" y="13" font-size="13.5" font-weight="700" fill="#4a6238">cert signed cross-checkpoint</text>
+        <text x="470" y="9" font-size="11" font-family="ui-monospace,monospace" fill="#8a8579">Verifier model_id ≠ Builder model_id</text>
       </g>
 
-      <!-- Title strip replaced with a tasteful eyebrow -->
-      <text x="100" y="44" font-size="11" font-family="ui-monospace,monospace" letter-spacing="2" fill="#a89a72">UPGRADE PATH (LEFT)  ·  DOWNGRADE PATH (RIGHT, ALWAYS ALLOWED)</text>
-      <text x="100" y="80" font-size="22" font-weight="700" letter-spacing="-0.5" fill="#1f1f1f">The only path up is through a gate.</text>
-      <text x="100" y="106" font-size="13.5" fill="#6f6f6f">Trust is an integer ladder. Climbing requires passing a structural check; falling is always permitted.</text>
+      <!-- ============ RUNG 2 · CANDIDATE ============ -->
+      <g>
+        <rect x="170" y="384" width="474" height="76" rx="15" fill="url(#tl-c-candidate)" stroke="#f0d3c2" stroke-width="1" filter="url(#tl-mid)"/>
+        <text x="222" y="420" font-size="22" font-weight="700" letter-spacing="-0.5" fill="#1f1f1f">candidate</text>
+        <text x="222" y="441" font-size="12.5" fill="#5a5a5a">basic Verifier check passed · writes free · invisible to live reads</text>
+        <circle cx="150" cy="422" r="31" fill="#d97757" stroke="#ffffff" stroke-width="3.5" filter="url(#tl-med-shadow)"/>
+        <circle cx="150" cy="422" r="31" fill="url(#tl-med-shine)"/>
+        <text x="150" y="432" font-size="25" font-weight="700" text-anchor="middle" fill="#ffffff">2</text>
+      </g>
 
-      <!-- IntEnum footer -->
-      <text x="470" y="432" font-size="11" font-family="ui-monospace,monospace" text-anchor="middle" fill="#8a8579" font-style="italic">csis/memory/trust.py — IntEnum so <tspan font-weight="700" fill="#6f6f6f">entry.trust ≥ TrustLevel.VERIFIED</tspan> is a single integer compare in the hot path</text>
+      <!-- gate 2 -->
+      <g transform="translate(0, 488)">
+        <circle cx="150" cy="0" r="19" fill="#ffffff" stroke="#6a8a50" stroke-width="2" filter="url(#tl-flat)"/>
+        <svg x="139" y="-11" width="22" height="22"><use href="#icon-lock" style="color:#6a8a50"/></svg>
+        <text x="200" y="-4" font-size="10" font-family="ui-monospace,monospace" letter-spacing="1.5" fill="#9a9486">GATE 2</text>
+        <text x="200" y="13" font-size="13.5" font-weight="700" fill="#4a6238">basic Verifier check</text>
+        <text x="470" y="9" font-size="11" font-family="ui-monospace,monospace" fill="#8a8579">graders pass + structural smoke</text>
+      </g>
+
+      <!-- ============ RUNG 1 · UNTRUSTED ============ -->
+      <g>
+        <rect x="170" y="528" width="474" height="74" rx="14" fill="url(#tl-c-untrusted)" stroke="#e6d2a0" stroke-width="1" filter="url(#tl-flat)"/>
+        <text x="222" y="563" font-size="21" font-weight="700" letter-spacing="-0.4" fill="#1f1f1f">untrusted</text>
+        <text x="222" y="583" font-size="12.5" fill="#5a5a5a">stored on disk · may be poisoned · never deletable</text>
+        <circle cx="150" cy="565" r="29" fill="#c2982f" stroke="#ffffff" stroke-width="3.5" filter="url(#tl-med-shadow)"/>
+        <circle cx="150" cy="565" r="29" fill="url(#tl-med-shine)"/>
+        <text x="150" y="575" font-size="24" font-weight="700" text-anchor="middle" fill="#ffffff">1</text>
+      </g>
+
+      <!-- gate 1 -->
+      <g transform="translate(0, 624)">
+        <circle cx="150" cy="0" r="19" fill="#ffffff" stroke="#6a8a50" stroke-width="2" filter="url(#tl-flat)"/>
+        <svg x="139" y="-11" width="22" height="22"><use href="#icon-lock" style="color:#6a8a50"/></svg>
+        <text x="200" y="-4" font-size="10" font-family="ui-monospace,monospace" letter-spacing="1.5" fill="#9a9486">GATE 1</text>
+        <text x="200" y="13" font-size="13.5" font-weight="700" fill="#4a6238">write to storage</text>
+        <text x="470" y="9" font-size="11" font-family="ui-monospace,monospace" fill="#8a8579">canonical hash + actor allow-list</text>
+      </g>
+
+      <!-- ============ RUNG 0 · RAW (flat on the page) ============ -->
+      <g>
+        <rect x="170" y="660" width="474" height="56" rx="12" fill="url(#tl-c-raw)" stroke="#e2dccb" stroke-width="1"/>
+        <text x="222" y="688" font-size="19" font-weight="700" letter-spacing="-0.3" fill="#6a6a6a">raw</text>
+        <text x="222" y="706" font-size="12" fill="#8a8579">just-observed · in-memory only · never persisted in this state</text>
+        <circle cx="150" cy="688" r="27" fill="#9a958a" stroke="#ffffff" stroke-width="3.5" filter="url(#tl-med-shadow)"/>
+        <circle cx="150" cy="688" r="27" fill="url(#tl-med-shine)"/>
+        <text x="150" y="697" font-size="22" font-weight="700" text-anchor="middle" fill="#ffffff">0</text>
+      </g>
+
+      <!-- ============ TERMINAL · DEPRECATED ============ -->
+      <g>
+        <rect x="690" y="392" width="214" height="150" rx="16" fill="#f5ddd2" stroke="#dba491" stroke-width="1.2" filter="url(#tl-mid)"/>
+        <circle cx="744" cy="436" r="22" fill="#c4543b" stroke="#ffffff" stroke-width="3" filter="url(#tl-med-shadow)"/>
+        <text x="744" y="444" font-size="17" font-weight="700" text-anchor="middle" fill="#ffffff">5</text>
+        <text x="784" y="430" font-size="9.5" font-family="ui-monospace,monospace" letter-spacing="1.5" fill="#b85e3f">TERMINAL</text>
+        <text x="784" y="448" font-size="17" font-weight="700" letter-spacing="-0.3" fill="#7c2f18">deprecated</text>
+        <line x1="712" y1="468" x2="882" y2="468" stroke="#dba491" stroke-width="1"/>
+        <text x="712" y="490" font-size="12" fill="#7c2f18">superseded or contradicted</text>
+        <text x="712" y="510" font-size="12" fill="#7c2f18">by a newer promoted entry</text>
+        <text x="712" y="530" font-size="10" font-family="ui-monospace,monospace" fill="#b85e3f">no path out · retained for audit replay</text>
+      </g>
+
+      <!-- Downgrade arrows: PROMOTED, VERIFIED, CANDIDATE → DEPRECATED -->
+      <g fill="none" stroke="#c4543b" stroke-width="1.6" stroke-dasharray="5 4" opacity="0.85">
+        <path d="M644 132 Q 700 150 716 392" marker-end="url(#tl-dn)"/>
+        <path d="M644 278 Q 690 320 700 392" marker-end="url(#tl-dn)"/>
+        <path d="M644 422 Q 668 446 686 452" marker-end="url(#tl-dn)"/>
+      </g>
+
     </svg>
-    <div class="figure-caption">Figure 2 · The 6-level trust lattice. Solid green arrows = upgrades (each requires crossing a gate). Dashed red arrows = deprecation (always allowed from any non-raw level; terminal). The IntEnum ordering means trust comparisons are a single integer compare in hot paths — no string parsing, no enum-lookup tax.</div>
+    <div class="figure-caption">Figure 2 · The 6-level trust lattice. A level's <b>elevation encodes its trust</b> — <code>raw</code> sits flat on the page, <code>promoted</code> floats highest. The gradient spine threads four gate seals; crossing each gate is the <em>only</em> way up. Dashed red arrows = deprecation, always allowed from any non-raw level and terminal. The <code>IntEnum</code> ordering makes <code>entry.trust ≥ TrustLevel.VERIFIED</code> a single integer compare — no string parsing, no enum-lookup tax.</div>
     <div class="failure-mode"><span class="fm-label">what fails without this:</span> Trust becomes a free-text string and confidence collapses into authorization. An agent that asserts "I've verified this" gets treated the same as an artifact that <em>passed</em> verification. The lattice makes trust an integer ladder where the only path up runs through an explicit gate — so claiming a higher level is structurally impossible, not just discouraged.</div>
   </div>
 
@@ -1474,102 +1575,148 @@
       <text x="470" y="500" font-size="11.5" font-family="ui-monospace,monospace" text-anchor="middle" fill="#5a6c46">each arrow → <tspan font-weight="700">MemoryStore.promote(ids, precondition_hash=...)</tspan> · atomic candidate → live flip</text>
     </svg>
 
-    <!-- Companion: one tier, zoomed in — cleaner three-pane editorial -->
-    <svg class="csis-svg" viewBox="0 0 940 380" xmlns="http://www.w3.org/2000/svg" aria-label="One tier, zoomed in — how the candidate ↔ live split actually works. Three panels left-to-right with subtle gradient backgrounds. LEFT panel (candidate side): three sample entry rows showing entry #847 with writer_iter_id=42 and hash=a3f7c2…, entry #848 with writer_iter_id=42 and hash=b9d1e4…, entry #849 with writer_iter_id=43 and hash=c2e8f1…. Caption: 'cleanup_candidates(iter_id=42) removes rows 847+848 without touching 849 — ownership lives on the row, not in timing.' CENTER panel (the gate): a soft green pill labeled promote() with checks hash_precondition → atomic flip. Two arrows: one entering from left, one exiting to right. RIGHT panel (live side): two sealed locked entries #847 and #848 marked as sealed/promoted, and below them a red dashed callout with ✕ showing that direct writes to live and stale-hash promote() calls are both refused at the type level. Footer note: two structural commitments — writes never see live until promote(), and writer_iteration_id makes cleanup race-free across all five tiers." style="margin-top:26px">
+    <!-- Companion: one tier, zoomed in — physical-card metaphor with a stamping gate -->
+    <svg class="csis-svg" viewBox="0 0 940 452" xmlns="http://www.w3.org/2000/svg" aria-label="One tier, zoomed in — how the candidate-to-live split actually works, drawn as physical entry cards passing through a stamping gate. LEFT (candidate buffer): three loosely-stacked, slightly-tilted entry cards, each with an empty dashed seal slot meaning unsealed. Cards #847 and #848 carry writer-iteration-id 42 and are this iteration's work; card #849 carries writer-iteration-id 43, is dimmed, and is labelled as a sibling iteration's card left untouched. CENTRE (the gate): a tall green promote() mechanism with a horizontal scan beam checking the hash precondition — store.promote() does an atomic compare-and-swap. RIGHT (live, sealed): cards #847 and #848 again, now perfectly aligned and each stamped with a filled wax seal containing a lock — sealed, readable as truth by the next iteration. BELOW: a red rejection callout — a card bouncing off the live side along a red arc, showing that a direct write to live and a promote() with a stale hash precondition are both refused at the type level. Footer: writes never see live until promote(); writer_iteration_id makes cleanup race-free across all five tiers." style="margin-top:26px">
       <defs>
-        <linearGradient id="bg-zoom-cand" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0" stop-color="#fde7d8" stop-opacity="0.5"/>
-          <stop offset="1" stop-color="#fde7d8" stop-opacity="0.15"/>
+        <linearGradient id="zm-bg" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0" stop-color="#fdfbf5"/>
+          <stop offset="1" stop-color="#f6edda"/>
         </linearGradient>
-        <linearGradient id="bg-zoom-live" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0" stop-color="#e2ecf6" stop-opacity="0.5"/>
-          <stop offset="1" stop-color="#e2ecf6" stop-opacity="0.15"/>
+        <linearGradient id="zm-cand-card" x1="0" y1="0" x2="0.4" y2="1">
+          <stop offset="0" stop-color="#fff6f0"/><stop offset="1" stop-color="#ffffff"/>
         </linearGradient>
-        <filter id="zoom-row-shadow" x="-2%" y="-30%" width="104%" height="160%">
-          <feDropShadow dx="0" dy="1" stdDeviation="1.6" flood-color="#3c2810" flood-opacity="0.05"/>
+        <linearGradient id="zm-live-card" x1="0" y1="0" x2="0.4" y2="1">
+          <stop offset="0" stop-color="#f1f6fb"/><stop offset="1" stop-color="#ffffff"/>
+        </linearGradient>
+        <linearGradient id="zm-gate" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0" stop-color="#7d9b62"/>
+          <stop offset="1" stop-color="#566f40"/>
+        </linearGradient>
+        <filter id="zm-card-sh" x="-14%" y="-30%" width="128%" height="170%">
+          <feDropShadow dx="0" dy="1" stdDeviation="1.4" flood-color="#3c2810" flood-opacity="0.10"/>
+          <feDropShadow dx="0" dy="5" stdDeviation="7" flood-color="#3c2810" flood-opacity="0.10"/>
         </filter>
-        <marker id="arrow-zoom" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto">
-          <polygon points="0 0, 8 4, 0 8" fill="#5a6c46"/>
+        <filter id="zm-gate-sh" x="-40%" y="-20%" width="180%" height="140%">
+          <feDropShadow dx="0" dy="4" stdDeviation="7" flood-color="#2a3a1a" flood-opacity="0.22"/>
+        </filter>
+        <filter id="zm-seal-sh" x="-60%" y="-60%" width="220%" height="220%">
+          <feDropShadow dx="0" dy="1.5" stdDeviation="2" flood-color="#1a3a5e" flood-opacity="0.30"/>
+        </filter>
+        <marker id="zm-arr" markerWidth="9" markerHeight="9" refX="7.5" refY="4.5" orient="auto">
+          <path d="M0 0 L9 4.5 L0 9 L2.6 4.5 Z" fill="#6a8a50"/>
         </marker>
       </defs>
 
+      <rect x="0" y="0" width="940" height="452" fill="url(#zm-bg)" rx="16"/>
+
       <!-- Eyebrow + title -->
-      <text x="40" y="32" font-size="11" font-family="ui-monospace,monospace" letter-spacing="2" fill="#a89a72">ONE TIER · ZOOMED IN</text>
-      <text x="40" y="58" font-size="20" font-weight="700" letter-spacing="-0.4" fill="#1f1f1f">How the candidate ↔ live split actually works</text>
+      <text x="44" y="44" font-size="11" font-family="ui-monospace,monospace" letter-spacing="2.4" fill="#a89a72">ONE TIER · ZOOMED IN</text>
+      <text x="44" y="74" font-size="21" font-weight="700" letter-spacing="-0.5" fill="#1f1f1f">An entry only becomes truth once it's stamped.</text>
 
-      <!-- Three columns -->
-      <rect x="30"  y="80" width="380" height="240" rx="12" fill="url(#bg-zoom-cand)"/>
-      <rect x="430" y="80" width="80"  height="240" rx="12" fill="#eaf1da" opacity="0.6"/>
-      <rect x="530" y="80" width="380" height="240" rx="12" fill="url(#bg-zoom-live)"/>
+      <!-- Zone labels -->
+      <text x="60"  y="112" font-size="10.5" font-family="ui-monospace,monospace" letter-spacing="2" fill="#b85e3f">CANDIDATE BUFFER · UNSEALED</text>
+      <text x="700" y="112" font-size="10.5" font-family="ui-monospace,monospace" letter-spacing="2" fill="#3a6da0">LIVE · SEALED</text>
 
-      <!-- Column captions -->
-      <text x="220" y="104" font-size="11" font-family="ui-monospace,monospace" letter-spacing="2" text-anchor="middle" fill="#b85e3f">CANDIDATE SIDE</text>
-      <text x="470" y="104" font-size="11" font-family="ui-monospace,monospace" letter-spacing="2" text-anchor="middle" fill="#5a6c46">GATE</text>
-      <text x="720" y="104" font-size="11" font-family="ui-monospace,monospace" letter-spacing="2" text-anchor="middle" fill="#3a6da0">LIVE SIDE</text>
+      <!-- ===== CANDIDATE cards: loosely stacked, slightly tilted ===== -->
+      <!-- #847 -->
+      <g transform="rotate(-2.4 205 152)">
+        <rect x="62" y="124" width="286" height="56" rx="10" fill="url(#zm-cand-card)" stroke="#f0d2c1" stroke-width="1" filter="url(#zm-card-sh)"/>
+        <rect x="62" y="124" width="4" height="56" rx="2" fill="#d97757"/>
+        <text x="84" y="150" font-size="14" font-weight="700" fill="#1f1f1f">entry #847</text>
+        <rect x="84" y="158" width="86" height="16" rx="5" fill="#fbe9df"/>
+        <text x="93" y="170" font-size="10" font-family="ui-monospace,monospace" fill="#b85e3f">#a3f7c2…</text>
+        <rect x="178" y="158" width="58" height="16" rx="5" fill="#f1ece0"/>
+        <text x="186" y="170" font-size="9.5" font-family="ui-monospace,monospace" fill="#8a8579">iter 42</text>
+        <!-- empty seal slot -->
+        <circle cx="318" cy="152" r="14" fill="none" stroke="#d8c4a8" stroke-width="1.4" stroke-dasharray="3 2.5"/>
+      </g>
+      <!-- #848 -->
+      <g transform="rotate(1.8 213 224)">
+        <rect x="70" y="196" width="286" height="56" rx="10" fill="url(#zm-cand-card)" stroke="#f0d2c1" stroke-width="1" filter="url(#zm-card-sh)"/>
+        <rect x="70" y="196" width="4" height="56" rx="2" fill="#d97757"/>
+        <text x="92" y="222" font-size="14" font-weight="700" fill="#1f1f1f">entry #848</text>
+        <rect x="92" y="230" width="86" height="16" rx="5" fill="#fbe9df"/>
+        <text x="101" y="242" font-size="10" font-family="ui-monospace,monospace" fill="#b85e3f">#b9d1e4…</text>
+        <rect x="186" y="230" width="58" height="16" rx="5" fill="#f1ece0"/>
+        <text x="194" y="242" font-size="9.5" font-family="ui-monospace,monospace" fill="#8a8579">iter 42</text>
+        <circle cx="326" cy="224" r="14" fill="none" stroke="#d8c4a8" stroke-width="1.4" stroke-dasharray="3 2.5"/>
+      </g>
+      <!-- #849 sibling — dimmed, stays put -->
+      <g transform="rotate(-1.2 205 296)" opacity="0.62">
+        <rect x="62" y="268" width="286" height="56" rx="10" fill="#f6f2ea" stroke="#e2d8c4" stroke-width="1" stroke-dasharray="5 3"/>
+        <rect x="62" y="268" width="4" height="56" rx="2" fill="#a89a72"/>
+        <text x="84" y="294" font-size="14" font-weight="700" fill="#8a8579">entry #849</text>
+        <rect x="84" y="302" width="86" height="16" rx="5" fill="#efe9dc"/>
+        <text x="93" y="314" font-size="10" font-family="ui-monospace,monospace" fill="#9a9486">#c2e8f1…</text>
+        <rect x="178" y="302" width="58" height="16" rx="5" fill="#efe9dc"/>
+        <text x="186" y="314" font-size="9.5" font-family="ui-monospace,monospace" fill="#9a9486">iter 43</text>
+        <circle cx="318" cy="296" r="14" fill="none" stroke="#d8c4a8" stroke-width="1.4" stroke-dasharray="3 2.5"/>
+      </g>
+      <text x="205" y="356" font-size="10.5" font-family="ui-monospace,monospace" text-anchor="middle" fill="#8a8579">#849 is a sibling iteration's card — left untouched</text>
 
-      <!-- LEFT: candidate entries -->
+      <!-- flow arrow into the gate -->
+      <path d="M360 224 L416 224" fill="none" stroke="#6a8a50" stroke-width="2.4" marker-end="url(#zm-arr)"/>
+
+      <!-- ===== THE GATE: a tall stamping mechanism ===== -->
       <g>
-        <g font-family="ui-monospace,monospace">
-          <!-- entry 847 -->
-          <rect x="44" y="124" width="352" height="44" rx="7" fill="#fff" filter="url(#zoom-row-shadow)"/>
-          <rect x="44" y="124" width="3" height="44" rx="1.5" fill="#d97757"/>
-          <text x="60" y="142" font-size="12" font-weight="700" fill="#b85e3f">entry #847</text>
-          <text x="60" y="158" font-size="10.5" fill="#6f6f6f">writer_iter_id=42 · hash=a3f7c2… · payload=…</text>
-          <!-- entry 848 -->
-          <rect x="44" y="178" width="352" height="44" rx="7" fill="#fff" filter="url(#zoom-row-shadow)"/>
-          <rect x="44" y="178" width="3" height="44" rx="1.5" fill="#d97757"/>
-          <text x="60" y="196" font-size="12" font-weight="700" fill="#b85e3f">entry #848</text>
-          <text x="60" y="212" font-size="10.5" fill="#6f6f6f">writer_iter_id=42 · hash=b9d1e4… · payload=…</text>
-          <!-- entry 849 (sibling iteration) -->
-          <rect x="44" y="232" width="352" height="44" rx="7" fill="#fff" filter="url(#zoom-row-shadow)" stroke="#e7d8b5" stroke-width="1" stroke-dasharray="3 2"/>
-          <rect x="44" y="232" width="3" height="44" rx="1.5" fill="#a89a72"/>
-          <text x="60" y="250" font-size="12" font-weight="700" fill="#8a8579">entry #849 <tspan font-size="10" font-weight="400">· sibling iteration</tspan></text>
-          <text x="60" y="266" font-size="10.5" fill="#6f6f6f">writer_iter_id=43 · hash=c2e8f1… · untouched</text>
+        <rect x="430" y="120" width="86" height="208" rx="16" fill="url(#zm-gate)" filter="url(#zm-gate-sh)"/>
+        <rect x="430" y="120" width="86" height="10" rx="5" fill="#ffffff" opacity="0.20"/>
+        <text x="473" y="152" font-size="12.5" font-family="ui-monospace,monospace" font-weight="700" text-anchor="middle" fill="#ffffff">promote()</text>
+        <!-- scan beam -->
+        <line x1="430" y1="212" x2="516" y2="212" stroke="#eaf6d8" stroke-width="2.5"/>
+        <line x1="430" y1="212" x2="516" y2="212" stroke="#ffffff" stroke-width="6" opacity="0.18"/>
+        <g transform="translate(456, 196)">
+          <circle cx="17" cy="16" r="15" fill="#ffffff"/>
+          <path d="M10 16.5 L15 21 L24 10.5" fill="none" stroke="#6a8a50" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
         </g>
+        <text x="473" y="262" font-size="9.5" font-family="ui-monospace,monospace" text-anchor="middle" fill="#dce8cc">hash</text>
+        <text x="473" y="276" font-size="9.5" font-family="ui-monospace,monospace" text-anchor="middle" fill="#dce8cc">precondition</text>
+        <text x="473" y="304" font-size="10" font-family="ui-monospace,monospace" font-weight="700" text-anchor="middle" fill="#ffffff">atomic CAS</text>
+      </g>
+      <text x="473" y="348" font-size="10" font-family="ui-monospace,monospace" text-anchor="middle" fill="#8a8579">the only way across</text>
 
-        <text x="220" y="298" font-size="11" font-family="ui-monospace,monospace" text-anchor="middle" fill="#5a6c46">cleanup_candidates(iter_id=42)</text>
-        <text x="220" y="313" font-size="10" font-family="ui-monospace,monospace" text-anchor="middle" fill="#8a8579">ownership on the row · not in timing</text>
+      <!-- flow arrow out of the gate -->
+      <path d="M520 180 L572 158" fill="none" stroke="#6a8a50" stroke-width="2.4" marker-end="url(#zm-arr)"/>
+
+      <!-- ===== LIVE cards: aligned, sealed ===== -->
+      <!-- live #847 -->
+      <g>
+        <rect x="588" y="128" width="300" height="58" rx="10" fill="url(#zm-live-card)" stroke="#d3e0ec" stroke-width="1" filter="url(#zm-card-sh)"/>
+        <rect x="588" y="128" width="4" height="58" rx="2" fill="#4a82bc"/>
+        <text x="610" y="155" font-size="14" font-weight="700" fill="#1c3c5e">entry #847</text>
+        <rect x="610" y="163" width="86" height="16" rx="5" fill="#e6eef7"/>
+        <text x="619" y="175" font-size="10" font-family="ui-monospace,monospace" fill="#3a6da0">#a3f7c2…</text>
+        <text x="704" y="175" font-size="9.5" font-family="ui-monospace,monospace" fill="#8a8579">readable as truth</text>
+        <!-- wax seal -->
+        <g filter="url(#zm-seal-sh)"><circle cx="858" cy="157" r="17" fill="#4a82bc"/></g>
+        <circle cx="858" cy="157" r="17" fill="none" stroke="#ffffff" stroke-width="1.4" stroke-opacity="0.45"/>
+        <svg x="849" y="148" width="18" height="18"><use href="#icon-lock" style="color:#ffffff"/></svg>
+      </g>
+      <!-- live #848 -->
+      <g>
+        <rect x="588" y="200" width="300" height="58" rx="10" fill="url(#zm-live-card)" stroke="#d3e0ec" stroke-width="1" filter="url(#zm-card-sh)"/>
+        <rect x="588" y="200" width="4" height="58" rx="2" fill="#4a82bc"/>
+        <text x="610" y="227" font-size="14" font-weight="700" fill="#1c3c5e">entry #848</text>
+        <rect x="610" y="235" width="86" height="16" rx="5" fill="#e6eef7"/>
+        <text x="619" y="247" font-size="10" font-family="ui-monospace,monospace" fill="#3a6da0">#b9d1e4…</text>
+        <text x="704" y="247" font-size="9.5" font-family="ui-monospace,monospace" fill="#8a8579">readable as truth</text>
+        <g filter="url(#zm-seal-sh)"><circle cx="858" cy="229" r="17" fill="#4a82bc"/></g>
+        <circle cx="858" cy="229" r="17" fill="none" stroke="#ffffff" stroke-width="1.4" stroke-opacity="0.45"/>
+        <svg x="849" y="220" width="18" height="18"><use href="#icon-lock" style="color:#ffffff"/></svg>
       </g>
 
-      <!-- CENTER: promote() pill -->
-      <g>
-        <rect x="438" y="174" width="64" height="56" rx="28" fill="#dde6cd" stroke="#5a6c46" stroke-width="1.5"/>
-        <text x="470" y="198" font-size="11.5" font-family="ui-monospace,monospace" font-weight="700" text-anchor="middle" fill="#2a4a1a">promote()</text>
-        <text x="470" y="214" font-size="9" font-family="ui-monospace,monospace" text-anchor="middle" fill="#5a6c46">CAS</text>
-        <line x1="410" y1="202" x2="436" y2="202" stroke="#5a6c46" stroke-width="2" marker-end="url(#arrow-zoom)"/>
-        <line x1="504" y1="202" x2="528" y2="202" stroke="#5a6c46" stroke-width="2" marker-end="url(#arrow-zoom)"/>
-        <text x="470" y="252" font-size="10" font-family="ui-monospace,monospace" text-anchor="middle" fill="#5a6c46">checks</text>
-        <text x="470" y="266" font-size="10" font-family="ui-monospace,monospace" text-anchor="middle" fill="#5a6c46">precondition</text>
-      </g>
-
-      <!-- RIGHT: live entries (sealed) + rejection -->
-      <g>
-        <g font-family="ui-monospace,monospace">
-          <rect x="544" y="124" width="352" height="44" rx="7" fill="#fff" filter="url(#zoom-row-shadow)"/>
-          <rect x="544" y="124" width="3" height="44" rx="1.5" fill="#4a82bc"/>
-          <g transform="translate(556, 130)"><svg x="0" y="0" width="12" height="12"><use href="#icon-lock" style="color:#4a82bc"/></svg></g>
-          <text x="576" y="142" font-size="12" font-weight="700" fill="#1a3a5e">entry #847 · sealed</text>
-          <text x="560" y="158" font-size="10.5" fill="#6f6f6f">hash=a3f7c2… · readable as truth by next iter</text>
-          <rect x="544" y="178" width="352" height="44" rx="7" fill="#fff" filter="url(#zoom-row-shadow)"/>
-          <rect x="544" y="178" width="3" height="44" rx="1.5" fill="#4a82bc"/>
-          <g transform="translate(556, 184)"><svg x="0" y="0" width="12" height="12"><use href="#icon-lock" style="color:#4a82bc"/></svg></g>
-          <text x="576" y="196" font-size="12" font-weight="700" fill="#1a3a5e">entry #848 · sealed</text>
-          <text x="560" y="212" font-size="10.5" fill="#6f6f6f">hash=b9d1e4… · readable as truth by next iter</text>
-        </g>
-
-        <!-- rejection callout -->
-        <g>
-          <rect x="544" y="232" width="352" height="60" rx="7" fill="#f3dbd0" stroke="#c4543b" stroke-width="1.2" stroke-dasharray="4 3"/>
-          <circle cx="566" cy="262" r="10" fill="#c4543b"/>
-          <text x="566" y="266" font-size="12" font-weight="700" text-anchor="middle" fill="#fff">✕</text>
-          <text x="584" y="252" font-size="11" font-weight="700" fill="#7c2f18">direct write to live</text>
-          <text x="584" y="268" font-size="10.5" font-family="ui-monospace,monospace" fill="#7c2f18">no API path exists · refused at type level</text>
-          <text x="584" y="284" font-size="10.5" font-family="ui-monospace,monospace" fill="#7c2f18">also refused: stale hash_precondition</text>
-        </g>
+      <!-- ===== REJECTION: a card bounces off the live side ===== -->
+      <path d="M640 268 Q 600 312 656 344" fill="none" stroke="#c4543b" stroke-width="2" stroke-dasharray="5 4"/>
+      <g transform="rotate(-7 800 380)">
+        <rect x="640" y="352" width="320" height="56" rx="10" fill="#f7ddd2" stroke="#d98e76" stroke-width="1.3"/>
+        <circle cx="670" cy="380" r="13" fill="#c4543b"/>
+        <text x="670" y="385" font-size="13" font-weight="700" text-anchor="middle" fill="#fff">✕</text>
+        <text x="694" y="376" font-size="12.5" font-weight="700" fill="#7c2f18">direct write · stale-hash promote()</text>
+        <text x="694" y="394" font-size="10" font-family="ui-monospace,monospace" fill="#b85e3f">refused at the type level — no API path exists</text>
       </g>
 
       <!-- Footer takeaway -->
-      <text x="470" y="352" font-size="11.5" text-anchor="middle" fill="#6f6f6f">Two structural commitments: <tspan font-weight="700" fill="#5a6c46">(1)</tspan> writes never see live until <tspan font-family="ui-monospace,monospace">promote()</tspan>  ·  <tspan font-weight="700" fill="#5a6c46">(2)</tspan> writer_iteration_id makes cleanup race-free across all five tiers</text>
+      <text x="44" y="436" font-size="11.5" fill="#6f6f6f"><tspan font-weight="700" fill="#5a6c46">Nothing</tspan> reaches the live side except through the gate — and <tspan font-family="ui-monospace,monospace" font-size="11">writer_iteration_id</tspan> keeps cleanup race-free across all five tiers.</text>
     </svg>
 
     <div class="figure-caption">Figure 3 · The 5-tier memory hierarchy. Every tier is structurally identical: orange candidate side (writes free; stamped with the iteration that wrote them), blue live side (read-only; only mutation path is <code>promote()</code>). The H4 cycle-9 <code>writer_iteration_id</code> stamp lives on the candidate side — every entry carries the iteration_id of whoever wrote it, so cleanup is race-free under any concurrency model. <b>The zoom-in shows what's actually inside one of those orange/blue boxes</b> — the candidate side carries unsealed entries the next iteration can't see; the live side is sealed; the only legal arrow between them is <code>promote()</code>.</div>
@@ -1884,122 +2031,205 @@
   </div>
 
   <div class="figure-wrap">
-    <svg class="csis-svg" viewBox="0 0 940 540" xmlns="http://www.w3.org/2000/svg" aria-label="The sleep/dreams cycle as a day-to-night-back-to-day flow. A horizontal day-to-night gradient runs across the top (warm cream on the left, deep dusk on the right). LEFT (DAY phase, sun icon): two stacked live-memory cards — working (live) and episodic (live) — represent what the agent accumulated during waking iterations. MIDDLE: a literal horizon line at the sleep boundary with a moon icon; an arrow flows from day-memory into the dreams pipeline as a 'live snapshot (read-only)'. RIGHT (NIGHT phase, moon icon): three soft-purple stages — replay (episodic → patterns), consolidate (extract durable facts), score (quality + redact) — connected by purple arrows; the panel notes 'no agent prompts · no tool access · no network · isolated process · partial-output redaction on cancel'. BELOW: the Dreams output flows into a wide orange candidate-bar labeled 'dream-output → candidate entries (semantic/procedural/causal)' stamped with writer_iteration_id=dream-&lt;date&gt;, then DOWN into a wide blue verification bar labeled 'V1 graders + V2 critic · cross-checkpoint cert · Auditor why-doc' — emphasizing that dream candidates go through THE SAME VERIFICATION as any other candidate. Footer notes csis/dreams/ is mocked locally; real Anthropic Dreams API integration deferred to Phase 1.">
+    <svg class="csis-svg" viewBox="0 0 940 624" xmlns="http://www.w3.org/2000/svg" aria-label="The sleep / dreams cycle, drawn as an atmospheric day-to-night scene. A sky band across the top runs from warm daybreak on the left (a glowing sun) to deep indigo night on the right (a crescent moon and a scatter of stars). DAY panel (left, warm): two live-memory cards, working and episodic, accumulate as the agent runs its waking iterations. A SLEEP BOUNDARY seam with a crescent moon separates day from night. A read-only memory snapshot streams across the boundary as a trail of motes. NIGHT panel (right, deep indigo): the offline Dreams pipeline as three softly glowing nodes — replay (episodic to patterns), consolidate (extract durable facts), score (quality plus redaction) — connected by a glowing thread; constraints noted: no agent prompts, no tool access, no network, isolated process, partial-output redaction on cancel. Glowing dream-output motes drift down into a wide candidate bar — dream-output becomes candidate entries in the semantic, procedural and causal tiers, stamped writer_iteration_id = dream-date. A down arrow leads into a verification bar: V1 graders plus V2 critic, cross-checkpoint cert, Auditor why-doc — dream candidates go through the exact same verification as any other candidate, so nothing dreams produces auto-promotes. Footer: csis/dreams/ is mocked locally; real Anthropic Dreams API integration is deferred to Phase 1.">
       <defs>
-        <linearGradient id="bg-dn" x1="0" y1="0" x2="1" y2="0">
-          <stop offset="0" stop-color="#fdf3e0"/>
-          <stop offset="0.5" stop-color="#f3e6c9"/>
-          <stop offset="1" stop-color="#e7dbe8"/>
+        <linearGradient id="dr-sky" x1="0" y1="0" x2="1" y2="0.25">
+          <stop offset="0" stop-color="#fde4c6"/>
+          <stop offset="0.34" stop-color="#f2d2bc"/>
+          <stop offset="0.58" stop-color="#c7b1c4"/>
+          <stop offset="0.78" stop-color="#6a5f86"/>
+          <stop offset="1" stop-color="#322c52"/>
         </linearGradient>
-        <linearGradient id="bg-day" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0" stop-color="#fde7d8" stop-opacity="0.6"/>
-          <stop offset="1" stop-color="#fde7d8" stop-opacity="0.2"/>
+        <radialGradient id="dr-sun" cx="0.5" cy="0.5" r="0.5">
+          <stop offset="0" stop-color="#ffe9b0"/>
+          <stop offset="0.6" stop-color="#f6c45e"/>
+          <stop offset="1" stop-color="#e89c3c"/>
+        </radialGradient>
+        <radialGradient id="dr-sun-halo" cx="0.5" cy="0.5" r="0.5">
+          <stop offset="0" stop-color="#ffd87a" stop-opacity="0.7"/>
+          <stop offset="1" stop-color="#ffd87a" stop-opacity="0"/>
+        </radialGradient>
+        <radialGradient id="dr-moon-halo" cx="0.5" cy="0.5" r="0.5">
+          <stop offset="0" stop-color="#cdbff0" stop-opacity="0.55"/>
+          <stop offset="1" stop-color="#cdbff0" stop-opacity="0"/>
+        </radialGradient>
+        <linearGradient id="dr-day" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0" stop-color="#fdeede"/>
+          <stop offset="1" stop-color="#fbe4d2"/>
         </linearGradient>
-        <linearGradient id="bg-night" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0" stop-color="#e8e0f0" stop-opacity="0.7"/>
-          <stop offset="1" stop-color="#e8e0f0" stop-opacity="0.25"/>
+        <linearGradient id="dr-night" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0" stop-color="#3b3460"/>
+          <stop offset="1" stop-color="#2c2747"/>
         </linearGradient>
-        <filter id="dn-shadow" x="-4%" y="-30%" width="108%" height="160%">
-          <feDropShadow dx="0" dy="2" stdDeviation="2.6" flood-color="#3c2810" flood-opacity="0.07"/>
+        <linearGradient id="dr-node" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0" stop-color="#f6f1fc"/>
+          <stop offset="1" stop-color="#e7ddf4"/>
+        </linearGradient>
+        <filter id="dr-soft" x="-12%" y="-30%" width="124%" height="160%">
+          <feDropShadow dx="0" dy="2" stdDeviation="3" flood-color="#3c2810" flood-opacity="0.10"/>
         </filter>
-        <marker id="arrow-dn-orange" markerWidth="9" markerHeight="9" refX="8" refY="4.5" orient="auto">
-          <polygon points="0 0, 9 4.5, 0 9" fill="#d97757"/>
-        </marker>
-        <marker id="arrow-dn-purple" markerWidth="9" markerHeight="9" refX="8" refY="4.5" orient="auto">
-          <polygon points="0 0, 9 4.5, 0 9" fill="#7a5fa0"/>
+        <filter id="dr-glow" x="-90%" y="-90%" width="280%" height="280%">
+          <feDropShadow dx="0" dy="0" stdDeviation="7" flood-color="#b69ae6" flood-opacity="0.85"/>
+        </filter>
+        <filter id="dr-mote" x="-160%" y="-160%" width="420%" height="420%">
+          <feDropShadow dx="0" dy="0" stdDeviation="2.6" flood-color="#c7aef0" flood-opacity="0.9"/>
+        </filter>
+        <marker id="dr-arr" markerWidth="9" markerHeight="9" refX="7.5" refY="4.5" orient="auto">
+          <path d="M0 0 L9 4.5 L0 9 L2.6 4.5 Z" fill="#d97757"/>
         </marker>
       </defs>
 
-      <!-- Day-night gradient strip across top -->
-      <rect x="0" y="0" width="940" height="60" fill="url(#bg-dn)" rx="14"/>
-      <text x="20"  y="36" font-size="11" font-family="ui-monospace,monospace" letter-spacing="2.5" fill="#b85e3f">☀ DAY</text>
-      <text x="920" y="36" font-size="11" font-family="ui-monospace,monospace" letter-spacing="2.5" text-anchor="end" fill="#4a3270">NIGHT ☾</text>
+      <!-- ===================== SKY ===================== -->
+      <rect x="0" y="0" width="940" height="116" fill="url(#dr-sky)" rx="16"/>
+      <!-- sun -->
+      <circle cx="86" cy="60" r="40" fill="url(#dr-sun-halo)"/>
+      <circle cx="86" cy="60" r="21" fill="url(#dr-sun)"/>
+      <g stroke="#f6c45e" stroke-width="2.4" stroke-linecap="round" opacity="0.8">
+        <line x1="86" y1="24" x2="86" y2="14"/>
+        <line x1="86" y1="106" x2="86" y2="96"/>
+        <line x1="50" y1="60" x2="40" y2="60"/>
+        <line x1="122" y1="60" x2="132" y2="60"/>
+        <line x1="61" y1="35" x2="54" y2="28"/>
+        <line x1="111" y1="85" x2="118" y2="92"/>
+        <line x1="111" y1="35" x2="118" y2="28"/>
+        <line x1="61" y1="85" x2="54" y2="92"/>
+      </g>
+      <!-- moon -->
+      <circle cx="858" cy="50" r="34" fill="url(#dr-moon-halo)"/>
+      <circle cx="858" cy="50" r="18" fill="#ece6f6"/>
+      <circle cx="852" cy="44" r="4.5" fill="#d4cae8" opacity="0.8"/>
+      <circle cx="864" cy="58" r="3" fill="#d4cae8" opacity="0.7"/>
+      <circle cx="850" cy="58" r="2.4" fill="#d4cae8" opacity="0.6"/>
+      <!-- stars -->
+      <g fill="#f0ebfb">
+        <path d="M620 34 L621.4 38 L625.4 39.4 L621.4 40.8 L620 44.8 L618.6 40.8 L614.6 39.4 L618.6 38 Z" opacity="0.9"/>
+        <path d="M712 72 L713.1 75 L716.1 76.1 L713.1 77.2 L712 80.2 L710.9 77.2 L707.9 76.1 L710.9 75 Z" opacity="0.8"/>
+        <path d="M770 28 L771.2 31.2 L774.4 32.4 L771.2 33.6 L770 36.8 L768.8 33.6 L765.6 32.4 L768.8 31.2 Z" opacity="0.85"/>
+        <circle cx="668" cy="58" r="1.7" opacity="0.8"/>
+        <circle cx="744" cy="44" r="1.4" opacity="0.7"/>
+        <circle cx="806" cy="80" r="1.8" opacity="0.85"/>
+        <circle cx="900" cy="92" r="1.5" opacity="0.7"/>
+        <circle cx="650" cy="90" r="1.3" opacity="0.6"/>
+        <circle cx="828" cy="26" r="1.5" opacity="0.75"/>
+        <circle cx="884" cy="62" r="1.4" opacity="0.7"/>
+      </g>
+      <text x="40"  y="62" font-size="11" font-family="ui-monospace,monospace" letter-spacing="3" fill="#b8743f">DAYBREAK</text>
+      <text x="900" y="100" font-size="11" font-family="ui-monospace,monospace" letter-spacing="3" text-anchor="end" fill="#c9bce8">NIGHTFALL</text>
 
       <!-- Headline -->
-      <text x="40"  y="98" font-size="22" font-weight="700" letter-spacing="-0.5" fill="#1f1f1f">Consolidation happens offline. Dreams produce candidates, never promotes.</text>
+      <text x="40" y="152" font-size="21" font-weight="700" letter-spacing="-0.5" fill="#1f1f1f">Consolidation happens offline. Dreams produce candidates — never promotes.</text>
 
-      <!-- DAY column -->
-      <rect x="40"  y="120" width="380" height="200" rx="14" fill="url(#bg-day)"/>
-      <text x="60"  y="148" font-size="11" font-family="ui-monospace,monospace" letter-spacing="2" fill="#b85e3f">DAY · AGENTS RUNNING</text>
-
-      <g>
-        <rect x="60" y="166" width="170" height="58" rx="10" fill="#fff" filter="url(#dn-shadow)"/>
-        <rect x="60" y="166" width="3" height="58" rx="1.5" fill="#d97757"/>
-        <text x="80" y="188" font-size="14" font-weight="700" fill="#1f1f1f">working <tspan font-size="10.5" font-weight="400" fill="#3a6da0">· live</tspan></text>
-        <text x="80" y="208" font-size="11" fill="#6f6f6f">scratch · in-flight</text>
-      </g>
-      <g>
-        <rect x="240" y="166" width="170" height="58" rx="10" fill="#fff" filter="url(#dn-shadow)"/>
-        <rect x="240" y="166" width="3" height="58" rx="1.5" fill="#d97757"/>
-        <text x="260" y="188" font-size="14" font-weight="700" fill="#1f1f1f">episodic <tspan font-size="10.5" font-weight="400" fill="#3a6da0">· live</tspan></text>
-        <text x="260" y="208" font-size="11" fill="#6f6f6f">promoted iterations</text>
+      <!-- ===================== DAY PANEL ===================== -->
+      <rect x="32" y="176" width="400" height="228" rx="16" fill="url(#dr-day)" filter="url(#dr-soft)"/>
+      <text x="56" y="208" font-size="11" font-family="ui-monospace,monospace" letter-spacing="2.2" fill="#b85e3f">DAY · AGENTS RUNNING</text>
+      <g opacity="0.7">
+        <circle cx="338" cy="202" r="3.2" fill="#d97757"/>
+        <circle cx="352" cy="202" r="3.2" fill="#d97757"/>
+        <circle cx="366" cy="202" r="3.2" fill="#d97757"/>
       </g>
 
-      <text x="235" y="252" font-size="11.5" font-family="ui-monospace,monospace" text-anchor="middle" fill="#8a8579">accumulates over a session</text>
-      <text x="235" y="270" font-size="11" font-family="ui-monospace,monospace" text-anchor="middle" fill="#8a8579">read-only for Dreams to consume</text>
-
-      <!-- Horizon / sleep boundary -->
       <g>
-        <line x1="440" y1="130" x2="440" y2="310" stroke="#b8a880" stroke-width="1.2" stroke-dasharray="4 3"/>
-        <circle cx="440" cy="170" r="18" fill="#fff" stroke="#7a5fa0" stroke-width="1.5"/>
-        <svg x="426" y="156" width="28" height="28"><use href="#icon-moon" style="color:#7a5fa0"/></svg>
-        <text x="440" y="320" font-size="10.5" font-family="ui-monospace,monospace" text-anchor="middle" fill="#7a5fa0" font-weight="700">SLEEP BOUNDARY</text>
-      </g>
-
-      <!-- Live-snapshot arrow into Dreams -->
-      <path d="M 230 224 Q 350 290 458 224" stroke="#d97757" stroke-width="1.8" fill="none" stroke-dasharray="5 4" marker-end="url(#arrow-dn-orange)"/>
-      <text x="345" y="292" font-size="10.5" font-family="ui-monospace,monospace" text-anchor="middle" fill="#b85e3f">live snapshot (read-only)</text>
-
-      <!-- NIGHT column: dreams pipeline -->
-      <rect x="460" y="120" width="440" height="200" rx="14" fill="url(#bg-night)"/>
-      <text x="480" y="148" font-size="11" font-family="ui-monospace,monospace" letter-spacing="2" fill="#4a3270">NIGHT · DREAMS PIPELINE (OFFLINE)</text>
-
-      <g>
-        <rect x="480" y="166" width="130" height="58" rx="10" fill="#fff" filter="url(#dn-shadow)"/>
-        <rect x="480" y="166" width="3" height="58" rx="1.5" fill="#7a5fa0"/>
-        <text x="500" y="188" font-size="14" font-weight="700" fill="#1f1f1f">replay</text>
-        <text x="500" y="208" font-size="11" fill="#6f6f6f">episodic → patterns</text>
+        <rect x="56" y="226" width="172" height="70" rx="11" fill="#ffffff" filter="url(#dr-soft)"/>
+        <rect x="56" y="226" width="4" height="70" rx="2" fill="#d97757"/>
+        <text x="76" y="254" font-size="15" font-weight="700" fill="#1f1f1f">working</text>
+        <text x="76" y="276" font-size="11" fill="#6f6f6f">in-flight scratch</text>
       </g>
       <g>
-        <rect x="624" y="166" width="130" height="58" rx="10" fill="#fff" filter="url(#dn-shadow)"/>
-        <rect x="624" y="166" width="3" height="58" rx="1.5" fill="#7a5fa0"/>
-        <text x="644" y="188" font-size="14" font-weight="700" fill="#1f1f1f">consolidate</text>
-        <text x="644" y="208" font-size="11" fill="#6f6f6f">extract facts</text>
+        <rect x="244" y="226" width="172" height="70" rx="11" fill="#ffffff" filter="url(#dr-soft)"/>
+        <rect x="244" y="226" width="4" height="70" rx="2" fill="#d97757"/>
+        <text x="264" y="254" font-size="15" font-weight="700" fill="#1f1f1f">episodic</text>
+        <text x="264" y="276" font-size="11" fill="#6f6f6f">promoted iterations</text>
+      </g>
+      <text x="232" y="332" font-size="11.5" font-family="ui-monospace,monospace" text-anchor="middle" fill="#9a8b6a">live memory accumulates</text>
+      <text x="232" y="350" font-size="11" font-family="ui-monospace,monospace" text-anchor="middle" fill="#9a8b6a">over the waking session</text>
+      <text x="232" y="384" font-size="10.5" font-family="ui-monospace,monospace" text-anchor="middle" fill="#b6a888">read-only · Dreams never writes here</text>
+
+      <!-- ===================== SLEEP BOUNDARY ===================== -->
+      <line x1="470" y1="184" x2="470" y2="396" stroke="#8a79b0" stroke-width="1.4" stroke-dasharray="3 5" opacity="0.7"/>
+      <circle cx="470" cy="262" r="40" fill="url(#dr-moon-halo)"/>
+      <circle cx="470" cy="262" r="19" fill="#322c52"/>
+      <path d="M470 245 A 17 17 0 1 0 470 279 A 13 13 0 1 1 470 245 Z" fill="#ece6f6"/>
+      <text x="470" y="316" font-size="9.5" font-family="ui-monospace,monospace" text-anchor="middle" letter-spacing="1.5" fill="#8a79b0">SLEEP</text>
+      <text x="470" y="330" font-size="9.5" font-family="ui-monospace,monospace" text-anchor="middle" letter-spacing="1.5" fill="#8a79b0">BOUNDARY</text>
+
+      <!-- memory stream: motes crossing the boundary -->
+      <path id="dr-stream" d="M416 262 Q 443 240 508 250" fill="none" stroke="none"/>
+      <g fill="#caa86a">
+        <circle cx="424" cy="259" r="3.4" opacity="0.85"/>
+        <circle cx="442" cy="251" r="3" opacity="0.7"/>
+        <circle cx="460" cy="248" r="2.6" opacity="0.85"/>
+        <circle cx="480" cy="248" r="3" opacity="0.7"/>
+        <circle cx="498" cy="250" r="2.4" opacity="0.6"/>
+      </g>
+      <text x="462" y="226" font-size="9.5" font-family="ui-monospace,monospace" text-anchor="middle" fill="#9a8b6a">snapshot →</text>
+
+      <!-- ===================== NIGHT PANEL ===================== -->
+      <rect x="508" y="176" width="400" height="228" rx="16" fill="url(#dr-night)" filter="url(#dr-soft)"/>
+      <!-- faint stars inside the night panel -->
+      <g fill="#9a8fc4" opacity="0.55">
+        <circle cx="552" cy="350" r="1.5"/>
+        <circle cx="640" cy="368" r="1.2"/>
+        <circle cx="760" cy="356" r="1.5"/>
+        <circle cx="864" cy="344" r="1.3"/>
+        <circle cx="828" cy="372" r="1.1"/>
+      </g>
+      <text x="532" y="208" font-size="11" font-family="ui-monospace,monospace" letter-spacing="2.2" fill="#b9a9dd">NIGHT · DREAMS PIPELINE · OFFLINE</text>
+
+      <!-- glowing connector thread behind the nodes -->
+      <path d="M590 262 H 708 H 826" fill="none" stroke="#7a5fa0" stroke-width="2.5" opacity="0.55"/>
+
+      <!-- three glowing dream nodes -->
+      <g>
+        <rect x="528" y="230" width="124" height="64" rx="13" fill="url(#dr-node)" filter="url(#dr-glow)"/>
+        <text x="590" y="259" font-size="14" font-weight="700" text-anchor="middle" fill="#4a3270">replay</text>
+        <text x="590" y="278" font-size="9.5" font-family="ui-monospace,monospace" text-anchor="middle" fill="#7a5fa0">episodic → patterns</text>
       </g>
       <g>
-        <rect x="768" y="166" width="116" height="58" rx="10" fill="#fff" filter="url(#dn-shadow)"/>
-        <rect x="768" y="166" width="3" height="58" rx="1.5" fill="#7a5fa0"/>
-        <text x="788" y="188" font-size="14" font-weight="700" fill="#1f1f1f">score</text>
-        <text x="788" y="208" font-size="11" fill="#6f6f6f">quality + redact</text>
+        <rect x="646" y="230" width="124" height="64" rx="13" fill="url(#dr-node)" filter="url(#dr-glow)"/>
+        <text x="708" y="259" font-size="14" font-weight="700" text-anchor="middle" fill="#4a3270">consolidate</text>
+        <text x="708" y="278" font-size="9.5" font-family="ui-monospace,monospace" text-anchor="middle" fill="#7a5fa0">extract durable facts</text>
       </g>
-
-      <line x1="610" y1="195" x2="622" y2="195" stroke="#7a5fa0" stroke-width="2" marker-end="url(#arrow-dn-purple)"/>
-      <line x1="754" y1="195" x2="766" y2="195" stroke="#7a5fa0" stroke-width="2" marker-end="url(#arrow-dn-purple)"/>
-
-      <text x="680" y="252" font-size="11.5" font-family="ui-monospace,monospace" text-anchor="middle" fill="#7a5fa0">no agent prompts · no tool access · no network</text>
-      <text x="680" y="270" font-size="11" font-family="ui-monospace,monospace" text-anchor="middle" fill="#7a5fa0">isolated process · partial-output redaction on cancel</text>
-
-      <!-- Output bar -->
       <g>
-        <rect x="40" y="346" width="860" height="64" rx="10" fill="#fde7d8" filter="url(#dn-shadow)"/>
-        <rect x="40" y="346" width="3" height="64" rx="1.5" fill="#d97757"/>
-        <text x="470" y="372" font-size="14" font-weight="700" text-anchor="middle" fill="#1f1f1f">dream-output → candidate entries <tspan font-size="11" font-weight="400" fill="#6f6f6f">(semantic / procedural / causal)</tspan></text>
-        <text x="470" y="394" font-size="11" font-family="ui-monospace,monospace" text-anchor="middle" fill="#b85e3f">stamped writer_iteration_id = dream-&lt;date&gt; · trust = candidate</text>
+        <rect x="764" y="230" width="124" height="64" rx="13" fill="url(#dr-node)" filter="url(#dr-glow)"/>
+        <text x="826" y="259" font-size="14" font-weight="700" text-anchor="middle" fill="#4a3270">score</text>
+        <text x="826" y="278" font-size="9.5" font-family="ui-monospace,monospace" text-anchor="middle" fill="#7a5fa0">quality + redact</text>
       </g>
 
-      <!-- Down arrow -->
-      <line x1="470" y1="412" x2="470" y2="438" stroke="#d97757" stroke-width="2.4" marker-end="url(#arrow-dn-orange)"/>
+      <text x="708" y="340" font-size="10.5" font-family="ui-monospace,monospace" text-anchor="middle" fill="#c9bce8">no agent prompts · no tools · no network</text>
+      <text x="708" y="358" font-size="10" font-family="ui-monospace,monospace" text-anchor="middle" fill="#9a8fc4">isolated process · partial-output redaction on cancel</text>
+      <text x="708" y="384" font-size="10" font-family="ui-monospace,monospace" text-anchor="middle" fill="#7e72a8">a hard wall between thinking about change and making it</text>
 
-      <!-- V1+V2 same-stack reminder -->
+      <!-- dream-output motes drifting down toward the candidate bar -->
+      <g fill="#b69ae6" filter="url(#dr-mote)">
+        <circle cx="826" cy="312" r="3.6"/>
+        <circle cx="792" cy="338" r="3"/>
+        <circle cx="748" cy="370" r="2.6"/>
+        <circle cx="694" cy="398" r="3.2"/>
+        <circle cx="624" cy="420" r="2.4"/>
+      </g>
+      <text x="884" y="332" font-size="9.5" font-family="ui-monospace,monospace" text-anchor="end" fill="#9a8fc4">dream-output ↓</text>
+
+      <!-- ===================== CANDIDATE BAR ===================== -->
       <g>
-        <rect x="100" y="442" width="740" height="64" rx="10" fill="#dde9f5" filter="url(#dn-shadow)" stroke="#4a82bc" stroke-width="1.2"/>
-        <rect x="100" y="442" width="3" height="64" rx="1.5" fill="#4a82bc"/>
-        <text x="470" y="468" font-size="14" font-weight="700" text-anchor="middle" fill="#1a3a5e">V1 graders + V2 critic · cross-checkpoint cert · Auditor why-doc</text>
-        <text x="470" y="490" font-size="11" font-family="ui-monospace,monospace" text-anchor="middle" fill="#3a6da0">dream candidates go through <tspan font-weight="700">the same verification</tspan> as any other candidate</text>
+        <rect x="32" y="436" width="876" height="62" rx="12" fill="#fde7d8" filter="url(#dr-soft)"/>
+        <rect x="32" y="436" width="4" height="62" rx="2" fill="#d97757"/>
+        <text x="470" y="464" font-size="14.5" font-weight="700" text-anchor="middle" fill="#1f1f1f">dream-output → candidate entries <tspan font-size="11.5" font-weight="400" fill="#8a6a52">(semantic · procedural · causal)</tspan></text>
+        <text x="470" y="484" font-size="11" font-family="ui-monospace,monospace" text-anchor="middle" fill="#b85e3f">stamped writer_iteration_id = dream-&lt;date&gt; · trust = candidate</text>
       </g>
 
-      <!-- Footer -->
-      <text x="40" y="534" font-size="11" font-family="ui-monospace,monospace" fill="#8a8579" font-style="italic">csis/dreams/ · mocked locally · real Anthropic Dreams API integration deferred to Phase 1</text>
+      <!-- down arrow -->
+      <line x1="470" y1="498" x2="470" y2="522" stroke="#d97757" stroke-width="2.6" marker-end="url(#dr-arr)"/>
+
+      <!-- ===================== VERIFICATION BAR ===================== -->
+      <g>
+        <rect x="120" y="524" width="700" height="64" rx="12" fill="#dde9f5" stroke="#bcd2e8" stroke-width="1.2" filter="url(#dr-soft)"/>
+        <rect x="120" y="524" width="4" height="64" rx="2" fill="#4a82bc"/>
+        <text x="470" y="552" font-size="14.5" font-weight="700" text-anchor="middle" fill="#1a3a5e">V1 graders + V2 critic · cross-checkpoint cert · Auditor why-doc</text>
+        <text x="470" y="573" font-size="11" font-family="ui-monospace,monospace" text-anchor="middle" fill="#3a6da0">dream candidates clear <tspan font-weight="700">the exact same bar</tspan> — nothing dreams produces auto-promotes</text>
+      </g>
+
+      <!-- footer -->
+      <text x="40" y="612" font-size="10.5" font-family="ui-monospace,monospace" fill="#8a8579" font-style="italic">csis/dreams/ · mocked locally · real Anthropic Dreams API integration deferred to Phase 1</text>
     </svg>
     <div class="figure-caption">Figure 6 · The sleep/dreams cycle. Working+episodic live memory flows into the Dreams pipeline (offline; no agent prompts, no tool access). Dreams produce candidate entries in semantic/procedural/causal tiers. Those candidates go through <em>the same V1+V2 verification</em> as any other candidate. Nothing dreams produces auto-promotes.</div>
     <div class="failure-mode"><span class="fm-label">what fails without this:</span> The agent dreams up a "good idea" mid-iteration and acts on it before any verifier sees it. There's no gap between cognition and commitment — a hallucination becomes a memory becomes a future plan in three steps. Offline consolidation puts a hard boundary between <em>thinking about improvement</em> and <em>actually changing live state</em>, so even Dreams' best output still has to clear the same V1+V2 bar.</div>
