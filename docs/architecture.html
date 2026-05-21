@@ -642,6 +642,28 @@
     color: var(--ink-faint);
     font-style: italic;
   }
+  .render-colhead {
+    position: absolute;
+    transform: translate(-50%, -50%);
+    font-family: var(--mono);
+    font-size: 11px;
+    font-weight: 700;
+    letter-spacing: 1.4px;
+    text-transform: uppercase;
+    background: rgba(255, 253, 248, 0.92);
+    border: 1px solid var(--border-deep);
+    border-radius: 7px;
+    padding: 6px 13px;
+    box-shadow: var(--shadow-sm);
+    white-space: nowrap;
+  }
+  .render-colhead .rch-sub {
+    font-weight: 400;
+    text-transform: none;
+    letter-spacing: 0;
+    color: var(--ink-dim);
+    margin-left: 7px;
+  }
   @media (max-width: 720px) {
     .render-chip { padding: 4px 7px 4px 5px; gap: 5px; }
     .render-chip .rc-badge { width: 17px; height: 17px; font-size: 10px; border-radius: 5px; }
@@ -654,6 +676,8 @@
     .render-note .rn-title { font-size: 9px; }
     .render-note .rn-sub { font-size: 7.5px; }
     .render-foot { font-size: 7.5px; }
+    .render-colhead { font-size: 7.5px; padding: 3px 6px; }
+    .render-colhead .rch-sub { display: none; }
   }
 
   /* ----- interactive stack ----- */
@@ -1460,274 +1484,37 @@
   </div>
 
   <div class="figure-wrap">
-    <svg class="csis-svg" viewBox="0 0 940 520" xmlns="http://www.w3.org/2000/svg" aria-label="The 5-tier memory hierarchy as a 2-column 5-row matrix. Left column is the candidate side (orange wash, writes free, stamped with writer_iteration_id). Right column is the live side (blue wash, read-only, only mutation is promote()). The five tier rows from top to bottom: WORKING (scratch for in-flight iteration), EPISODIC (per-iteration narrative + outcomes), SEMANTIC (durable facts extracted from episodes), PROCEDURAL (the actual self-improving surface — reusable skills, marked with a star), CAUSAL (why-this-fixed-that hypotheses). A single green promote() arrow at every row connects the candidate cell to the live cell. Column headers describe the candidate/live contract; a footer annotation labels the green arrows as MemoryStore.promote(ids, precondition_hash=...) atomic candidate→live flips.">
-      <defs>
-        <linearGradient id="bg-mem" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0" stop-color="#fdfaf3"/>
-          <stop offset="1" stop-color="#f7eedb"/>
-        </linearGradient>
-        <linearGradient id="cand-col" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0" stop-color="#fde7d8" stop-opacity="0.6"/>
-          <stop offset="1" stop-color="#fde7d8" stop-opacity="0.25"/>
-        </linearGradient>
-        <linearGradient id="live-col" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0" stop-color="#e2ecf6" stop-opacity="0.6"/>
-          <stop offset="1" stop-color="#e2ecf6" stop-opacity="0.25"/>
-        </linearGradient>
-        <filter id="cell-shadow" x="-2%" y="-30%" width="104%" height="160%">
-          <feDropShadow dx="0" dy="2" stdDeviation="2.4" flood-color="#3c2810" flood-opacity="0.06"/>
-        </filter>
-        <marker id="arrow-promote" markerWidth="9" markerHeight="9" refX="8" refY="4.5" orient="auto">
-          <polygon points="0 0, 9 4.5, 0 9" fill="#5a6c46"/>
-        </marker>
-      </defs>
+    <div class="render-fig" role="img" aria-label="3D render of the 5-tier memory hierarchy as a ledger of five rows receding into the scene. Every row pairs a candidate slab on the left (warm orange — writes are free here, each stamped with a writer_iteration_id) with a live slab on the right (blue — read-only), joined by a glowing green promote() connector with a bright node at its midpoint. The five tiers, front to back, are working (in-flight scratch), episodic (iteration narrative and outcomes), semantic (durable facts), procedural (reusable skills — the actual self-improving surface, starred), and causal (why-this-fixed-that hypotheses). Crisp labels overlay each candidate slab; column headers mark the candidate and live sides; a callout names the promote() connector as the only path from candidate to live.">
+      <img src="diagrams/memory.png" alt="3D ledger of the five CSIS memory tiers, each with a candidate side and a live side"/>
 
-      <rect x="0" y="0" width="940" height="520" fill="url(#bg-mem)" rx="14"/>
+      <div class="render-colhead" style="left:35%;top:8%">candidate <span class="rch-sub">writes free</span></div>
+      <div class="render-colhead" style="left:82%;top:15%">live <span class="rch-sub">promote() only</span></div>
 
-      <!-- Two column washes -->
-      <rect x="40"  y="80"  width="400" height="400" rx="14" fill="url(#cand-col)"/>
-      <rect x="500" y="80"  width="400" height="400" rx="14" fill="url(#live-col)"/>
+      <div class="render-chip" style="left:35.8%;top:22.5%;transform:translate(-50%,-50%)">
+        <span class="rc-text"><span class="rc-name">working</span><br><span class="rc-sub">in-flight scratch</span></span>
+      </div>
+      <div class="render-chip" style="left:32.1%;top:34.1%;transform:translate(-50%,-50%)">
+        <span class="rc-text"><span class="rc-name">episodic</span><br><span class="rc-sub">iteration narrative + outcomes</span></span>
+      </div>
+      <div class="render-chip" style="left:28.0%;top:46.9%;transform:translate(-50%,-50%)">
+        <span class="rc-text"><span class="rc-name">semantic</span><br><span class="rc-sub">durable facts</span></span>
+      </div>
+      <div class="render-chip" style="left:23.4%;top:61.1%;transform:translate(-50%,-50%)">
+        <span class="rc-badge" style="background:#5f9a3e">★</span>
+        <span class="rc-text"><span class="rc-name">procedural</span><br><span class="rc-sub">reusable skills — the self-improving surface</span></span>
+      </div>
+      <div class="render-chip" style="left:18.3%;top:77.1%;transform:translate(-50%,-50%)">
+        <span class="rc-text"><span class="rc-name">causal</span><br><span class="rc-sub">why-this-fixed-that</span></span>
+      </div>
 
-      <!-- Column headers -->
-      <text x="40"  y="40" font-size="11" font-family="ui-monospace,monospace" letter-spacing="2" fill="#b85e3f">CANDIDATE</text>
-      <text x="40"  y="62" font-size="14" font-weight="700" fill="#1f1f1f">Writes free · stamped with writer_iteration_id</text>
+      <div class="render-gate" style="left:49.1%;top:51.0%;transform:translate(-50%,-50%)">
+        <span class="rg-seal"><svg width="11" height="11"><use href="#icon-flow" style="color:#5a6c46"/></svg></span>
+        <span><b>promote()</b> &nbsp;<span class="rg-sub">the only path to live</span></span>
+      </div>
 
-      <text x="500" y="40" font-size="11" font-family="ui-monospace,monospace" letter-spacing="2" fill="#3a6da0">LIVE</text>
-      <text x="500" y="62" font-size="14" font-weight="700" fill="#1f1f1f">Read-only · only mutation is <tspan font-family="ui-monospace,monospace" font-size="12.5">promote()</tspan></text>
-
-      <!-- Promote column header (between) -->
-      <text x="470" y="51" font-size="10" font-family="ui-monospace,monospace" text-anchor="middle" fill="#5a6c46" letter-spacing="1">PROMOTE</text>
-
-      <!-- Row helper data: all rows share structure -->
-      <!-- ROW 1: working -->
-      <g>
-        <rect x="56" y="98" width="368" height="64" rx="10" fill="#fff" filter="url(#cell-shadow)"/>
-        <rect x="56" y="98" width="3" height="64" rx="1.5" fill="#d97757"/>
-        <text x="76" y="124" font-size="16" font-weight="700" fill="#1f1f1f">working</text>
-        <text x="76" y="146" font-size="12" fill="#6f6f6f">scratch · in-flight iteration</text>
-        <g transform="translate(386, 113)"><circle cx="11" cy="11" r="14" fill="#fce5d8"/><svg x="3" y="3" width="16" height="16"><use href="#icon-flow" style="color:#d97757"/></svg></g>
-
-        <rect x="516" y="98" width="368" height="64" rx="10" fill="#fff" filter="url(#cell-shadow)"/>
-        <rect x="516" y="98" width="3" height="64" rx="1.5" fill="#4a82bc"/>
-        <text x="536" y="124" font-size="16" font-weight="700" fill="#1f1f1f">working <tspan font-size="12" fill="#3a6da0" font-weight="400">· live</tspan></text>
-        <text x="536" y="146" font-size="12" fill="#6f6f6f">read-only · next iteration's view</text>
-
-        <line x1="430" y1="130" x2="514" y2="130" stroke="#5a6c46" stroke-width="1.8" marker-end="url(#arrow-promote)"/>
-      </g>
-
-      <!-- ROW 2: episodic -->
-      <g>
-        <rect x="56" y="174" width="368" height="64" rx="10" fill="#fff" filter="url(#cell-shadow)"/>
-        <rect x="56" y="174" width="3" height="64" rx="1.5" fill="#d97757"/>
-        <text x="76" y="200" font-size="16" font-weight="700" fill="#1f1f1f">episodic</text>
-        <text x="76" y="222" font-size="12" fill="#6f6f6f">narrative + outcomes per iteration</text>
-        <g transform="translate(386, 189)"><circle cx="11" cy="11" r="14" fill="#fce5d8"/><svg x="3" y="3" width="16" height="16"><use href="#icon-clock" style="color:#d97757"/></svg></g>
-
-        <rect x="516" y="174" width="368" height="64" rx="10" fill="#fff" filter="url(#cell-shadow)"/>
-        <rect x="516" y="174" width="3" height="64" rx="1.5" fill="#4a82bc"/>
-        <text x="536" y="200" font-size="16" font-weight="700" fill="#1f1f1f">episodic <tspan font-size="12" fill="#3a6da0" font-weight="400">· live</tspan></text>
-        <text x="536" y="222" font-size="12" fill="#6f6f6f">promoted iterations · what actually happened</text>
-
-        <line x1="430" y1="206" x2="514" y2="206" stroke="#5a6c46" stroke-width="1.8" marker-end="url(#arrow-promote)"/>
-      </g>
-
-      <!-- ROW 3: semantic -->
-      <g>
-        <rect x="56" y="250" width="368" height="64" rx="10" fill="#fff" filter="url(#cell-shadow)"/>
-        <rect x="56" y="250" width="3" height="64" rx="1.5" fill="#d97757"/>
-        <text x="76" y="276" font-size="16" font-weight="700" fill="#1f1f1f">semantic</text>
-        <text x="76" y="298" font-size="12" fill="#6f6f6f">durable facts extracted from episodes</text>
-        <g transform="translate(386, 265)"><circle cx="11" cy="11" r="14" fill="#fce5d8"/><svg x="3" y="3" width="16" height="16"><use href="#icon-brain" style="color:#d97757"/></svg></g>
-
-        <rect x="516" y="250" width="368" height="64" rx="10" fill="#fff" filter="url(#cell-shadow)"/>
-        <rect x="516" y="250" width="3" height="64" rx="1.5" fill="#4a82bc"/>
-        <text x="536" y="276" font-size="16" font-weight="700" fill="#1f1f1f">semantic <tspan font-size="12" fill="#3a6da0" font-weight="400">· live</tspan></text>
-        <text x="536" y="298" font-size="12" fill="#6f6f6f">general knowledge the system has earned</text>
-
-        <line x1="430" y1="282" x2="514" y2="282" stroke="#5a6c46" stroke-width="1.8" marker-end="url(#arrow-promote)"/>
-      </g>
-
-      <!-- ROW 4: procedural — the starred one -->
-      <g>
-        <rect x="56" y="326" width="368" height="64" rx="10" fill="#fff" filter="url(#cell-shadow)"/>
-        <rect x="56" y="326" width="3" height="64" rx="1.5" fill="#d97757"/>
-        <text x="76" y="352" font-size="16" font-weight="700" fill="#1f1f1f">procedural</text>
-        <text x="76" y="374" font-size="12" fill="#6f6f6f">reusable skills (consumer: T1 tools)</text>
-        <g transform="translate(386, 341)"><circle cx="11" cy="11" r="14" fill="#fce5d8"/><svg x="3" y="3" width="16" height="16"><use href="#icon-flow" style="color:#d97757"/></svg></g>
-
-        <rect x="516" y="326" width="368" height="64" rx="10" fill="#fff" filter="url(#cell-shadow)" stroke="#5a6c46" stroke-width="1.5"/>
-        <rect x="516" y="326" width="3" height="64" rx="1.5" fill="#5a6c46"/>
-        <text x="536" y="352" font-size="16" font-weight="700" fill="#1f1f1f">procedural <tspan font-size="12" fill="#3a6da0" font-weight="400">· live</tspan></text>
-        <text x="536" y="374" font-size="12" fill="#5a6c46" font-weight="600">★ the actual self-improving surface</text>
-
-        <line x1="430" y1="358" x2="514" y2="358" stroke="#5a6c46" stroke-width="2.2" marker-end="url(#arrow-promote)"/>
-      </g>
-
-      <!-- ROW 5: causal -->
-      <g>
-        <rect x="56" y="402" width="368" height="64" rx="10" fill="#fff" filter="url(#cell-shadow)"/>
-        <rect x="56" y="402" width="3" height="64" rx="1.5" fill="#d97757"/>
-        <text x="76" y="428" font-size="16" font-weight="700" fill="#1f1f1f">causal</text>
-        <text x="76" y="450" font-size="12" fill="#6f6f6f">why-this-fixed-that hypotheses</text>
-        <g transform="translate(386, 417)"><circle cx="11" cy="11" r="14" fill="#fce5d8"/><svg x="3" y="3" width="16" height="16"><use href="#icon-eye" style="color:#d97757"/></svg></g>
-
-        <rect x="516" y="402" width="368" height="64" rx="10" fill="#fff" filter="url(#cell-shadow)"/>
-        <rect x="516" y="402" width="3" height="64" rx="1.5" fill="#4a82bc"/>
-        <text x="536" y="428" font-size="16" font-weight="700" fill="#1f1f1f">causal <tspan font-size="12" fill="#3a6da0" font-weight="400">· live</tspan></text>
-        <text x="536" y="450" font-size="12" fill="#6f6f6f">causal models the auditor trusts</text>
-
-        <line x1="430" y1="434" x2="514" y2="434" stroke="#5a6c46" stroke-width="1.8" marker-end="url(#arrow-promote)"/>
-      </g>
-
-      <!-- Footer annotation -->
-      <text x="470" y="500" font-size="11.5" font-family="ui-monospace,monospace" text-anchor="middle" fill="#5a6c46">each arrow → <tspan font-weight="700">MemoryStore.promote(ids, precondition_hash=...)</tspan> · atomic candidate → live flip</text>
-    </svg>
-
-    <!-- Companion: one tier, zoomed in — physical-card metaphor with a stamping gate -->
-    <svg class="csis-svg" viewBox="0 0 940 452" xmlns="http://www.w3.org/2000/svg" aria-label="One tier, zoomed in — how the candidate-to-live split actually works, drawn as physical entry cards passing through a stamping gate. LEFT (candidate buffer): three loosely-stacked, slightly-tilted entry cards, each with an empty dashed seal slot meaning unsealed. Cards #847 and #848 carry writer-iteration-id 42 and are this iteration's work; card #849 carries writer-iteration-id 43, is dimmed, and is labelled as a sibling iteration's card left untouched. CENTRE (the gate): a tall green promote() mechanism with a horizontal scan beam checking the hash precondition — store.promote() does an atomic compare-and-swap. RIGHT (live, sealed): cards #847 and #848 again, now perfectly aligned and each stamped with a filled wax seal containing a lock — sealed, readable as truth by the next iteration. BELOW: a red rejection callout — a card bouncing off the live side along a red arc, showing that a direct write to live and a promote() with a stale hash precondition are both refused at the type level. Footer: writes never see live until promote(); writer_iteration_id makes cleanup race-free across all five tiers." style="margin-top:26px">
-      <defs>
-        <linearGradient id="zm-bg" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0" stop-color="#fdfbf5"/>
-          <stop offset="1" stop-color="#f6edda"/>
-        </linearGradient>
-        <linearGradient id="zm-cand-card" x1="0" y1="0" x2="0.4" y2="1">
-          <stop offset="0" stop-color="#fff6f0"/><stop offset="1" stop-color="#ffffff"/>
-        </linearGradient>
-        <linearGradient id="zm-live-card" x1="0" y1="0" x2="0.4" y2="1">
-          <stop offset="0" stop-color="#f1f6fb"/><stop offset="1" stop-color="#ffffff"/>
-        </linearGradient>
-        <linearGradient id="zm-gate" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0" stop-color="#7d9b62"/>
-          <stop offset="1" stop-color="#566f40"/>
-        </linearGradient>
-        <filter id="zm-card-sh" x="-14%" y="-30%" width="128%" height="170%">
-          <feDropShadow dx="0" dy="1" stdDeviation="1.4" flood-color="#3c2810" flood-opacity="0.10"/>
-          <feDropShadow dx="0" dy="5" stdDeviation="7" flood-color="#3c2810" flood-opacity="0.10"/>
-        </filter>
-        <filter id="zm-gate-sh" x="-40%" y="-20%" width="180%" height="140%">
-          <feDropShadow dx="0" dy="4" stdDeviation="7" flood-color="#2a3a1a" flood-opacity="0.22"/>
-        </filter>
-        <filter id="zm-seal-sh" x="-60%" y="-60%" width="220%" height="220%">
-          <feDropShadow dx="0" dy="1.5" stdDeviation="2" flood-color="#1a3a5e" flood-opacity="0.30"/>
-        </filter>
-        <marker id="zm-arr" markerWidth="9" markerHeight="9" refX="7.5" refY="4.5" orient="auto">
-          <path d="M0 0 L9 4.5 L0 9 L2.6 4.5 Z" fill="#6a8a50"/>
-        </marker>
-      </defs>
-
-      <rect x="0" y="0" width="940" height="452" fill="url(#zm-bg)" rx="16"/>
-
-      <!-- Eyebrow + title -->
-      <text x="44" y="44" font-size="11" font-family="ui-monospace,monospace" letter-spacing="2.4" fill="#a89a72">ONE TIER · ZOOMED IN</text>
-      <text x="44" y="74" font-size="21" font-weight="700" letter-spacing="-0.5" fill="#1f1f1f">An entry only becomes truth once it's stamped.</text>
-
-      <!-- Zone labels -->
-      <text x="60"  y="112" font-size="10.5" font-family="ui-monospace,monospace" letter-spacing="2" fill="#b85e3f">CANDIDATE BUFFER · UNSEALED</text>
-      <text x="700" y="112" font-size="10.5" font-family="ui-monospace,monospace" letter-spacing="2" fill="#3a6da0">LIVE · SEALED</text>
-
-      <!-- ===== CANDIDATE cards: loosely stacked, slightly tilted ===== -->
-      <!-- #847 -->
-      <g transform="rotate(-2.4 205 152)">
-        <rect x="62" y="124" width="286" height="56" rx="10" fill="url(#zm-cand-card)" stroke="#f0d2c1" stroke-width="1" filter="url(#zm-card-sh)"/>
-        <rect x="62" y="124" width="4" height="56" rx="2" fill="#d97757"/>
-        <text x="84" y="150" font-size="14" font-weight="700" fill="#1f1f1f">entry #847</text>
-        <rect x="84" y="158" width="86" height="16" rx="5" fill="#fbe9df"/>
-        <text x="93" y="170" font-size="10" font-family="ui-monospace,monospace" fill="#b85e3f">#a3f7c2…</text>
-        <rect x="178" y="158" width="58" height="16" rx="5" fill="#f1ece0"/>
-        <text x="186" y="170" font-size="9.5" font-family="ui-monospace,monospace" fill="#8a8579">iter 42</text>
-        <!-- empty seal slot -->
-        <circle cx="318" cy="152" r="14" fill="none" stroke="#d8c4a8" stroke-width="1.4" stroke-dasharray="3 2.5"/>
-      </g>
-      <!-- #848 -->
-      <g transform="rotate(1.8 213 224)">
-        <rect x="70" y="196" width="286" height="56" rx="10" fill="url(#zm-cand-card)" stroke="#f0d2c1" stroke-width="1" filter="url(#zm-card-sh)"/>
-        <rect x="70" y="196" width="4" height="56" rx="2" fill="#d97757"/>
-        <text x="92" y="222" font-size="14" font-weight="700" fill="#1f1f1f">entry #848</text>
-        <rect x="92" y="230" width="86" height="16" rx="5" fill="#fbe9df"/>
-        <text x="101" y="242" font-size="10" font-family="ui-monospace,monospace" fill="#b85e3f">#b9d1e4…</text>
-        <rect x="186" y="230" width="58" height="16" rx="5" fill="#f1ece0"/>
-        <text x="194" y="242" font-size="9.5" font-family="ui-monospace,monospace" fill="#8a8579">iter 42</text>
-        <circle cx="326" cy="224" r="14" fill="none" stroke="#d8c4a8" stroke-width="1.4" stroke-dasharray="3 2.5"/>
-      </g>
-      <!-- #849 sibling — dimmed, stays put -->
-      <g transform="rotate(-1.2 205 296)" opacity="0.62">
-        <rect x="62" y="268" width="286" height="56" rx="10" fill="#f6f2ea" stroke="#e2d8c4" stroke-width="1" stroke-dasharray="5 3"/>
-        <rect x="62" y="268" width="4" height="56" rx="2" fill="#a89a72"/>
-        <text x="84" y="294" font-size="14" font-weight="700" fill="#8a8579">entry #849</text>
-        <rect x="84" y="302" width="86" height="16" rx="5" fill="#efe9dc"/>
-        <text x="93" y="314" font-size="10" font-family="ui-monospace,monospace" fill="#9a9486">#c2e8f1…</text>
-        <rect x="178" y="302" width="58" height="16" rx="5" fill="#efe9dc"/>
-        <text x="186" y="314" font-size="9.5" font-family="ui-monospace,monospace" fill="#9a9486">iter 43</text>
-        <circle cx="318" cy="296" r="14" fill="none" stroke="#d8c4a8" stroke-width="1.4" stroke-dasharray="3 2.5"/>
-      </g>
-      <text x="205" y="356" font-size="10.5" font-family="ui-monospace,monospace" text-anchor="middle" fill="#8a8579">#849 is a sibling iteration's card — left untouched</text>
-
-      <!-- flow arrow into the gate -->
-      <path d="M360 224 L416 224" fill="none" stroke="#6a8a50" stroke-width="2.4" marker-end="url(#zm-arr)"/>
-
-      <!-- ===== THE GATE: a tall stamping mechanism ===== -->
-      <g>
-        <rect x="430" y="120" width="86" height="208" rx="16" fill="url(#zm-gate)" filter="url(#zm-gate-sh)"/>
-        <rect x="430" y="120" width="86" height="10" rx="5" fill="#ffffff" opacity="0.20"/>
-        <text x="473" y="152" font-size="12.5" font-family="ui-monospace,monospace" font-weight="700" text-anchor="middle" fill="#ffffff">promote()</text>
-        <!-- scan beam -->
-        <line x1="430" y1="212" x2="516" y2="212" stroke="#eaf6d8" stroke-width="2.5"/>
-        <line x1="430" y1="212" x2="516" y2="212" stroke="#ffffff" stroke-width="6" opacity="0.18"/>
-        <g transform="translate(456, 196)">
-          <circle cx="17" cy="16" r="15" fill="#ffffff"/>
-          <path d="M10 16.5 L15 21 L24 10.5" fill="none" stroke="#6a8a50" stroke-width="3" stroke-linecap="round" stroke-linejoin="round"/>
-        </g>
-        <text x="473" y="262" font-size="9.5" font-family="ui-monospace,monospace" text-anchor="middle" fill="#dce8cc">hash</text>
-        <text x="473" y="276" font-size="9.5" font-family="ui-monospace,monospace" text-anchor="middle" fill="#dce8cc">precondition</text>
-        <text x="473" y="304" font-size="10" font-family="ui-monospace,monospace" font-weight="700" text-anchor="middle" fill="#ffffff">atomic CAS</text>
-      </g>
-      <text x="473" y="348" font-size="10" font-family="ui-monospace,monospace" text-anchor="middle" fill="#8a8579">the only way across</text>
-
-      <!-- flow arrow out of the gate -->
-      <path d="M520 180 L572 158" fill="none" stroke="#6a8a50" stroke-width="2.4" marker-end="url(#zm-arr)"/>
-
-      <!-- ===== LIVE cards: aligned, sealed ===== -->
-      <!-- live #847 -->
-      <g>
-        <rect x="588" y="128" width="300" height="58" rx="10" fill="url(#zm-live-card)" stroke="#d3e0ec" stroke-width="1" filter="url(#zm-card-sh)"/>
-        <rect x="588" y="128" width="4" height="58" rx="2" fill="#4a82bc"/>
-        <text x="610" y="155" font-size="14" font-weight="700" fill="#1c3c5e">entry #847</text>
-        <rect x="610" y="163" width="86" height="16" rx="5" fill="#e6eef7"/>
-        <text x="619" y="175" font-size="10" font-family="ui-monospace,monospace" fill="#3a6da0">#a3f7c2…</text>
-        <text x="704" y="175" font-size="9.5" font-family="ui-monospace,monospace" fill="#8a8579">readable as truth</text>
-        <!-- wax seal -->
-        <g filter="url(#zm-seal-sh)"><circle cx="858" cy="157" r="17" fill="#4a82bc"/></g>
-        <circle cx="858" cy="157" r="17" fill="none" stroke="#ffffff" stroke-width="1.4" stroke-opacity="0.45"/>
-        <svg x="849" y="148" width="18" height="18"><use href="#icon-lock" style="color:#ffffff"/></svg>
-      </g>
-      <!-- live #848 -->
-      <g>
-        <rect x="588" y="200" width="300" height="58" rx="10" fill="url(#zm-live-card)" stroke="#d3e0ec" stroke-width="1" filter="url(#zm-card-sh)"/>
-        <rect x="588" y="200" width="4" height="58" rx="2" fill="#4a82bc"/>
-        <text x="610" y="227" font-size="14" font-weight="700" fill="#1c3c5e">entry #848</text>
-        <rect x="610" y="235" width="86" height="16" rx="5" fill="#e6eef7"/>
-        <text x="619" y="247" font-size="10" font-family="ui-monospace,monospace" fill="#3a6da0">#b9d1e4…</text>
-        <text x="704" y="247" font-size="9.5" font-family="ui-monospace,monospace" fill="#8a8579">readable as truth</text>
-        <g filter="url(#zm-seal-sh)"><circle cx="858" cy="229" r="17" fill="#4a82bc"/></g>
-        <circle cx="858" cy="229" r="17" fill="none" stroke="#ffffff" stroke-width="1.4" stroke-opacity="0.45"/>
-        <svg x="849" y="220" width="18" height="18"><use href="#icon-lock" style="color:#ffffff"/></svg>
-      </g>
-
-      <!-- ===== REJECTION: a card bounces off the live side ===== -->
-      <path d="M640 268 Q 600 312 656 344" fill="none" stroke="#c4543b" stroke-width="2" stroke-dasharray="5 4"/>
-      <g transform="rotate(-7 800 380)">
-        <rect x="640" y="352" width="320" height="56" rx="10" fill="#f7ddd2" stroke="#d98e76" stroke-width="1.3"/>
-        <circle cx="670" cy="380" r="13" fill="#c4543b"/>
-        <text x="670" y="385" font-size="13" font-weight="700" text-anchor="middle" fill="#fff">✕</text>
-        <text x="694" y="376" font-size="12.5" font-weight="700" fill="#7c2f18">direct write · stale-hash promote()</text>
-        <text x="694" y="394" font-size="10" font-family="ui-monospace,monospace" fill="#b85e3f">refused at the type level — no API path exists</text>
-      </g>
-
-      <!-- Footer takeaway -->
-      <text x="44" y="436" font-size="11.5" fill="#6f6f6f"><tspan font-weight="700" fill="#5a6c46">Nothing</tspan> reaches the live side except through the gate — and <tspan font-family="ui-monospace,monospace" font-size="11">writer_iteration_id</tspan> keeps cleanup race-free across all five tiers.</text>
-    </svg>
-
-    <div class="figure-caption">Figure 3 · The 5-tier memory hierarchy. Every tier is structurally identical: orange candidate side (writes free; stamped with the iteration that wrote them), blue live side (read-only; only mutation path is <code>promote()</code>). The H4 cycle-9 <code>writer_iteration_id</code> stamp lives on the candidate side — every entry carries the iteration_id of whoever wrote it, so cleanup is race-free under any concurrency model. <b>The zoom-in shows what's actually inside one of those orange/blue boxes</b> — the candidate side carries unsealed entries the next iteration can't see; the live side is sealed; the only legal arrow between them is <code>promote()</code>.</div>
+      <div class="render-foot">memory/store.py · every candidate carries a <code style="background:none;color:var(--ink-dim)">writer_iteration_id</code> → race-free cleanup</div>
+    </div>
+    <div class="figure-caption">Figure 3 · The 5-tier memory hierarchy, rendered in 3D as a five-row ledger. Every tier is structurally identical: an <b>orange candidate side</b> (writes free, each stamped with the iteration that wrote it) and a <b>blue live side</b> (read-only). The glowing green connector is <code>promote()</code> — the <em>only</em> path from candidate to live. The cycle-9 <code>writer_iteration_id</code> stamp lives on every candidate entry, so cleanup is race-free under any concurrency model. <code>procedural</code> is starred: it is the tier where self-improvement actually accumulates.</div>
     <div class="failure-mode"><span class="fm-label">what fails without this:</span> An unverified write becomes truth on the next read. Once a bad entry lands in memory, future iterations cite it, build on it, and consolidate it into deeper tiers. Poisoning <strong>compounds</strong>. The candidate/live split means nothing the agent writes is visible to its next thought until a verifier on a different checkpoint signs off — so a bad write can't bootstrap itself into belief.</div>
   </div>
 
