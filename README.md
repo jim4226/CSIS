@@ -4,7 +4,7 @@
 
 <p align="center">
   <img alt="phase" src="https://img.shields.io/badge/phase-0%20%E2%80%94%20runnable-d97757">
-  <img alt="tests" src="https://img.shields.io/badge/tests-244%20passing-788c5d">
+  <img alt="tests" src="https://img.shields.io/badge/tests-246%20passing-788c5d">
   <img alt="cycles" src="https://img.shields.io/badge/critique%E2%86%92fix%20cycles-9-6a9bcc">
   <img alt="findings" src="https://img.shields.io/badge/findings-99%20closed%20%C2%B7%200%20open-788c5d">
   <img alt="python" src="https://img.shields.io/badge/python-3.10%2B-6a9bcc">
@@ -57,7 +57,7 @@ flowchart LR
 - Constitution + tripwires + shutdown token + tier guard, all enforced as code
 - 24/7 daemon: curiosity-driven frontier-item generation, budget caps, watchdog, stop file, auto-snapshots
 - 3 domain adapters: PR maintenance (any git repo), self-improvement (this repo), Lean formal math (graceful fallback if Lean isn't installed)
-- 244 tests; every cycle's findings have regression tests, plus the distributional grader stack added in cycle 10 (Dice / IoU / landmark-error / ASSD with bootstrap CIs + per-slice breakdown)
+- 246 tests; every cycle's findings have regression tests, plus the distributional grader stack added in cycle 10 (Dice / IoU / landmark-error / ASSD with bootstrap CIs + per-slice breakdown)
 
 ## Distributional graders — outcomes-based evaluation
 
@@ -111,7 +111,7 @@ Concrete graders shipped: `DiceGrader`, `IoUGrader`, `LandmarkErrorGrader`, `Ass
 ```bash
 pip install pydantic pytest
 
-# Run the test suite (244 passing).
+# Run the test suite (246 passing).
 python -m pytest tests/ -v
 
 # Run one full iteration end-to-end (mock backend, no API key).
@@ -222,7 +222,7 @@ Full per-role tier matrix, cross-checkpoint requirements, and design rationale p
 Every interesting state of the build is snapshotted under [`brain/`](brain/). This folder is durable working memory that lets any future contributor (or a future Claude session) pick up cold.
 
 - [`brain/BRAIN.html`](brain/BRAIN.html) — top-level index, open in a browser
-- [`brain/snapshots/`](brain/snapshots/) — 11 point-in-time state files (00-initial → 11-cycle9-shipped)
+- [`brain/snapshots/`](brain/snapshots/) — 12 point-in-time state files (00-initial → 12-chain-integrity-fix)
 - [`brain/plans/`](brain/plans/) — architecture + verification blueprints from planning sub-agents
 - [`brain/critiques/`](brain/critiques/) — 9 cycles of pre-impl and post-impl red-team reports
 - [`brain/research/`](brain/research/) — Anthropic SDK research with current API signatures
@@ -252,8 +252,9 @@ To resume cold: read `brain/BRAIN.html`, then the highest-numbered snapshot, the
 | TierMismatch cleanup is race-free | `writer_iteration_id` stamp on every candidate at write_candidate time; cleanup filters by stamp | `test_H4_sibling_write_during_consolidate_not_over_discarded` |
 | Lost-spend-under-lock-contention | record() appends to WAL on LockUnavailable; next successful record() drains it | `test_H5_record_under_lock_timeout_persists_to_wal` |
 | Distributional cert is bound to evidence, not point estimates | `DistributionalGraderResult` carries bootstrap CI + sample size; conservative `passed` rule requires lower-CI-bound clearing the threshold (higher-is-better) or upper bound staying under (lower-is-better) | `test_dice_grader_fails_when_ci_lower_below_threshold`, `test_landmark_grader_fails_when_ci_upper_exceeds_threshold` |
+| Event-log hash chain holds across processes | `EventLog.emit()` takes an inter-process file lock and re-reads the file tail under it, so two daemons sharing one `session.jsonl` can't tear the seq chain | `test_event_log_cross_process_serialization` |
 
-244 tests total. Each cycle's findings have a regression test that proves the mitigation works. Full cycle history → **[CYCLES.md](CYCLES.md)**.
+246 tests total. Each cycle's findings have a regression test that proves the mitigation works. Full cycle history → **[CYCLES.md](CYCLES.md)**.
 
 ## How this was built
 
