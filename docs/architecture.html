@@ -942,164 +942,214 @@
   </details>
 
   <div class="figure-wrap">
-    <svg class="csis-svg" viewBox="0 0 920 580" xmlns="http://www.w3.org/2000/svg" aria-label="The 8-layer CSIS stack rendered as 8 stacked rounded rectangles, top to bottom: L7 Safety envelope (green) — Constitution, TierGuard, Tripwires, ShutdownToken, WrappedBackend invariant; enforced at the substrate, not as agent-prompt instructions. L6 Meta-improvement (dashed gold) — deferred to Phase 1. L5 Improvement (orange) — Dreams pipeline. L4 Verification (blue, different LLM checkpoint) — V1 pinned graders + V2 Critic on Sonnet-class verifying Opus-class builder. L3 Promotion (orange) — hash-preconditioned CAS atomic flip. L2 Memory hierarchy (orange) — 5 tiers, candidate/live per tier. L1 Agent runtime (orange) — Coordinator runs the 8-step loop, delegates to 6 specialised roles (Researcher, Builder, Verifier, Critic, Librarian, Auditor), delegation depth = 1. L0 Substrate (gold) — hash-chained event log, capability tags, canonical JSON hashing; the only layer everyone trusts unconditionally. A dashed bracket on the right side spans the full height labeled 'safety wraps the whole stack'. Every layer rectangle is keyboard-focusable and click-expandable.">
+    <svg class="csis-svg" viewBox="0 0 940 620" xmlns="http://www.w3.org/2000/svg" aria-label="The 8-layer CSIS stack rendered as 8 horizontal layers stacked vertically with L7 Safety at top and L0 Substrate at the bottom. Each layer shows: a small layer ID in mono, a large primary label, a one-line description, a code path in mono, and an owning role icon at the right. Layers L1 through L5 share the builder/agent orange accent; L4 Verification uses the blue verifier accent (different LLM checkpoint); L0 Substrate uses gold; L7 Safety uses green; L6 Meta-improvement is dashed and dim (deferred to Phase 1). A vertical hairline on the right side, terminated with small caps and labeled rotated 'safety wraps the whole stack', visually annotates that L7's properties extend down the full height. Each layer is keyboard-focusable and click-expandable.">
+      <defs>
+        <linearGradient id="bg-stack" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0" stop-color="#fdfaf3"/>
+          <stop offset="1" stop-color="#f7eedb"/>
+        </linearGradient>
+        <filter id="layer-shadow" x="-2%" y="-20%" width="104%" height="140%">
+          <feDropShadow dx="0" dy="2" stdDeviation="2.4" flood-color="#3c2810" flood-opacity="0.07"/>
+        </filter>
+      </defs>
+
+      <!-- Page background panel -->
+      <rect x="0" y="0" width="940" height="620" fill="url(#bg-stack)" rx="14"/>
+
+      <!-- Left-side axis: layer IDs as a vertical scale -->
+      <line x1="62" y1="44" x2="62" y2="582" stroke="#c8b890" stroke-width="1"/>
+      <g font-family="ui-monospace, monospace" font-size="10.5" fill="#8a8579">
+        <text x="58" y="48" text-anchor="end">↑ higher</text>
+        <text x="58" y="586" text-anchor="end">lower ↓</text>
+      </g>
+
       <!-- L7 safety envelope (top) -->
       <g class="stack-clickable" data-layer="L7" tabindex="0" role="button" aria-label="L7 Safety envelope">
-        <rect x="40" y="20" width="840" height="56" rx="8" fill="#dde6cd" stroke="#5a6c46" stroke-width="2"/>
-        <text x="60" y="43" font-size="11" class="mono dim bold">L7</text>
-        <text x="60" y="62" font-size="17" class="bold">Safety envelope</text>
-        <text x="220" y="50" font-size="13">Constitution · TierGuard · Tripwires · ShutdownToken · WrappedBackend invariant</text>
-        <text x="220" y="66" font-size="11" class="mono dim">enforced AT THE SUBSTRATE, not as agent-prompt instructions</text>
-        <svg x="850" y="36" width="20" height="20"><use href="#icon-shield" style="color:#5a6c46"/></svg>
+        <rect x="80" y="40" width="780" height="58" rx="10" fill="#eaf1da" filter="url(#layer-shadow)"/>
+        <rect x="80" y="40" width="4" height="58" rx="2" fill="#5a6c46"/>
+        <text x="100" y="64" font-family="ui-monospace,monospace" font-size="11" fill="#5a6c46" font-weight="700" letter-spacing="1">L7</text>
+        <text x="100" y="86" font-size="20" font-weight="700" letter-spacing="-0.3" fill="#1f1f1f">Safety envelope</text>
+        <text x="280" y="68" font-size="13.5" fill="#3a3a3a">Constitution · TierGuard · Tripwires · ShutdownToken · WrappedBackend</text>
+        <text x="280" y="86" font-family="ui-monospace,monospace" font-size="11" fill="#8a8579">enforced at the substrate, not in agent prompts</text>
+        <g transform="translate(820, 56)">
+          <circle cx="13" cy="13" r="16" fill="#dde6cd"/>
+          <svg x="3" y="3" width="20" height="20"><use href="#icon-shield" style="color:#5a6c46"/></svg>
+        </g>
       </g>
 
       <!-- L6 meta (deferred) -->
       <g class="stack-clickable" data-layer="L6" tabindex="0" role="button" aria-label="L6 Meta-improvement (deferred)">
-        <rect x="40" y="86" width="840" height="56" rx="8" fill="#f6ecd6" stroke="#b8a880" stroke-width="2" stroke-dasharray="7 4"/>
-        <text x="60" y="109" font-size="11" class="mono dim bold">L6</text>
-        <text x="60" y="128" font-size="17" class="bold" fill="#7a6c4a">Meta-improvement</text>
-        <text x="220" y="116" font-size="13" fill="#7a6c4a">Deferred to Phase 1 — improving the improver. Substrate-shape preserved.</text>
-        <text x="220" y="132" font-size="11" class="mono dim">see CSIS-architecture.html · Appendix A</text>
+        <rect x="80" y="108" width="780" height="58" rx="10" fill="#f6ecd6" fill-opacity="0.55" stroke="#b8a880" stroke-width="1" stroke-dasharray="5 3"/>
+        <rect x="80" y="108" width="4" height="58" rx="2" fill="#b8a880"/>
+        <text x="100" y="132" font-family="ui-monospace,monospace" font-size="11" fill="#9b8d6a" font-weight="700" letter-spacing="1">L6</text>
+        <text x="100" y="154" font-size="20" font-weight="700" letter-spacing="-0.3" fill="#7a6c4a">Meta-improvement</text>
+        <text x="280" y="136" font-size="13.5" fill="#7a6c4a">Improving the improver — deferred to Phase 1, shape preserved</text>
+        <text x="280" y="154" font-family="ui-monospace,monospace" font-size="11" fill="#a89a72">CSIS-architecture.html · Appendix A</text>
       </g>
 
       <!-- L5 improvement -->
       <g class="stack-clickable" data-layer="L5" tabindex="0" role="button" aria-label="L5 Improvement layers">
-        <rect x="40" y="152" width="840" height="56" rx="8" fill="#fbf4e7" stroke="#d97757" stroke-width="2"/>
-        <text x="60" y="175" font-size="11" class="mono dim bold">L5</text>
-        <text x="60" y="194" font-size="17" class="bold">Improvement (I1-I3)</text>
-        <text x="220" y="182" font-size="13">Procedural-tier skill accumulation — the actual self-improving surface, gated by everything below</text>
-        <text x="220" y="198" font-size="11" class="mono dim">csis/improvement/skill_library.py</text>
-        <svg x="850" y="168" width="20" height="20"><use href="#icon-flow" style="color:#d97757"/></svg>
+        <rect x="80" y="176" width="780" height="58" rx="10" fill="#fde7d8" filter="url(#layer-shadow)"/>
+        <rect x="80" y="176" width="4" height="58" rx="2" fill="#d97757"/>
+        <text x="100" y="200" font-family="ui-monospace,monospace" font-size="11" fill="#b85e3f" font-weight="700" letter-spacing="1">L5</text>
+        <text x="100" y="222" font-size="20" font-weight="700" letter-spacing="-0.3" fill="#1f1f1f">Improvement</text>
+        <text x="280" y="204" font-size="13.5" fill="#3a3a3a">Procedural-tier skill accumulation — the only surface that actually changes</text>
+        <text x="280" y="222" font-family="ui-monospace,monospace" font-size="11" fill="#8a8579">csis/improvement/skill_library.py</text>
+        <g transform="translate(820, 192)">
+          <circle cx="13" cy="13" r="16" fill="#fce5d8"/>
+          <svg x="3" y="3" width="20" height="20"><use href="#icon-flow" style="color:#d97757"/></svg>
+        </g>
       </g>
 
-      <!-- L4 verification -->
+      <!-- L4 verification (the only blue layer — different checkpoint) -->
       <g class="stack-clickable" data-layer="L4" tabindex="0" role="button" aria-label="L4 Verification">
-        <rect x="40" y="218" width="840" height="56" rx="8" fill="#dbe7f3" stroke="#4a82bc" stroke-width="2"/>
-        <text x="60" y="241" font-size="11" class="mono dim bold">L4</text>
-        <text x="60" y="260" font-size="17" class="bold">Verification &amp; critic</text>
-        <text x="220" y="248" font-size="13">V1 pinned graders (rubric + distributional · cycle 10) · V2 critic falsifies · cert cross-checkpoint signed</text>
-        <text x="220" y="264" font-size="11" class="mono dim">csis/verification/ — runs on a structurally different LLM checkpoint than the Builder</text>
-        <svg x="850" y="234" width="20" height="20"><use href="#icon-scale" style="color:#4a82bc"/></svg>
+        <rect x="80" y="244" width="780" height="58" rx="10" fill="#e2ecf6" filter="url(#layer-shadow)"/>
+        <rect x="80" y="244" width="4" height="58" rx="2" fill="#4a82bc"/>
+        <text x="100" y="268" font-family="ui-monospace,monospace" font-size="11" fill="#3a6da0" font-weight="700" letter-spacing="1">L4</text>
+        <text x="100" y="290" font-size="20" font-weight="700" letter-spacing="-0.3" fill="#1f1f1f">Verification &amp; critic</text>
+        <text x="280" y="272" font-size="13.5" fill="#3a3a3a">V1 pinned graders · V2 critic falsifies · cert cross-checkpoint signed</text>
+        <text x="280" y="290" font-family="ui-monospace,monospace" font-size="11" fill="#8a8579">runs on a structurally different LLM checkpoint</text>
+        <g transform="translate(820, 260)">
+          <circle cx="13" cy="13" r="16" fill="#dde9f5"/>
+          <svg x="3" y="3" width="20" height="20"><use href="#icon-scale" style="color:#4a82bc"/></svg>
+        </g>
       </g>
 
       <!-- L3 curiosity -->
       <g class="stack-clickable" data-layer="L3" tabindex="0" role="button" aria-label="L3 Curiosity">
-        <rect x="40" y="284" width="840" height="56" rx="8" fill="#fbf4e7" stroke="#d97757" stroke-width="2"/>
-        <text x="60" y="307" font-size="11" class="mono dim bold">L3</text>
-        <text x="60" y="326" font-size="17" class="bold">Curiosity &amp; frontier</text>
-        <text x="220" y="314" font-size="13">Frontier-item generator: seeds + gap-driven + rollback follow-ups · salt threaded for forensic replay</text>
-        <text x="220" y="330" font-size="11" class="mono dim">csis/curiosity.py</text>
-        <svg x="850" y="300" width="20" height="20"><use href="#icon-eye" style="color:#d97757"/></svg>
+        <rect x="80" y="312" width="780" height="58" rx="10" fill="#fde7d8" filter="url(#layer-shadow)"/>
+        <rect x="80" y="312" width="4" height="58" rx="2" fill="#d97757"/>
+        <text x="100" y="336" font-family="ui-monospace,monospace" font-size="11" fill="#b85e3f" font-weight="700" letter-spacing="1">L3</text>
+        <text x="100" y="358" font-size="20" font-weight="700" letter-spacing="-0.3" fill="#1f1f1f">Curiosity &amp; frontier</text>
+        <text x="280" y="340" font-size="13.5" fill="#3a3a3a">Seeds + gap-driven + rollback follow-ups · salt threaded for forensic replay</text>
+        <text x="280" y="358" font-family="ui-monospace,monospace" font-size="11" fill="#8a8579">csis/curiosity.py</text>
+        <g transform="translate(820, 328)">
+          <circle cx="13" cy="13" r="16" fill="#fce5d8"/>
+          <svg x="3" y="3" width="20" height="20"><use href="#icon-eye" style="color:#d97757"/></svg>
+        </g>
       </g>
 
       <!-- L2 memory -->
       <g class="stack-clickable" data-layer="L2" tabindex="0" role="button" aria-label="L2 Memory hierarchy">
-        <rect x="40" y="350" width="840" height="56" rx="8" fill="#fbf4e7" stroke="#d97757" stroke-width="2"/>
-        <text x="60" y="373" font-size="11" class="mono dim bold">L2</text>
-        <text x="60" y="392" font-size="17" class="bold">Memory hierarchy</text>
-        <text x="220" y="380" font-size="13">5 tiers × candidate/live · 6 trust levels · hash-preconditioned <tspan font-family="ui-monospace, monospace">promote()</tspan> is the only mutation</text>
-        <text x="220" y="396" font-size="11" class="mono dim">csis/memory/store.py · writer_iteration_id stamp on every candidate (H4, cycle 9)</text>
-        <svg x="850" y="366" width="20" height="20"><use href="#icon-brain" style="color:#d97757"/></svg>
+        <rect x="80" y="380" width="780" height="58" rx="10" fill="#fde7d8" filter="url(#layer-shadow)"/>
+        <rect x="80" y="380" width="4" height="58" rx="2" fill="#d97757"/>
+        <text x="100" y="404" font-family="ui-monospace,monospace" font-size="11" fill="#b85e3f" font-weight="700" letter-spacing="1">L2</text>
+        <text x="100" y="426" font-size="20" font-weight="700" letter-spacing="-0.3" fill="#1f1f1f">Memory hierarchy</text>
+        <text x="280" y="408" font-size="13.5" fill="#3a3a3a">5 tiers × candidate/live · 6 trust levels · <tspan font-family="ui-monospace,monospace" font-size="12">promote()</tspan> is the only mutation</text>
+        <text x="280" y="426" font-family="ui-monospace,monospace" font-size="11" fill="#8a8579">csis/memory/store.py · writer_iteration_id stamp (H4)</text>
+        <g transform="translate(820, 396)">
+          <circle cx="13" cy="13" r="16" fill="#fce5d8"/>
+          <svg x="3" y="3" width="20" height="20"><use href="#icon-brain" style="color:#d97757"/></svg>
+        </g>
       </g>
 
       <!-- L1 agent runtime -->
       <g class="stack-clickable" data-layer="L1" tabindex="0" role="button" aria-label="L1 Agent runtime">
-        <rect x="40" y="416" width="840" height="56" rx="8" fill="#fbf4e7" stroke="#d97757" stroke-width="2"/>
-        <text x="60" y="439" font-size="11" class="mono dim bold">L1</text>
-        <text x="60" y="458" font-size="17" class="bold">Agent runtime</text>
-        <text x="220" y="446" font-size="13">Coordinator runs the 8-step loop · delegates to 6 specialised roles · delegation depth = 1</text>
-        <text x="220" y="462" font-size="11" class="mono dim">csis/agents/coordinator.py</text>
+        <rect x="80" y="448" width="780" height="58" rx="10" fill="#fde7d8" filter="url(#layer-shadow)"/>
+        <rect x="80" y="448" width="4" height="58" rx="2" fill="#d97757"/>
+        <text x="100" y="472" font-family="ui-monospace,monospace" font-size="11" fill="#b85e3f" font-weight="700" letter-spacing="1">L1</text>
+        <text x="100" y="494" font-size="20" font-weight="700" letter-spacing="-0.3" fill="#1f1f1f">Agent runtime</text>
+        <text x="280" y="476" font-size="13.5" fill="#3a3a3a">Coordinator runs the 8-step loop · delegates to 6 roles · depth = 1</text>
+        <text x="280" y="494" font-family="ui-monospace,monospace" font-size="11" fill="#8a8579">csis/agents/coordinator.py</text>
       </g>
 
-      <!-- L0 substrate (bottom — the foundation everyone trusts) -->
+      <!-- L0 substrate (foundation) -->
       <g class="stack-clickable" data-layer="L0" tabindex="0" role="button" aria-label="L0 Substrate">
-        <rect x="40" y="482" width="840" height="56" rx="8" fill="#efe2c3" stroke="#c89b3c" stroke-width="2"/>
-        <text x="60" y="505" font-size="11" class="mono dim bold">L0</text>
-        <text x="60" y="524" font-size="17" class="bold">Substrate</text>
-        <text x="220" y="512" font-size="13">Hash-chained event log · capability tags · canonical JSON hashing</text>
-        <text x="220" y="528" font-size="11" class="mono dim">csis/substrate/ — the only layer everyone trusts unconditionally</text>
-        <svg x="850" y="498" width="20" height="20"><use href="#icon-hash" style="color:#a8821d"/></svg>
+        <rect x="80" y="516" width="780" height="66" rx="10" fill="#f3e4b8" filter="url(#layer-shadow)"/>
+        <rect x="80" y="516" width="4" height="66" rx="2" fill="#c89b3c"/>
+        <text x="100" y="540" font-family="ui-monospace,monospace" font-size="11" fill="#8a6e1c" font-weight="700" letter-spacing="1">L0 · foundation</text>
+        <text x="100" y="566" font-size="22" font-weight="700" letter-spacing="-0.3" fill="#1f1f1f">Substrate</text>
+        <text x="280" y="544" font-size="13.5" fill="#3a3a3a">Hash-chained event log · capability tags · canonical JSON hashing</text>
+        <text x="280" y="566" font-family="ui-monospace,monospace" font-size="11" fill="#8a8579">csis/substrate/ — the only layer everyone trusts unconditionally</text>
+        <g transform="translate(820, 534)">
+          <circle cx="13" cy="13" r="16" fill="#f3e4b8"/>
+          <svg x="3" y="3" width="20" height="20"><use href="#icon-hash" style="color:#a8821d"/></svg>
+        </g>
       </g>
 
-      <!-- Right-side bracket showing safety wraps the whole stack -->
-      <path d="M 895 20 Q 905 20 905 32 L 905 526 Q 905 538 895 538" stroke="#5a6c46" stroke-width="2" fill="none" stroke-dasharray="5 3"/>
-      <text x="895" y="280" font-size="11" class="mono" fill="#5a6c46" transform="rotate(90 895 280)" text-anchor="middle">safety wraps the whole stack</text>
+      <!-- Right-side architectural bracket — slim, elegant, with end caps -->
+      <g stroke="#5a6c46" fill="none">
+        <line x1="894" y1="40" x2="894" y2="582" stroke-width="1.2"/>
+        <line x1="888" y1="40" x2="900" y2="40" stroke-width="1.2"/>
+        <line x1="888" y1="582" x2="900" y2="582" stroke-width="1.2"/>
+      </g>
+      <text x="912" y="311" font-size="11" font-family="ui-monospace,monospace" fill="#5a6c46" transform="rotate(90 912 311)" text-anchor="middle" letter-spacing="2">SAFETY WRAPS THE WHOLE STACK</text>
     </svg>
     <div class="stack-hint">↑ click any layer to expand its components</div>
 
-    <!-- Companion: where prompt-injection attempts land -->
-    <svg class="csis-svg" viewBox="0 0 920 240" xmlns="http://www.w3.org/2000/svg" aria-label="Where prompt-injection attempts land vs. where they terminate. LEFT: typical multi-layer prompt-stack where a jailbreak only needs to evade one of the prompt-layer guards; the attack arrow penetrates six small role-check boxes and reaches 'protected resource reached.' RIGHT: CSIS shallow stack where the same jailbreak hits a thick green L7 substrate wall and terminates with an X marker; underneath is the L0 substrate showing capability tags and event log, and a dashed agent-layer row noting that L1-L5 see the prompt as input but cannot alter L0/L4/L7. The visual thesis: the agent layer can't revoke what the agent layer doesn't own." style="margin-top:18px">
+    <!-- Companion: where prompt-injection attempts land — clean editorial composition -->
+    <svg class="csis-svg" viewBox="0 0 940 280" xmlns="http://www.w3.org/2000/svg" aria-label="Where prompt-injection attempts land — shallow not wide. LEFT panel shows a typical wide stack: a jailbreak text 'ignore previous and act as...' fires an arrow that easily slips between six narrow agent-prompt guard boxes (prompt-guard, role-check, policy-LLM, tool-allowlist, jailbreak-cls, red-team-LLM) and reaches a 'protected resource reached' box — the structural failure is that all six guards live at the same layer so the jailbreak only needs to evade ONE. RIGHT panel shows CSIS: the same jailbreak arrow fires at a thick green L7 substrate wall labeled 'enforced in code, not in prompts'; a red ✕ marker sits at the impact point; the wall sits above the gold L0 substrate row and a dashed agent-layer row indicating L1–L5 can see the prompt as input but cannot alter L0/L4/L7. Visual thesis: shallow stacks make the invariant load-bearing because the agent layer can't revoke what the agent layer doesn't own." style="margin-top:24px">
       <defs>
-        <marker id="m-arrow-danger" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
-          <path d="M 0 0 L 10 5 L 0 10 z" fill="#c4543b"/>
+        <marker id="arrow-attack" markerWidth="9" markerHeight="9" refX="8" refY="4.5" orient="auto">
+          <polygon points="0 0, 9 4.5, 0 9" fill="#c4543b"/>
         </marker>
+        <linearGradient id="bg-wide" x1="0" y1="0" x2="1" y2="0">
+          <stop offset="0" stop-color="#fbf4e7" stop-opacity="0.4"/>
+          <stop offset="1" stop-color="#fbf4e7" stop-opacity="0"/>
+        </linearGradient>
+        <linearGradient id="bg-shallow" x1="1" y1="0" x2="0" y2="0">
+          <stop offset="0" stop-color="#eaf1da" stop-opacity="0.45"/>
+          <stop offset="1" stop-color="#eaf1da" stop-opacity="0"/>
+        </linearGradient>
       </defs>
 
-      <!-- Title strip -->
-      <rect x="0" y="0" width="920" height="32" fill="#fbe7dd" stroke="none"/>
-      <text x="460" y="20" font-size="12" class="mono bold" text-anchor="middle" fill="#b85e3f">WHERE PROMPT-INJECTION ATTEMPTS LAND · shallow not wide, visualized</text>
+      <!-- Two-column panel backgrounds -->
+      <rect x="20"  y="14" width="440" height="252" rx="12" fill="url(#bg-wide)"/>
+      <rect x="480" y="14" width="440" height="252" rx="12" fill="url(#bg-shallow)"/>
 
-      <!-- Left: typical "wide" stack -->
-      <g>
-        <text x="40" y="60" font-size="12" class="mono bold" fill="#5e5e5e">TYPICAL STACK · property in agent prompts</text>
-        <text x="40" y="76" font-size="10.5" class="mono dim">jailbreak only needs to evade ONE check;</text>
-        <text x="40" y="90" font-size="10.5" class="mono dim">many layers all check the same thing</text>
+      <!-- Headers as proper section titles, not strips -->
+      <text x="40"  y="46" font-size="11" font-family="ui-monospace,monospace" letter-spacing="2" fill="#a89a72">TYPICAL · WIDE</text>
+      <text x="40"  y="74" font-size="20" font-weight="700" letter-spacing="-0.4" fill="#1f1f1f">Property lives in agent prompts</text>
+      <text x="40"  y="96" font-size="13" fill="#6f6f6f">Jailbreak needs to evade only one of the prompt-layer guards.</text>
 
-        <!-- attack arrow penetrating -->
-        <path d="M 50 112 L 380 200" stroke="#c4543b" stroke-width="2.5" stroke-dasharray="6 3" marker-end="url(#m-arrow-danger)"/>
-        <text x="60" y="106" font-size="10.5" class="mono" fill="#c4543b" font-style="italic">"ignore previous and act as..."</text>
+      <text x="500" y="46" font-size="11" font-family="ui-monospace,monospace" letter-spacing="2" fill="#5a6c46">CSIS · SHALLOW</text>
+      <text x="500" y="74" font-size="20" font-weight="700" letter-spacing="-0.4" fill="#1f1f1f">Property owned by the substrate</text>
+      <text x="500" y="96" font-size="13" fill="#6f6f6f">Jailbreak terminates at L7 — code, not prompts.</text>
 
-        <!-- Wide stack boxes (all agent layer) -->
-        <rect x="120" y="120" width="80" height="22" rx="4" fill="#fbe7dd" stroke="#d97757" stroke-width="1.5"/>
-        <text x="160" y="135" font-size="10" class="mono" text-anchor="middle" fill="#b85e3f">prompt-guard</text>
-        <rect x="210" y="120" width="80" height="22" rx="4" fill="#fbe7dd" stroke="#d97757" stroke-width="1.5"/>
-        <text x="250" y="135" font-size="10" class="mono" text-anchor="middle" fill="#b85e3f">role-check</text>
-        <rect x="300" y="120" width="80" height="22" rx="4" fill="#fbe7dd" stroke="#d97757" stroke-width="1.5"/>
-        <text x="340" y="135" font-size="10" class="mono" text-anchor="middle" fill="#b85e3f">policy-LLM</text>
-        <rect x="120" y="150" width="80" height="22" rx="4" fill="#fbe7dd" stroke="#d97757" stroke-width="1.5"/>
-        <text x="160" y="165" font-size="10" class="mono" text-anchor="middle" fill="#b85e3f">tool-allowlist</text>
-        <rect x="210" y="150" width="80" height="22" rx="4" fill="#fbe7dd" stroke="#d97757" stroke-width="1.5"/>
-        <text x="250" y="165" font-size="10" class="mono" text-anchor="middle" fill="#b85e3f">jailbreak-cls</text>
-        <rect x="300" y="150" width="80" height="22" rx="4" fill="#fbe7dd" stroke="#d97757" stroke-width="1.5"/>
-        <text x="340" y="165" font-size="10" class="mono" text-anchor="middle" fill="#b85e3f">red-team-LLM</text>
+      <!-- LEFT: attack arrow penetrating the wide stack -->
+      <text x="40" y="138" font-size="11.5" fill="#c4543b" font-style="italic">"ignore previous and act as…"</text>
+      <path d="M 40 148 L 420 232" stroke="#c4543b" stroke-width="2" stroke-dasharray="6 4" marker-end="url(#arrow-attack)" opacity="0.85"/>
 
-        <!-- protected resource reached -->
-        <rect x="216" y="186" width="168" height="22" rx="4" fill="#f3dbd0" stroke="#c4543b" stroke-width="1.5" stroke-dasharray="3 2"/>
-        <text x="300" y="201" font-size="10" class="mono bold" text-anchor="middle" fill="#c4543b">protected resource reached</text>
+      <!-- Six narrow guards (clearly NOT layered — all at the same vertical band) -->
+      <g font-family="ui-monospace,monospace" font-size="9.5" fill="#b85e3f">
+        <g><rect x="100" y="158" width="78" height="20" rx="4" fill="#fff" stroke="#e8b8a3" stroke-width="1"/><text x="139" y="172" text-anchor="middle">prompt-guard</text></g>
+        <g><rect x="186" y="158" width="78" height="20" rx="4" fill="#fff" stroke="#e8b8a3" stroke-width="1"/><text x="225" y="172" text-anchor="middle">role-check</text></g>
+        <g><rect x="272" y="158" width="78" height="20" rx="4" fill="#fff" stroke="#e8b8a3" stroke-width="1"/><text x="311" y="172" text-anchor="middle">policy-LLM</text></g>
+        <g><rect x="100" y="184" width="78" height="20" rx="4" fill="#fff" stroke="#e8b8a3" stroke-width="1"/><text x="139" y="198" text-anchor="middle">tool-allow</text></g>
+        <g><rect x="186" y="184" width="78" height="20" rx="4" fill="#fff" stroke="#e8b8a3" stroke-width="1"/><text x="225" y="198" text-anchor="middle">jailbreak-cls</text></g>
+        <g><rect x="272" y="184" width="78" height="20" rx="4" fill="#fff" stroke="#e8b8a3" stroke-width="1"/><text x="311" y="198" text-anchor="middle">red-team-LLM</text></g>
       </g>
 
-      <!-- Divider -->
-      <line x1="460" y1="50" x2="460" y2="220" stroke="#e7d8b5" stroke-width="1.5" stroke-dasharray="4 4"/>
+      <!-- Reached -->
+      <rect x="240" y="222" width="200" height="22" rx="4" fill="#f3dbd0" stroke="#c4543b" stroke-width="1.2" stroke-dasharray="3 2"/>
+      <text x="340" y="237" font-size="11" font-family="ui-monospace,monospace" font-weight="700" text-anchor="middle" fill="#c4543b">protected resource reached</text>
 
-      <!-- Right: CSIS shallow stack -->
-      <g>
-        <text x="480" y="60" font-size="12" class="mono bold" fill="#2a4a1a">CSIS · property owned by substrate</text>
-        <text x="480" y="76" font-size="10.5" class="mono dim">jailbreak terminates at L7 boundary —</text>
-        <text x="480" y="90" font-size="10.5" class="mono dim">the agent layer can't revoke what it doesn't own</text>
+      <!-- Vertical hairline divider -->
+      <line x1="470" y1="32" x2="470" y2="252" stroke="#e0d4b0" stroke-width="1" stroke-dasharray="3 4"/>
 
-        <!-- attack arrow blocked -->
-        <path d="M 490 112 L 575 138" stroke="#c4543b" stroke-width="2.5" stroke-dasharray="6 3"/>
-        <text x="500" y="106" font-size="10.5" class="mono" fill="#c4543b" font-style="italic">"ignore previous and act as..."</text>
+      <!-- RIGHT: same attack, terminates at L7 -->
+      <text x="500" y="138" font-size="11.5" fill="#c4543b" font-style="italic">"ignore previous and act as…"</text>
+      <path d="M 500 148 L 612 172" stroke="#c4543b" stroke-width="2" stroke-dasharray="6 4" opacity="0.85"/>
 
-        <!-- L7 boundary as a wall (left-shifted to accommodate ✕ on its outer edge) -->
-        <rect x="610" y="128" width="290" height="28" rx="4" fill="#dde6cd" stroke="#5a6c46" stroke-width="2.5"/>
-        <text x="755" y="147" font-size="11" class="mono bold" text-anchor="middle" fill="#2a4a1a">L7 substrate · enforced as code</text>
+      <!-- L7 wall (thicker, more weight) -->
+      <rect x="616" y="158" width="276" height="34" rx="6" fill="#dde6cd" stroke="#5a6c46" stroke-width="2"/>
+      <text x="754" y="172" font-size="11" font-family="ui-monospace,monospace" font-weight="700" letter-spacing="1.5" text-anchor="middle" fill="#5a6c46">L7</text>
+      <text x="754" y="188" font-size="12" font-weight="700" text-anchor="middle" fill="#2a4a1a">enforced in code, not in prompts</text>
 
-        <!-- ✕ at the boundary — sits just outside the L7 wall's left edge -->
-        <circle cx="595" cy="142" r="11" fill="#c4543b" stroke="#fff" stroke-width="2"/>
-        <text x="595" y="146" font-size="13" class="bold" text-anchor="middle" fill="#fff">✕</text>
+      <!-- ✕ marker at impact (outside wall) -->
+      <circle cx="612" cy="175" r="11" fill="#c4543b" stroke="#fff" stroke-width="2"/>
+      <text x="612" y="179" font-size="12" font-weight="700" text-anchor="middle" fill="#fff">✕</text>
 
-        <!-- "terminates here" — moved below the wall to avoid overlap -->
-        <text x="755" y="170" font-size="10.5" class="mono bold" text-anchor="middle" fill="#c4543b">↑ jailbreak terminates here</text>
+      <!-- Caption under wall -->
+      <text x="754" y="206" font-size="11" font-family="ui-monospace,monospace" text-anchor="middle" fill="#5a6c46" font-weight="700">↑ jailbreak terminates here</text>
 
-        <!-- L0 substrate -->
-        <rect x="610" y="180" width="290" height="22" rx="4" fill="#f3e4b8" stroke="#c89b3c" stroke-width="2"/>
-        <text x="755" y="195" font-size="11" class="mono bold" text-anchor="middle" fill="#8a6e1c">L0 substrate · capability tags, event log</text>
+      <!-- L0 substrate row beneath -->
+      <rect x="616" y="218" width="276" height="22" rx="5" fill="#f3e4b8" stroke="#c89b3c" stroke-width="1.5"/>
+      <text x="754" y="233" font-size="11" font-family="ui-monospace,monospace" font-weight="700" text-anchor="middle" fill="#8a6e1c">L0 · capability tags · event log</text>
 
-        <!-- Agent layers can see the prompt as input but can't alter substrate -->
-        <rect x="610" y="206" width="290" height="22" rx="4" fill="#fbf4e7" stroke="#d97757" stroke-width="1.5" stroke-dasharray="4 3"/>
-        <text x="755" y="221" font-size="9.5" class="mono" text-anchor="middle" fill="#b85e3f">L1–L5 see it as input · cannot alter L0/L4/L7</text>
-      </g>
+      <!-- Agent-input row -->
+      <rect x="616" y="244" width="276" height="20" rx="5" fill="#fde7d8" stroke="#d97757" stroke-width="1.2" stroke-dasharray="4 3"/>
+      <text x="754" y="258" font-size="10" font-family="ui-monospace,monospace" text-anchor="middle" fill="#b85e3f">L1–L5 see it as input · cannot alter L0/L4/L7</text>
     </svg>
 
     <!-- Detail panel (JS-populated) -->
@@ -1139,74 +1189,137 @@
   </div>
 
   <div class="figure-wrap">
-    <svg class="csis-svg" viewBox="0 0 940 340" xmlns="http://www.w3.org/2000/svg" aria-label="The 6-level trust lattice as a directed state machine. Six nodes left-to-right: RAW (level 0, gray) — provenance unknown. UNTRUSTED (level 1, ink-dim) — quarantined, not deletable. CANDIDATE (level 2, orange) — written but not verified. VERIFIED (level 3, blue) — V1+V2 cert signed by Critic + Auditor. PROMOTED (level 4, green) — atomic CAS to live; the only readable state by next iteration. DEPRECATED (level 5, deep red, terminal) — replaced by a newer promoted entry, retained for audit. Solid green arrows connect levels left-to-right showing legal upgrades, each labeled with the gate that authorizes it (e.g. 'write_candidate', 'V1+V2 cert signed', 'hash-CAS promote'). Dashed red arrows from CANDIDATE, VERIFIED, and PROMOTED all point down to DEPRECATED — deprecation is always allowed from any non-raw level. The IntEnum encoding (level 0..5) means trust comparisons are a single integer compare in the hot path.">
-      <!-- 6 nodes laid out horizontally -->
-      <g>
-        <rect x="20" y="130" width="124" height="84" rx="10" fill="#f6ecd6" stroke="#b8a880" stroke-width="2"/>
-        <text x="82" y="160" font-size="14" class="bold" text-anchor="middle">raw</text>
-        <text x="82" y="180" font-size="10" class="mono dim" text-anchor="middle">just-observed</text>
-        <text x="82" y="194" font-size="10" class="mono dim" text-anchor="middle">no processing</text>
+    <svg class="csis-svg" viewBox="0 0 940 440" xmlns="http://www.w3.org/2000/svg" aria-label="The 6-level trust lattice rendered as an ascending ladder with gates between rungs. Six trust levels rise from bottom to top: level 0 RAW (gray, just observed) → level 1 UNTRUSTED (gold, stored not verified) → level 2 CANDIDATE (orange, verifier check passed) → level 3 VERIFIED (blue, cert signed cross-checkpoint) → level 4 PROMOTED (green, hash-CAS atomic flip done; this is the only level readable as ground truth by the next iteration). Between each pair of rungs is a labeled GATE box describing the structural check that must pass to upgrade (write to storage, basic Verifier check, V1+V2 cert signed cross-checkpoint, hash-CAS atomic flip). On the right is a separate red terminal level 5 DEPRECATED — three dashed red downgrade arrows curve from CANDIDATE, VERIFIED, and PROMOTED all into DEPRECATED, showing that deprecation is always allowed from any non-raw level and is terminal. A small monospace annotation at the bottom notes that the IntEnum encoding (0..5) makes 'entry.trust >= TrustLevel.VERIFIED' a single integer compare on the hot path.">
+      <defs>
+        <linearGradient id="bg-lattice" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0" stop-color="#fdfaf3"/>
+          <stop offset="1" stop-color="#f7eedb"/>
+        </linearGradient>
+        <filter id="rung-shadow" x="-10%" y="-30%" width="120%" height="160%">
+          <feDropShadow dx="0" dy="2" stdDeviation="3" flood-color="#3c2810" flood-opacity="0.08"/>
+        </filter>
+        <marker id="arrow-down" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto">
+          <polygon points="0 0, 8 4, 0 8" fill="#b85e3f"/>
+        </marker>
+      </defs>
+
+      <rect x="0" y="0" width="940" height="440" fill="url(#bg-lattice)" rx="14"/>
+
+      <!-- Vertical axis: integer encoding -->
+      <line x1="78" y1="50" x2="78" y2="396" stroke="#c8b890" stroke-width="1"/>
+      <g font-family="ui-monospace,monospace" font-size="10.5" fill="#8a8579" text-anchor="end">
+        <text x="68" y="394">0</text>
+        <text x="68" y="338">1</text>
+        <text x="68" y="282">2</text>
+        <text x="68" y="226">3</text>
+        <text x="68" y="170">4</text>
       </g>
+      <text x="42" y="52" font-size="10" font-family="ui-monospace,monospace" letter-spacing="1.5" fill="#8a8579">INT</text>
+
+      <!-- Rungs (rendered bottom-up so highest is at top of frame) -->
+      <!-- RUNG 4: PROMOTED -->
       <g>
-        <rect x="170" y="130" width="124" height="84" rx="10" fill="#fbf4e7" stroke="#c89b3c" stroke-width="2"/>
-        <text x="232" y="160" font-size="14" class="bold" text-anchor="middle">untrusted</text>
-        <text x="232" y="180" font-size="10" class="mono dim" text-anchor="middle">stored, not verified</text>
-        <text x="232" y="194" font-size="10" class="mono dim" text-anchor="middle">may be poisoned</text>
-      </g>
-      <g>
-        <rect x="320" y="130" width="124" height="84" rx="10" fill="#fbf4e7" stroke="#d97757" stroke-width="2"/>
-        <text x="382" y="160" font-size="14" class="bold" text-anchor="middle">candidate</text>
-        <text x="382" y="180" font-size="10" class="mono dim" text-anchor="middle">Verifier check passed</text>
-        <text x="382" y="194" font-size="10" class="mono dim" text-anchor="middle">awaiting Auditor</text>
-      </g>
-      <g>
-        <rect x="470" y="130" width="124" height="84" rx="10" fill="#dbe7f3" stroke="#4a82bc" stroke-width="2"/>
-        <text x="532" y="160" font-size="14" class="bold" text-anchor="middle">verified</text>
-        <text x="532" y="180" font-size="10" class="mono dim" text-anchor="middle">cert signed</text>
-        <text x="532" y="194" font-size="10" class="mono dim" text-anchor="middle">cross-checkpoint</text>
-      </g>
-      <g>
-        <rect x="620" y="130" width="124" height="84" rx="10" fill="#dde6cd" stroke="#5a6c46" stroke-width="2"/>
-        <text x="682" y="160" font-size="14" class="bold" text-anchor="middle">promoted</text>
-        <text x="682" y="180" font-size="10" class="mono dim" text-anchor="middle">why-doc signed</text>
-        <text x="682" y="194" font-size="10" class="mono dim" text-anchor="middle">hash CAS matched</text>
-      </g>
-      <g>
-        <rect x="770" y="130" width="150" height="84" rx="10" fill="#f3dbd0" stroke="#b85e3f" stroke-width="2"/>
-        <text x="845" y="160" font-size="14" class="bold" text-anchor="middle" fill="#7c2f18">deprecated</text>
-        <text x="845" y="180" font-size="10" class="mono dim" text-anchor="middle">superseded or</text>
-        <text x="845" y="194" font-size="10" class="mono dim" text-anchor="middle">contradicted (terminal)</text>
+        <rect x="100" y="146" width="430" height="50" rx="10" fill="#dde6cd" filter="url(#rung-shadow)"/>
+        <rect x="100" y="146" width="4" height="50" rx="2" fill="#5a6c46"/>
+        <text x="124" y="176" font-size="18" font-weight="700" letter-spacing="-0.3" fill="#2a4a1a">promoted</text>
+        <text x="244" y="170" font-size="12" fill="#3a3a3a">why-doc signed · hash CAS matched · atomic flip done</text>
+        <text x="244" y="186" font-family="ui-monospace,monospace" font-size="11" fill="#5a6c46" font-weight="700">★ the only level next iteration reads as truth</text>
       </g>
 
-      <!-- forward arrows (always green) -->
-      <line x1="144" y1="172" x2="170" y2="172" stroke="#5a6c46" stroke-width="2" marker-end="url(#m-arrow-good)"/>
-      <line x1="294" y1="172" x2="320" y2="172" stroke="#5a6c46" stroke-width="2" marker-end="url(#m-arrow-good)"/>
-      <line x1="444" y1="172" x2="470" y2="172" stroke="#5a6c46" stroke-width="2" marker-end="url(#m-arrow-good)"/>
-      <line x1="594" y1="172" x2="620" y2="172" stroke="#5a6c46" stroke-width="2" marker-end="url(#m-arrow-good)"/>
+      <!-- RUNG 3: VERIFIED -->
+      <g>
+        <rect x="100" y="202" width="430" height="50" rx="10" fill="#e2ecf6" filter="url(#rung-shadow)"/>
+        <rect x="100" y="202" width="4" height="50" rx="2" fill="#4a82bc"/>
+        <text x="124" y="232" font-size="18" font-weight="700" letter-spacing="-0.3" fill="#1a3a5e">verified</text>
+        <text x="244" y="226" font-size="12" fill="#3a3a3a">V1+V2 cert signed cross-checkpoint</text>
+        <text x="244" y="242" font-family="ui-monospace,monospace" font-size="11" fill="#3a6da0">Critic + Auditor approved; cross-checkpoint structural</text>
+      </g>
 
-      <!-- gate labels above arrows -->
-      <text x="232" y="108" font-size="10" class="mono dim" text-anchor="middle">storage write</text>
-      <text x="232" y="122" font-size="11" class="mono bold" text-anchor="middle" fill="#5a6c46">↑ stored</text>
+      <!-- RUNG 2: CANDIDATE -->
+      <g>
+        <rect x="100" y="258" width="430" height="50" rx="10" fill="#fde7d8" filter="url(#rung-shadow)"/>
+        <rect x="100" y="258" width="4" height="50" rx="2" fill="#d97757"/>
+        <text x="124" y="288" font-size="18" font-weight="700" letter-spacing="-0.3" fill="#1f1f1f">candidate</text>
+        <text x="244" y="282" font-size="12" fill="#3a3a3a">basic Verifier check passed · awaiting cross-checkpoint cert</text>
+        <text x="244" y="298" font-family="ui-monospace,monospace" font-size="11" fill="#b85e3f">writes free here · not visible to live reads</text>
+      </g>
 
-      <text x="382" y="108" font-size="10" class="mono dim" text-anchor="middle">graders + critic</text>
-      <text x="382" y="122" font-size="11" class="mono bold" text-anchor="middle" fill="#5a6c46">↑ Verifier check</text>
+      <!-- RUNG 1: UNTRUSTED -->
+      <g>
+        <rect x="100" y="314" width="430" height="50" rx="10" fill="#f3e4b8" filter="url(#rung-shadow)" opacity="0.85"/>
+        <rect x="100" y="314" width="4" height="50" rx="2" fill="#c89b3c"/>
+        <text x="124" y="344" font-size="18" font-weight="700" letter-spacing="-0.3" fill="#1f1f1f">untrusted</text>
+        <text x="244" y="338" font-size="12" fill="#3a3a3a">stored on disk · may be poisoned · quarantined for audit</text>
+        <text x="244" y="354" font-family="ui-monospace,monospace" font-size="11" fill="#8a6e1c">never deletable · forensic trail preserved</text>
+      </g>
 
-      <text x="532" y="108" font-size="10" class="mono dim" text-anchor="middle">cross-checkpoint</text>
-      <text x="532" y="122" font-size="11" class="mono bold" text-anchor="middle" fill="#5a6c46">↑ Cert signed</text>
+      <!-- RUNG 0: RAW -->
+      <g>
+        <rect x="100" y="370" width="430" height="50" rx="10" fill="#f0e8d4" opacity="0.7"/>
+        <rect x="100" y="370" width="4" height="50" rx="2" fill="#a89a72"/>
+        <text x="124" y="400" font-size="18" font-weight="700" letter-spacing="-0.3" fill="#5e5e5e">raw</text>
+        <text x="244" y="394" font-size="12" fill="#6f6f6f">just-observed · no provenance, no processing</text>
+        <text x="244" y="410" font-family="ui-monospace,monospace" font-size="11" fill="#8a8579">in-memory only · never persisted in this state</text>
+      </g>
 
-      <text x="682" y="108" font-size="10" class="mono dim" text-anchor="middle">atomic flip</text>
-      <text x="682" y="122" font-size="11" class="mono bold" text-anchor="middle" fill="#5a6c46">↑ Hash CAS</text>
+      <!-- Gates between rungs (right column) -->
+      <g font-family="ui-monospace,monospace">
+        <!-- Gate: candidate → verified -->
+        <g>
+          <text x="556" y="246" font-size="10.5" fill="#8a8579">GATE 3</text>
+          <text x="556" y="262" font-size="12" font-weight="700" fill="#5a6c46">cert signed cross-checkpoint</text>
+          <text x="556" y="278" font-size="11" fill="#6f6f6f">Verifier model_id ≠ Builder model_id</text>
+        </g>
+        <!-- Gate: verified → promoted -->
+        <g>
+          <text x="556" y="190" font-size="10.5" fill="#8a8579">GATE 4</text>
+          <text x="556" y="206" font-size="12" font-weight="700" fill="#5a6c46">hash-CAS atomic flip</text>
+          <text x="556" y="222" font-size="11" fill="#6f6f6f">store.promote(precondition_hash=...)</text>
+        </g>
+        <!-- Gate: untrusted → candidate -->
+        <g>
+          <text x="556" y="302" font-size="10.5" fill="#8a8579">GATE 2</text>
+          <text x="556" y="318" font-size="12" font-weight="700" fill="#5a6c46">basic Verifier check</text>
+          <text x="556" y="334" font-size="11" fill="#6f6f6f">graders pass + structural smoke</text>
+        </g>
+        <!-- Gate: raw → untrusted -->
+        <g>
+          <text x="556" y="358" font-size="10.5" fill="#8a8579">GATE 1</text>
+          <text x="556" y="374" font-size="12" font-weight="700" fill="#5a6c46">write to storage</text>
+          <text x="556" y="390" font-size="11" fill="#6f6f6f">canonical hash + actor allow-list</text>
+        </g>
+      </g>
 
-      <!-- downgrade arrows -->
-      <path d="M 382 214 Q 470 290 770 192" stroke="#b85e3f" stroke-width="1.5" fill="none" stroke-dasharray="5 3" marker-end="url(#m-arrow-danger)"/>
-      <path d="M 532 214 Q 600 290 770 196" stroke="#b85e3f" stroke-width="1.5" fill="none" stroke-dasharray="5 3" marker-end="url(#m-arrow-danger)"/>
-      <path d="M 682 214 Q 710 270 770 200" stroke="#b85e3f" stroke-width="1.5" fill="none" stroke-dasharray="5 3" marker-end="url(#m-arrow-danger)"/>
+      <!-- Vertical arrow showing upgrade path -->
+      <g stroke="#5a6c46" stroke-width="2" fill="none">
+        <line x1="540" y1="396" x2="540" y2="164" marker-end="url(#m-arrow-good)"/>
+      </g>
 
-      <text x="540" y="312" font-size="11" class="mono bold" fill="#b85e3f" text-anchor="middle">downgrade to deprecated is always allowed (auditor decides)</text>
+      <!-- Right column: terminal DEPRECATED state with downgrade arrows -->
+      <g>
+        <rect x="760" y="232" width="155" height="106" rx="12" fill="#f3dbd0" stroke="#b85e3f" stroke-width="1.5" filter="url(#rung-shadow)"/>
+        <rect x="760" y="232" width="4" height="106" rx="2" fill="#b85e3f"/>
+        <text x="838" y="256" font-family="ui-monospace,monospace" font-size="10.5" letter-spacing="1.5" text-anchor="middle" fill="#b85e3f">LEVEL 5 · TERMINAL</text>
+        <text x="838" y="280" font-size="18" font-weight="700" letter-spacing="-0.3" text-anchor="middle" fill="#7c2f18">deprecated</text>
+        <text x="838" y="302" font-size="11.5" text-anchor="middle" fill="#7c2f18">superseded or</text>
+        <text x="838" y="318" font-size="11.5" text-anchor="middle" fill="#7c2f18">contradicted</text>
+        <text x="838" y="334" font-family="ui-monospace,monospace" font-size="10" text-anchor="middle" fill="#b85e3f">no path out · retained for audit</text>
+      </g>
 
-      <!-- header -->
-      <text x="470" y="38" font-size="14" class="mono dim" text-anchor="middle">the only path UP is through a gate</text>
-      <text x="470" y="58" font-size="11" class="mono dim" text-anchor="middle" font-style="italic">csis/memory/trust.py — IntEnum so `entry.trust &gt;= TrustLevel.VERIFIED` is a single integer compare</text>
+      <!-- Downgrade arrows from CANDIDATE, VERIFIED, PROMOTED → DEPRECATED -->
+      <g stroke="#b85e3f" stroke-width="1.3" fill="none" stroke-dasharray="4 3">
+        <path d="M 530 283 Q 660 283 760 285" marker-end="url(#arrow-down)"/>
+        <path d="M 530 227 Q 660 250 760 272" marker-end="url(#arrow-down)"/>
+        <path d="M 530 171 Q 660 220 760 260" marker-end="url(#arrow-down)"/>
+      </g>
+
+      <!-- Title strip replaced with a tasteful eyebrow -->
+      <text x="100" y="44" font-size="11" font-family="ui-monospace,monospace" letter-spacing="2" fill="#a89a72">UPGRADE PATH (LEFT)  ·  DOWNGRADE PATH (RIGHT, ALWAYS ALLOWED)</text>
+      <text x="100" y="80" font-size="22" font-weight="700" letter-spacing="-0.5" fill="#1f1f1f">The only path up is through a gate.</text>
+      <text x="100" y="106" font-size="13.5" fill="#6f6f6f">Trust is an integer ladder. Climbing requires passing a structural check; falling is always permitted.</text>
+
+      <!-- IntEnum footer -->
+      <text x="470" y="432" font-size="11" font-family="ui-monospace,monospace" text-anchor="middle" fill="#8a8579" font-style="italic">csis/memory/trust.py — IntEnum so <tspan font-weight="700" fill="#6f6f6f">entry.trust ≥ TrustLevel.VERIFIED</tspan> is a single integer compare in the hot path</text>
     </svg>
     <div class="figure-caption">Figure 2 · The 6-level trust lattice. Solid green arrows = upgrades (each requires crossing a gate). Dashed red arrows = deprecation (always allowed from any non-raw level; terminal). The IntEnum ordering means trust comparisons are a single integer compare in hot paths — no string parsing, no enum-lookup tax.</div>
     <div class="failure-mode"><span class="fm-label">what fails without this:</span> Trust becomes a free-text string and confidence collapses into authorization. An agent that asserts "I've verified this" gets treated the same as an artifact that <em>passed</em> verification. The lattice makes trust an integer ladder where the only path up runs through an explicit gate — so claiming a higher level is structurally impossible, not just discouraged.</div>
@@ -1238,156 +1351,225 @@
   </div>
 
   <div class="figure-wrap">
-    <svg class="csis-svg" viewBox="0 0 940 470" xmlns="http://www.w3.org/2000/svg" aria-label="The 5-tier memory hierarchy as a 5-row 2-column grid. Header row labels the two columns: 'candidate side · writes free · stamped with writer_iteration_id' on the left (orange) and 'live side · only mutation is promote()' on the right (blue). The 5 tier rows from top to bottom: WORKING (scratch space, in-flight iteration) · EPISODIC (per-iteration narrative + outcomes) · SEMANTIC (durable facts extracted from episodes) · PROCEDURAL (reusable skills — the actual self-improving surface, marked with a star) · CAUSAL (why-this-fixed-that hypotheses). Each row has an orange candidate-side rectangle on the left and a blue live-side rectangle on the right, connected by a single green arrow representing promote(ids, precondition_hash=...). Bottom annotation: 'each green arrow is MemoryStore.promote(...) · atomic candidate→live flip'.">
-      <!-- header strip -->
-      <rect x="40" y="30" width="860" height="48" rx="8" fill="#f6ecd6" stroke="#b8a880" stroke-width="1.5"/>
-      <text x="240" y="59" font-size="12.5" class="bold" text-anchor="middle">candidate side · writes free · writer_iteration_id stamped</text>
-      <text x="720" y="59" font-size="13" class="bold" text-anchor="middle">live side · only mutation is promote()</text>
-      <line x1="470" y1="36" x2="470" y2="72" stroke="#b8a880" stroke-width="1.5" stroke-dasharray="3 2"/>
-
-      <!-- 5 tier rows -->
-      <!-- row 1: working -->
-      <g>
-        <rect x="40" y="92" width="400" height="60" rx="8" fill="#fbf4e7" stroke="#d97757" stroke-width="2"/>
-        <text x="60" y="116" font-size="14" class="bold">working</text>
-        <text x="60" y="134" font-size="11" class="mono dim">scratch space · in-flight iteration</text>
-        <svg x="395" y="110" width="20" height="20"><use href="#icon-flow" style="color:#d97757"/></svg>
-        <rect x="500" y="92" width="400" height="60" rx="8" fill="#dbe7f3" stroke="#4a82bc" stroke-width="2"/>
-        <text x="520" y="116" font-size="14" class="bold">working (live)</text>
-        <text x="520" y="134" font-size="11" class="mono dim">read-only by default</text>
-        <line x1="440" y1="122" x2="500" y2="122" stroke="#5a6c46" stroke-width="2.5" marker-end="url(#m-arrow-good)"/>
-      </g>
-      <!-- row 2: episodic -->
-      <g>
-        <rect x="40" y="164" width="400" height="60" rx="8" fill="#fbf4e7" stroke="#d97757" stroke-width="2"/>
-        <text x="60" y="188" font-size="14" class="bold">episodic</text>
-        <text x="60" y="206" font-size="11" class="mono dim">per-iteration narrative + outcomes</text>
-        <svg x="395" y="182" width="20" height="20"><use href="#icon-clock" style="color:#d97757"/></svg>
-        <rect x="500" y="164" width="400" height="60" rx="8" fill="#dbe7f3" stroke="#4a82bc" stroke-width="2"/>
-        <text x="520" y="188" font-size="14" class="bold">episodic (live)</text>
-        <text x="520" y="206" font-size="11" class="mono dim">promoted iterations · what actually happened</text>
-        <line x1="440" y1="194" x2="500" y2="194" stroke="#5a6c46" stroke-width="2.5" marker-end="url(#m-arrow-good)"/>
-      </g>
-      <!-- row 3: semantic -->
-      <g>
-        <rect x="40" y="236" width="400" height="60" rx="8" fill="#fbf4e7" stroke="#d97757" stroke-width="2"/>
-        <text x="60" y="260" font-size="14" class="bold">semantic</text>
-        <text x="60" y="278" font-size="11" class="mono dim">durable facts extracted from episodes</text>
-        <svg x="395" y="254" width="20" height="20"><use href="#icon-brain" style="color:#d97757"/></svg>
-        <rect x="500" y="236" width="400" height="60" rx="8" fill="#dbe7f3" stroke="#4a82bc" stroke-width="2"/>
-        <text x="520" y="260" font-size="14" class="bold">semantic (live)</text>
-        <text x="520" y="278" font-size="11" class="mono dim">general knowledge the system has earned</text>
-        <line x1="440" y1="266" x2="500" y2="266" stroke="#5a6c46" stroke-width="2.5" marker-end="url(#m-arrow-good)"/>
-      </g>
-      <!-- row 4: procedural -->
-      <g>
-        <rect x="40" y="308" width="400" height="60" rx="8" fill="#fbf4e7" stroke="#d97757" stroke-width="2"/>
-        <text x="60" y="332" font-size="14" class="bold">procedural</text>
-        <text x="60" y="350" font-size="11" class="mono dim">reusable skills (consumer: T1)</text>
-        <svg x="395" y="326" width="20" height="20"><use href="#icon-flow" style="color:#d97757"/></svg>
-        <rect x="500" y="308" width="400" height="60" rx="8" fill="#dbe7f3" stroke="#4a82bc" stroke-width="2"/>
-        <text x="520" y="332" font-size="14" class="bold">procedural (live)</text>
-        <text x="520" y="350" font-size="11" class="mono dim">★ the actual self-improving surface</text>
-        <line x1="440" y1="338" x2="500" y2="338" stroke="#5a6c46" stroke-width="2.5" marker-end="url(#m-arrow-good)"/>
-      </g>
-      <!-- row 5: causal -->
-      <g>
-        <rect x="40" y="380" width="400" height="60" rx="8" fill="#fbf4e7" stroke="#d97757" stroke-width="2"/>
-        <text x="60" y="404" font-size="14" class="bold">causal</text>
-        <text x="60" y="422" font-size="11" class="mono dim">why-this-fixed-that hypotheses</text>
-        <svg x="395" y="398" width="20" height="20"><use href="#icon-eye" style="color:#d97757"/></svg>
-        <rect x="500" y="380" width="400" height="60" rx="8" fill="#dbe7f3" stroke="#4a82bc" stroke-width="2"/>
-        <text x="520" y="404" font-size="14" class="bold">causal (live)</text>
-        <text x="520" y="422" font-size="11" class="mono dim">causal models the auditor trusts</text>
-        <line x1="440" y1="410" x2="500" y2="410" stroke="#5a6c46" stroke-width="2.5" marker-end="url(#m-arrow-good)"/>
-      </g>
-
-      <text x="470" y="464" font-size="11" class="mono dim" text-anchor="middle">↑ each green arrow is `MemoryStore.promote(ids, precondition_hash=...)` · atomic candidate→live flip</text>
-    </svg>
-
-    <!-- Companion: one tier, zoomed in -->
-    <svg class="csis-svg" viewBox="0 0 940 340" xmlns="http://www.w3.org/2000/svg" aria-label="Zoom-in companion showing one tier's internals. Three panels left-to-right. LEFT (orange CANDIDATE panel): three sample entry rows labeled entry #847 (writer_iter_id=42, hash=a3f7c2..., payload), entry #848 (writer_iter_id=42, hash=b9d1e4...), entry #849 (writer_iter_id=43, hash=c2e8f1...). Bottom caption: 'cleanup_candidates(iter_id=42) removes rows 847+848 without touching 849 — ownership lives on the row, not in timing.' CENTER (green promote() box): labeled 'promote()' with sub-text 'checks hash_precondition → atomic flip'; arrows enter from left panel and exit to right panel. RIGHT (blue LIVE panel): two sealed entries with lock icons — entry #847 (live, sealed) and entry #848 (live, sealed); below them a red dashed box with ✕ marker labeled 'direct write to live · no API path exists · refused at the type level · also refused: promote() with stale hash_precondition'. Bottom annotation: 'two structural commitments: (1) writes never see live until promote() · (2) writer_iteration_id makes cleanup race-free across all five tiers.'" style="margin-top:22px">
+    <svg class="csis-svg" viewBox="0 0 940 520" xmlns="http://www.w3.org/2000/svg" aria-label="The 5-tier memory hierarchy as a 2-column 5-row matrix. Left column is the candidate side (orange wash, writes free, stamped with writer_iteration_id). Right column is the live side (blue wash, read-only, only mutation is promote()). The five tier rows from top to bottom: WORKING (scratch for in-flight iteration), EPISODIC (per-iteration narrative + outcomes), SEMANTIC (durable facts extracted from episodes), PROCEDURAL (the actual self-improving surface — reusable skills, marked with a star), CAUSAL (why-this-fixed-that hypotheses). A single green promote() arrow at every row connects the candidate cell to the live cell. Column headers describe the candidate/live contract; a footer annotation labels the green arrows as MemoryStore.promote(ids, precondition_hash=...) atomic candidate→live flips.">
       <defs>
-        <marker id="m-arrow-promote" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="8" markerHeight="8" orient="auto-start-reverse">
-          <path d="M 0 0 L 10 5 L 0 10 z" fill="#5a6c46"/>
-        </marker>
-        <marker id="m-arrow-reject" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="7" markerHeight="7" orient="auto-start-reverse">
-          <path d="M 0 0 L 10 5 L 0 10 z" fill="#c4543b"/>
+        <linearGradient id="bg-mem" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0" stop-color="#fdfaf3"/>
+          <stop offset="1" stop-color="#f7eedb"/>
+        </linearGradient>
+        <linearGradient id="cand-col" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0" stop-color="#fde7d8" stop-opacity="0.6"/>
+          <stop offset="1" stop-color="#fde7d8" stop-opacity="0.25"/>
+        </linearGradient>
+        <linearGradient id="live-col" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0" stop-color="#e2ecf6" stop-opacity="0.6"/>
+          <stop offset="1" stop-color="#e2ecf6" stop-opacity="0.25"/>
+        </linearGradient>
+        <filter id="cell-shadow" x="-2%" y="-30%" width="104%" height="160%">
+          <feDropShadow dx="0" dy="2" stdDeviation="2.4" flood-color="#3c2810" flood-opacity="0.06"/>
+        </filter>
+        <marker id="arrow-promote" markerWidth="9" markerHeight="9" refX="8" refY="4.5" orient="auto">
+          <polygon points="0 0, 9 4.5, 0 9" fill="#5a6c46"/>
         </marker>
       </defs>
 
-      <!-- Title strip -->
-      <rect x="0" y="0" width="940" height="32" fill="#f6ecd6" stroke="none"/>
-      <text x="470" y="20" font-size="12" class="mono bold" text-anchor="middle" fill="#7a6c4a">ONE TIER, ZOOMED IN · how the candidate ↔ live split actually works</text>
+      <rect x="0" y="0" width="940" height="520" fill="url(#bg-mem)" rx="14"/>
 
-      <!-- Candidate panel -->
+      <!-- Two column washes -->
+      <rect x="40"  y="80"  width="400" height="400" rx="14" fill="url(#cand-col)"/>
+      <rect x="500" y="80"  width="400" height="400" rx="14" fill="url(#live-col)"/>
+
+      <!-- Column headers -->
+      <text x="40"  y="40" font-size="11" font-family="ui-monospace,monospace" letter-spacing="2" fill="#b85e3f">CANDIDATE</text>
+      <text x="40"  y="62" font-size="14" font-weight="700" fill="#1f1f1f">Writes free · stamped with writer_iteration_id</text>
+
+      <text x="500" y="40" font-size="11" font-family="ui-monospace,monospace" letter-spacing="2" fill="#3a6da0">LIVE</text>
+      <text x="500" y="62" font-size="14" font-weight="700" fill="#1f1f1f">Read-only · only mutation is <tspan font-family="ui-monospace,monospace" font-size="12.5">promote()</tspan></text>
+
+      <!-- Promote column header (between) -->
+      <text x="470" y="51" font-size="10" font-family="ui-monospace,monospace" text-anchor="middle" fill="#5a6c46" letter-spacing="1">PROMOTE</text>
+
+      <!-- Row helper data: all rows share structure -->
+      <!-- ROW 1: working -->
       <g>
-        <rect x="30" y="52" width="380" height="244" rx="12" fill="#fbf4e7" stroke="#d97757" stroke-width="2" filter="drop-shadow(0 2px 6px rgba(217,119,87,0.10))"/>
-        <text x="220" y="78" font-size="13" class="mono bold" text-anchor="middle" fill="#b85e3f">CANDIDATE · writes free · cleanup race-free</text>
-        <text x="220" y="94" font-size="10.5" class="mono dim" text-anchor="middle">any iteration may append; nothing here is visible to live reads</text>
+        <rect x="56" y="98" width="368" height="64" rx="10" fill="#fff" filter="url(#cell-shadow)"/>
+        <rect x="56" y="98" width="3" height="64" rx="1.5" fill="#d97757"/>
+        <text x="76" y="124" font-size="16" font-weight="700" fill="#1f1f1f">working</text>
+        <text x="76" y="146" font-size="12" fill="#6f6f6f">scratch · in-flight iteration</text>
+        <g transform="translate(386, 113)"><circle cx="11" cy="11" r="14" fill="#fce5d8"/><svg x="3" y="3" width="16" height="16"><use href="#icon-flow" style="color:#d97757"/></svg></g>
 
-        <!-- Entry rows -->
-        <g font-family="ui-monospace, monospace" font-size="10.5" fill="#4a3a1a">
-          <rect x="44" y="108" width="352" height="38" rx="6" fill="#ffffff" stroke="#d97757" stroke-width="1.2"/>
-          <text x="56" y="123" class="mono bold" fill="#b85e3f">entry #847</text>
-          <text x="56" y="138" class="mono">writer_iter_id=42 · hash=a3f7c2... · payload=...</text>
+        <rect x="516" y="98" width="368" height="64" rx="10" fill="#fff" filter="url(#cell-shadow)"/>
+        <rect x="516" y="98" width="3" height="64" rx="1.5" fill="#4a82bc"/>
+        <text x="536" y="124" font-size="16" font-weight="700" fill="#1f1f1f">working <tspan font-size="12" fill="#3a6da0" font-weight="400">· live</tspan></text>
+        <text x="536" y="146" font-size="12" fill="#6f6f6f">read-only · next iteration's view</text>
 
-          <rect x="44" y="152" width="352" height="38" rx="6" fill="#ffffff" stroke="#d97757" stroke-width="1.2"/>
-          <text x="56" y="167" class="mono bold" fill="#b85e3f">entry #848</text>
-          <text x="56" y="182" class="mono">writer_iter_id=42 · hash=b9d1e4... · payload=...</text>
-
-          <rect x="44" y="196" width="352" height="38" rx="6" fill="#ffffff" stroke="#d97757" stroke-width="1.2"/>
-          <text x="56" y="211" class="mono bold" fill="#b85e3f">entry #849</text>
-          <text x="56" y="226" class="mono">writer_iter_id=43 · hash=c2e8f1... · payload=...</text>
-        </g>
-
-        <text x="220" y="262" font-size="11" class="mono dim" text-anchor="middle">cleanup_candidates(iter_id=42) removes 847+848</text>
-        <text x="220" y="278" font-size="11" class="mono dim" text-anchor="middle">849 untouched · ownership on the row, not in timing</text>
+        <line x1="430" y1="130" x2="514" y2="130" stroke="#5a6c46" stroke-width="1.8" marker-end="url(#arrow-promote)"/>
       </g>
 
-      <!-- promote() arrow with precondition -->
+      <!-- ROW 2: episodic -->
       <g>
-        <rect x="425" y="138" width="100" height="72" rx="8" fill="#dde6cd" stroke="#5a6c46" stroke-width="2"/>
-        <text x="475" y="160" font-size="11" class="mono bold" text-anchor="middle" fill="#2a4a1a">promote()</text>
-        <text x="475" y="178" font-size="9.5" class="mono" text-anchor="middle" fill="#4a5a3a">checks</text>
-        <text x="475" y="192" font-size="9.5" class="mono" text-anchor="middle" fill="#4a5a3a">hash_precondition</text>
-        <text x="475" y="206" font-size="9.5" class="mono bold" text-anchor="middle" fill="#5a6c46">→ atomic flip</text>
-        <line x1="410" y1="174" x2="425" y2="174" stroke="#5a6c46" stroke-width="2" marker-end="url(#m-arrow-promote)"/>
-        <line x1="525" y1="174" x2="540" y2="174" stroke="#5a6c46" stroke-width="2" marker-end="url(#m-arrow-promote)"/>
+        <rect x="56" y="174" width="368" height="64" rx="10" fill="#fff" filter="url(#cell-shadow)"/>
+        <rect x="56" y="174" width="3" height="64" rx="1.5" fill="#d97757"/>
+        <text x="76" y="200" font-size="16" font-weight="700" fill="#1f1f1f">episodic</text>
+        <text x="76" y="222" font-size="12" fill="#6f6f6f">narrative + outcomes per iteration</text>
+        <g transform="translate(386, 189)"><circle cx="11" cy="11" r="14" fill="#fce5d8"/><svg x="3" y="3" width="16" height="16"><use href="#icon-clock" style="color:#d97757"/></svg></g>
+
+        <rect x="516" y="174" width="368" height="64" rx="10" fill="#fff" filter="url(#cell-shadow)"/>
+        <rect x="516" y="174" width="3" height="64" rx="1.5" fill="#4a82bc"/>
+        <text x="536" y="200" font-size="16" font-weight="700" fill="#1f1f1f">episodic <tspan font-size="12" fill="#3a6da0" font-weight="400">· live</tspan></text>
+        <text x="536" y="222" font-size="12" fill="#6f6f6f">promoted iterations · what actually happened</text>
+
+        <line x1="430" y1="206" x2="514" y2="206" stroke="#5a6c46" stroke-width="1.8" marker-end="url(#arrow-promote)"/>
       </g>
 
-      <!-- Live panel -->
+      <!-- ROW 3: semantic -->
       <g>
-        <rect x="540" y="52" width="380" height="244" rx="12" fill="#dbe7f3" stroke="#4a82bc" stroke-width="2" filter="drop-shadow(0 2px 6px rgba(74,130,188,0.10))"/>
-        <text x="730" y="78" font-size="13" class="mono bold" text-anchor="middle" fill="#1a3a5e">LIVE · read-only · only mutation is promote()</text>
-        <text x="730" y="94" font-size="10.5" class="mono dim" text-anchor="middle">next iteration's reads come from here, not candidate</text>
+        <rect x="56" y="250" width="368" height="64" rx="10" fill="#fff" filter="url(#cell-shadow)"/>
+        <rect x="56" y="250" width="3" height="64" rx="1.5" fill="#d97757"/>
+        <text x="76" y="276" font-size="16" font-weight="700" fill="#1f1f1f">semantic</text>
+        <text x="76" y="298" font-size="12" fill="#6f6f6f">durable facts extracted from episodes</text>
+        <g transform="translate(386, 265)"><circle cx="11" cy="11" r="14" fill="#fce5d8"/><svg x="3" y="3" width="16" height="16"><use href="#icon-brain" style="color:#d97757"/></svg></g>
 
-        <!-- Live entry rows (locked) -->
-        <g font-family="ui-monospace, monospace" font-size="10.5" fill="#1a3a5e">
-          <rect x="554" y="108" width="352" height="38" rx="6" fill="#ffffff" stroke="#4a82bc" stroke-width="1.2"/>
-          <svg x="560" y="119" width="14" height="14"><use href="#icon-lock" style="color:#4a82bc"/></svg>
-          <text x="582" y="123" class="mono bold" fill="#1a3a5e">entry #847 (live)</text>
-          <text x="582" y="138" class="mono">writer_iter_id=42 · hash=a3f7c2... · sealed</text>
+        <rect x="516" y="250" width="368" height="64" rx="10" fill="#fff" filter="url(#cell-shadow)"/>
+        <rect x="516" y="250" width="3" height="64" rx="1.5" fill="#4a82bc"/>
+        <text x="536" y="276" font-size="16" font-weight="700" fill="#1f1f1f">semantic <tspan font-size="12" fill="#3a6da0" font-weight="400">· live</tspan></text>
+        <text x="536" y="298" font-size="12" fill="#6f6f6f">general knowledge the system has earned</text>
 
-          <rect x="554" y="152" width="352" height="38" rx="6" fill="#ffffff" stroke="#4a82bc" stroke-width="1.2"/>
-          <svg x="560" y="163" width="14" height="14"><use href="#icon-lock" style="color:#4a82bc"/></svg>
-          <text x="582" y="167" class="mono bold" fill="#1a3a5e">entry #848 (live)</text>
-          <text x="582" y="182" class="mono">writer_iter_id=42 · hash=b9d1e4... · sealed</text>
+        <line x1="430" y1="282" x2="514" y2="282" stroke="#5a6c46" stroke-width="1.8" marker-end="url(#arrow-promote)"/>
+      </g>
+
+      <!-- ROW 4: procedural — the starred one -->
+      <g>
+        <rect x="56" y="326" width="368" height="64" rx="10" fill="#fff" filter="url(#cell-shadow)"/>
+        <rect x="56" y="326" width="3" height="64" rx="1.5" fill="#d97757"/>
+        <text x="76" y="352" font-size="16" font-weight="700" fill="#1f1f1f">procedural</text>
+        <text x="76" y="374" font-size="12" fill="#6f6f6f">reusable skills (consumer: T1 tools)</text>
+        <g transform="translate(386, 341)"><circle cx="11" cy="11" r="14" fill="#fce5d8"/><svg x="3" y="3" width="16" height="16"><use href="#icon-flow" style="color:#d97757"/></svg></g>
+
+        <rect x="516" y="326" width="368" height="64" rx="10" fill="#fff" filter="url(#cell-shadow)" stroke="#5a6c46" stroke-width="1.5"/>
+        <rect x="516" y="326" width="3" height="64" rx="1.5" fill="#5a6c46"/>
+        <text x="536" y="352" font-size="16" font-weight="700" fill="#1f1f1f">procedural <tspan font-size="12" fill="#3a6da0" font-weight="400">· live</tspan></text>
+        <text x="536" y="374" font-size="12" fill="#5a6c46" font-weight="600">★ the actual self-improving surface</text>
+
+        <line x1="430" y1="358" x2="514" y2="358" stroke="#5a6c46" stroke-width="2.2" marker-end="url(#arrow-promote)"/>
+      </g>
+
+      <!-- ROW 5: causal -->
+      <g>
+        <rect x="56" y="402" width="368" height="64" rx="10" fill="#fff" filter="url(#cell-shadow)"/>
+        <rect x="56" y="402" width="3" height="64" rx="1.5" fill="#d97757"/>
+        <text x="76" y="428" font-size="16" font-weight="700" fill="#1f1f1f">causal</text>
+        <text x="76" y="450" font-size="12" fill="#6f6f6f">why-this-fixed-that hypotheses</text>
+        <g transform="translate(386, 417)"><circle cx="11" cy="11" r="14" fill="#fce5d8"/><svg x="3" y="3" width="16" height="16"><use href="#icon-eye" style="color:#d97757"/></svg></g>
+
+        <rect x="516" y="402" width="368" height="64" rx="10" fill="#fff" filter="url(#cell-shadow)"/>
+        <rect x="516" y="402" width="3" height="64" rx="1.5" fill="#4a82bc"/>
+        <text x="536" y="428" font-size="16" font-weight="700" fill="#1f1f1f">causal <tspan font-size="12" fill="#3a6da0" font-weight="400">· live</tspan></text>
+        <text x="536" y="450" font-size="12" fill="#6f6f6f">causal models the auditor trusts</text>
+
+        <line x1="430" y1="434" x2="514" y2="434" stroke="#5a6c46" stroke-width="1.8" marker-end="url(#arrow-promote)"/>
+      </g>
+
+      <!-- Footer annotation -->
+      <text x="470" y="500" font-size="11.5" font-family="ui-monospace,monospace" text-anchor="middle" fill="#5a6c46">each arrow → <tspan font-weight="700">MemoryStore.promote(ids, precondition_hash=...)</tspan> · atomic candidate → live flip</text>
+    </svg>
+
+    <!-- Companion: one tier, zoomed in — cleaner three-pane editorial -->
+    <svg class="csis-svg" viewBox="0 0 940 380" xmlns="http://www.w3.org/2000/svg" aria-label="One tier, zoomed in — how the candidate ↔ live split actually works. Three panels left-to-right with subtle gradient backgrounds. LEFT panel (candidate side): three sample entry rows showing entry #847 with writer_iter_id=42 and hash=a3f7c2…, entry #848 with writer_iter_id=42 and hash=b9d1e4…, entry #849 with writer_iter_id=43 and hash=c2e8f1…. Caption: 'cleanup_candidates(iter_id=42) removes rows 847+848 without touching 849 — ownership lives on the row, not in timing.' CENTER panel (the gate): a soft green pill labeled promote() with checks hash_precondition → atomic flip. Two arrows: one entering from left, one exiting to right. RIGHT panel (live side): two sealed locked entries #847 and #848 marked as sealed/promoted, and below them a red dashed callout with ✕ showing that direct writes to live and stale-hash promote() calls are both refused at the type level. Footer note: two structural commitments — writes never see live until promote(), and writer_iteration_id makes cleanup race-free across all five tiers." style="margin-top:26px">
+      <defs>
+        <linearGradient id="bg-zoom-cand" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0" stop-color="#fde7d8" stop-opacity="0.5"/>
+          <stop offset="1" stop-color="#fde7d8" stop-opacity="0.15"/>
+        </linearGradient>
+        <linearGradient id="bg-zoom-live" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0" stop-color="#e2ecf6" stop-opacity="0.5"/>
+          <stop offset="1" stop-color="#e2ecf6" stop-opacity="0.15"/>
+        </linearGradient>
+        <filter id="zoom-row-shadow" x="-2%" y="-30%" width="104%" height="160%">
+          <feDropShadow dx="0" dy="1" stdDeviation="1.6" flood-color="#3c2810" flood-opacity="0.05"/>
+        </filter>
+        <marker id="arrow-zoom" markerWidth="8" markerHeight="8" refX="7" refY="4" orient="auto">
+          <polygon points="0 0, 8 4, 0 8" fill="#5a6c46"/>
+        </marker>
+      </defs>
+
+      <!-- Eyebrow + title -->
+      <text x="40" y="32" font-size="11" font-family="ui-monospace,monospace" letter-spacing="2" fill="#a89a72">ONE TIER · ZOOMED IN</text>
+      <text x="40" y="58" font-size="20" font-weight="700" letter-spacing="-0.4" fill="#1f1f1f">How the candidate ↔ live split actually works</text>
+
+      <!-- Three columns -->
+      <rect x="30"  y="80" width="380" height="240" rx="12" fill="url(#bg-zoom-cand)"/>
+      <rect x="430" y="80" width="80"  height="240" rx="12" fill="#eaf1da" opacity="0.6"/>
+      <rect x="530" y="80" width="380" height="240" rx="12" fill="url(#bg-zoom-live)"/>
+
+      <!-- Column captions -->
+      <text x="220" y="104" font-size="11" font-family="ui-monospace,monospace" letter-spacing="2" text-anchor="middle" fill="#b85e3f">CANDIDATE SIDE</text>
+      <text x="470" y="104" font-size="11" font-family="ui-monospace,monospace" letter-spacing="2" text-anchor="middle" fill="#5a6c46">GATE</text>
+      <text x="720" y="104" font-size="11" font-family="ui-monospace,monospace" letter-spacing="2" text-anchor="middle" fill="#3a6da0">LIVE SIDE</text>
+
+      <!-- LEFT: candidate entries -->
+      <g>
+        <g font-family="ui-monospace,monospace">
+          <!-- entry 847 -->
+          <rect x="44" y="124" width="352" height="44" rx="7" fill="#fff" filter="url(#zoom-row-shadow)"/>
+          <rect x="44" y="124" width="3" height="44" rx="1.5" fill="#d97757"/>
+          <text x="60" y="142" font-size="12" font-weight="700" fill="#b85e3f">entry #847</text>
+          <text x="60" y="158" font-size="10.5" fill="#6f6f6f">writer_iter_id=42 · hash=a3f7c2… · payload=…</text>
+          <!-- entry 848 -->
+          <rect x="44" y="178" width="352" height="44" rx="7" fill="#fff" filter="url(#zoom-row-shadow)"/>
+          <rect x="44" y="178" width="3" height="44" rx="1.5" fill="#d97757"/>
+          <text x="60" y="196" font-size="12" font-weight="700" fill="#b85e3f">entry #848</text>
+          <text x="60" y="212" font-size="10.5" fill="#6f6f6f">writer_iter_id=42 · hash=b9d1e4… · payload=…</text>
+          <!-- entry 849 (sibling iteration) -->
+          <rect x="44" y="232" width="352" height="44" rx="7" fill="#fff" filter="url(#zoom-row-shadow)" stroke="#e7d8b5" stroke-width="1" stroke-dasharray="3 2"/>
+          <rect x="44" y="232" width="3" height="44" rx="1.5" fill="#a89a72"/>
+          <text x="60" y="250" font-size="12" font-weight="700" fill="#8a8579">entry #849 <tspan font-size="10" font-weight="400">· sibling iteration</tspan></text>
+          <text x="60" y="266" font-size="10.5" fill="#6f6f6f">writer_iter_id=43 · hash=c2e8f1… · untouched</text>
         </g>
 
-        <!-- Rejected direct write attempt -->
+        <text x="220" y="298" font-size="11" font-family="ui-monospace,monospace" text-anchor="middle" fill="#5a6c46">cleanup_candidates(iter_id=42)</text>
+        <text x="220" y="313" font-size="10" font-family="ui-monospace,monospace" text-anchor="middle" fill="#8a8579">ownership on the row · not in timing</text>
+      </g>
+
+      <!-- CENTER: promote() pill -->
+      <g>
+        <rect x="438" y="174" width="64" height="56" rx="28" fill="#dde6cd" stroke="#5a6c46" stroke-width="1.5"/>
+        <text x="470" y="198" font-size="11.5" font-family="ui-monospace,monospace" font-weight="700" text-anchor="middle" fill="#2a4a1a">promote()</text>
+        <text x="470" y="214" font-size="9" font-family="ui-monospace,monospace" text-anchor="middle" fill="#5a6c46">CAS</text>
+        <line x1="410" y1="202" x2="436" y2="202" stroke="#5a6c46" stroke-width="2" marker-end="url(#arrow-zoom)"/>
+        <line x1="504" y1="202" x2="528" y2="202" stroke="#5a6c46" stroke-width="2" marker-end="url(#arrow-zoom)"/>
+        <text x="470" y="252" font-size="10" font-family="ui-monospace,monospace" text-anchor="middle" fill="#5a6c46">checks</text>
+        <text x="470" y="266" font-size="10" font-family="ui-monospace,monospace" text-anchor="middle" fill="#5a6c46">precondition</text>
+      </g>
+
+      <!-- RIGHT: live entries (sealed) + rejection -->
+      <g>
+        <g font-family="ui-monospace,monospace">
+          <rect x="544" y="124" width="352" height="44" rx="7" fill="#fff" filter="url(#zoom-row-shadow)"/>
+          <rect x="544" y="124" width="3" height="44" rx="1.5" fill="#4a82bc"/>
+          <g transform="translate(556, 130)"><svg x="0" y="0" width="12" height="12"><use href="#icon-lock" style="color:#4a82bc"/></svg></g>
+          <text x="576" y="142" font-size="12" font-weight="700" fill="#1a3a5e">entry #847 · sealed</text>
+          <text x="560" y="158" font-size="10.5" fill="#6f6f6f">hash=a3f7c2… · readable as truth by next iter</text>
+          <rect x="544" y="178" width="352" height="44" rx="7" fill="#fff" filter="url(#zoom-row-shadow)"/>
+          <rect x="544" y="178" width="3" height="44" rx="1.5" fill="#4a82bc"/>
+          <g transform="translate(556, 184)"><svg x="0" y="0" width="12" height="12"><use href="#icon-lock" style="color:#4a82bc"/></svg></g>
+          <text x="576" y="196" font-size="12" font-weight="700" fill="#1a3a5e">entry #848 · sealed</text>
+          <text x="560" y="212" font-size="10.5" fill="#6f6f6f">hash=b9d1e4… · readable as truth by next iter</text>
+        </g>
+
+        <!-- rejection callout -->
         <g>
-          <rect x="554" y="208" width="352" height="56" rx="6" fill="#f3dbd0" stroke="#c4543b" stroke-width="1.5" stroke-dasharray="4 3"/>
-          <circle cx="572" cy="236" r="11" fill="#c4543b" stroke="#fff" stroke-width="2"/>
-          <text x="572" y="240" font-size="13" class="bold" text-anchor="middle" fill="#fff">✕</text>
-          <text x="592" y="228" font-size="10.5" class="mono bold" fill="#c4543b">direct write to live</text>
-          <text x="592" y="244" font-size="10" class="mono" fill="#c4543b">no API path exists · refused at the type level</text>
-          <text x="592" y="258" font-size="10" class="mono" fill="#c4543b">also refused: promote() with stale hash_precondition</text>
+          <rect x="544" y="232" width="352" height="60" rx="7" fill="#f3dbd0" stroke="#c4543b" stroke-width="1.2" stroke-dasharray="4 3"/>
+          <circle cx="566" cy="262" r="10" fill="#c4543b"/>
+          <text x="566" y="266" font-size="12" font-weight="700" text-anchor="middle" fill="#fff">✕</text>
+          <text x="584" y="252" font-size="11" font-weight="700" fill="#7c2f18">direct write to live</text>
+          <text x="584" y="268" font-size="10.5" font-family="ui-monospace,monospace" fill="#7c2f18">no API path exists · refused at type level</text>
+          <text x="584" y="284" font-size="10.5" font-family="ui-monospace,monospace" fill="#7c2f18">also refused: stale hash_precondition</text>
         </g>
       </g>
 
-      <!-- Bottom annotation -->
-      <text x="470" y="324" font-size="11" class="mono" text-anchor="middle" fill="#7a6c4a">two structural commitments: (1) writes never see live until promote() · (2) writer_iteration_id makes cleanup race-free across all five tiers</text>
+      <!-- Footer takeaway -->
+      <text x="470" y="352" font-size="11.5" text-anchor="middle" fill="#6f6f6f">Two structural commitments: <tspan font-weight="700" fill="#5a6c46">(1)</tspan> writes never see live until <tspan font-family="ui-monospace,monospace">promote()</tspan>  ·  <tspan font-weight="700" fill="#5a6c46">(2)</tspan> writer_iteration_id makes cleanup race-free across all five tiers</text>
     </svg>
 
     <div class="figure-caption">Figure 3 · The 5-tier memory hierarchy. Every tier is structurally identical: orange candidate side (writes free; stamped with the iteration that wrote them), blue live side (read-only; only mutation path is <code>promote()</code>). The H4 cycle-9 <code>writer_iteration_id</code> stamp lives on the candidate side — every entry carries the iteration_id of whoever wrote it, so cleanup is race-free under any concurrency model. <b>The zoom-in shows what's actually inside one of those orange/blue boxes</b> — the candidate side carries unsealed entries the next iteration can't see; the live side is sealed; the only legal arrow between them is <code>promote()</code>.</div>
@@ -1421,70 +1603,126 @@
   </div>
 
   <div class="figure-wrap">
-    <svg class="csis-svg" viewBox="0 0 940 390" xmlns="http://www.w3.org/2000/svg" aria-label="V1+V2 cross-checkpoint verification flow. Two large rounded rectangles side-by-side representing the two checkpoint identities. LEFT (orange BUILDER CHECKPOINT, model_id=claude-opus-4-7): contains three role boxes — Researcher (proposes plan), Builder (produces artifact) with arrow from Researcher to Builder, and Librarian (writes candidates) below. RIGHT (blue VERIFIER CHECKPOINT, model_id=claude-sonnet-4-6): contains three role boxes — Verifier (V1 graders, pinned, plus distributional cert), Critic (V2 falsifies on worst slices), and Auditor (signs why-doc with hash_precondition equal to store.live_hash(); refuses to sign if cert.verifier_checkpoint equals cert.builder_checkpoint) shown as a green box at the bottom of the verifier side. A dashed orange arrow labeled 'artifact crosses checkpoint boundary' goes from the Builder box on the left to the Verifier box on the right. A dashed green return arrow labeled 'signed cert + why-doc · hash CAS' curves from the Auditor back to the Librarian on the builder side. Bottom italic note: 'F1 cycle-1 fix · assert_cross_checkpoint() requires ≥2 distinct identity components (model_id, backend, tool_set).'">
-      <!-- Builder checkpoint -->
+    <svg class="csis-svg" viewBox="0 0 940 470" xmlns="http://www.w3.org/2000/svg" aria-label="V1+V2 cross-checkpoint verification. Two large columns side-by-side representing two physically distinct LLM checkpoint identities. LEFT column (Builder checkpoint, Opus-class, model_id=claude-opus-4-7, orange wash): two role cards — Researcher proposes a plan, Builder produces the artifact — connected by an arrow; below them a Librarian card writes candidates. RIGHT column (Verifier checkpoint, Sonnet-class, model_id=claude-sonnet-4-6, blue wash): two role cards — Verifier runs V1 pinned graders plus distributional cert, Critic runs V2 falsifying on worst slices — both feeding into a green Auditor card at the bottom that signs the why-doc with hash_precondition equal to store.live_hash() and refuses to sign if cert.verifier_checkpoint equals cert.builder_checkpoint. A wide arrow labeled 'artifact' crosses the checkpoint boundary from Builder to Verifier in the center; a green return arrow labeled 'signed cert + why-doc · hash CAS' curves from Auditor back to Librarian on the builder side. Footer: F1 cycle-1 fix — assert_cross_checkpoint() requires at least two distinct identity components among model_id, backend, and tool_set.">
+      <defs>
+        <linearGradient id="bg-verif" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0" stop-color="#fdfaf3"/>
+          <stop offset="1" stop-color="#f7eedb"/>
+        </linearGradient>
+        <linearGradient id="builder-col" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0" stop-color="#fde7d8" stop-opacity="0.6"/>
+          <stop offset="1" stop-color="#fde7d8" stop-opacity="0.2"/>
+        </linearGradient>
+        <linearGradient id="verifier-col" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0" stop-color="#e2ecf6" stop-opacity="0.6"/>
+          <stop offset="1" stop-color="#e2ecf6" stop-opacity="0.2"/>
+        </linearGradient>
+        <filter id="role-shadow" x="-4%" y="-30%" width="108%" height="160%">
+          <feDropShadow dx="0" dy="2" stdDeviation="2.4" flood-color="#3c2810" flood-opacity="0.07"/>
+        </filter>
+        <marker id="arrow-cross" markerWidth="11" markerHeight="11" refX="10" refY="5.5" orient="auto">
+          <polygon points="0 0, 11 5.5, 0 11" fill="#d97757"/>
+        </marker>
+        <marker id="arrow-return" markerWidth="9" markerHeight="9" refX="8" refY="4.5" orient="auto">
+          <polygon points="0 0, 9 4.5, 0 9" fill="#5a6c46"/>
+        </marker>
+      </defs>
+
+      <rect x="0" y="0" width="940" height="470" fill="url(#bg-verif)" rx="14"/>
+
+      <!-- Eyebrow + headline -->
+      <text x="40"  y="36" font-size="11" font-family="ui-monospace,monospace" letter-spacing="2" fill="#a89a72">TWO CHECKPOINTS · DIFFERENT MODEL IDS</text>
+      <text x="40"  y="62" font-size="22" font-weight="700" letter-spacing="-0.5" fill="#1f1f1f">The model that built it can't be the one that approves it.</text>
+
+      <!-- LEFT column: Builder -->
+      <rect x="40" y="84" width="384" height="320" rx="14" fill="url(#builder-col)"/>
+
+      <!-- Header chip with model identity -->
+      <g transform="translate(60, 102)">
+        <rect width="120" height="22" rx="11" fill="#fff" stroke="#d97757" stroke-width="1.2"/>
+        <text x="60" y="15" font-size="11" font-family="ui-monospace,monospace" font-weight="700" text-anchor="middle" fill="#b85e3f">BUILDER</text>
+      </g>
+      <text x="60" y="156" font-size="18" font-weight="700" letter-spacing="-0.4" fill="#1f1f1f">Opus-class</text>
+      <text x="60" y="178" font-size="11.5" font-family="ui-monospace,monospace" fill="#8a8579">model_id = claude-opus-4-7</text>
+
+      <!-- Role cards stacked vertically inside builder column -->
       <g>
-        <rect x="40" y="36" width="384" height="320" rx="14" fill="#fbf4e7" stroke="#d97757" stroke-width="2" filter="drop-shadow(0 2px 6px rgba(217,119,87,0.12))"/>
-        <text x="232" y="68" font-size="12" class="mono bold" text-anchor="middle" fill="#b85e3f">BUILDER CHECKPOINT · Opus-class</text>
-        <text x="232" y="84" font-size="11" class="mono dim" text-anchor="middle">model_id = claude-opus-4-7</text>
-
-        <g>
-          <rect x="80" y="116" width="128" height="64" rx="8" fill="#ffffff" stroke="#d97757" stroke-width="1.5"/>
-          <text x="144" y="144" font-size="14" class="bold" text-anchor="middle">Researcher</text>
-          <text x="144" y="162" font-size="10" class="mono dim" text-anchor="middle">propose plan</text>
-        </g>
-        <g>
-          <rect x="256" y="116" width="128" height="64" rx="8" fill="#ffffff" stroke="#d97757" stroke-width="1.5"/>
-          <text x="320" y="144" font-size="14" class="bold" text-anchor="middle">Builder</text>
-          <text x="320" y="162" font-size="10" class="mono dim" text-anchor="middle">produce artifact</text>
-        </g>
-        <line x1="208" y1="148" x2="256" y2="148" stroke="#d97757" stroke-width="2" marker-end="url(#m-arrow-accent)"/>
-
-        <g>
-          <rect x="80" y="232" width="128" height="64" rx="8" fill="#ffffff" stroke="#d97757" stroke-width="1.5"/>
-          <text x="144" y="260" font-size="14" class="bold" text-anchor="middle">Librarian</text>
-          <text x="144" y="278" font-size="10" class="mono dim" text-anchor="middle">candidate writes</text>
-        </g>
+        <rect x="60" y="204" width="344" height="58" rx="10" fill="#fff" filter="url(#role-shadow)"/>
+        <rect x="60" y="204" width="3" height="58" rx="1.5" fill="#d97757"/>
+        <text x="80" y="226" font-size="15" font-weight="700" fill="#1f1f1f">Researcher</text>
+        <text x="80" y="247" font-size="11.5" fill="#6f6f6f">proposes the plan · plan_id hashed at task start</text>
+      </g>
+      <g>
+        <rect x="60" y="272" width="344" height="58" rx="10" fill="#fff" filter="url(#role-shadow)"/>
+        <rect x="60" y="272" width="3" height="58" rx="1.5" fill="#d97757"/>
+        <text x="80" y="294" font-size="15" font-weight="700" fill="#1f1f1f">Builder</text>
+        <text x="80" y="315" font-size="11.5" fill="#6f6f6f">produces artifact · signs with builder identity</text>
+      </g>
+      <g>
+        <rect x="60" y="340" width="344" height="50" rx="10" fill="#fff" filter="url(#role-shadow)"/>
+        <rect x="60" y="340" width="3" height="50" rx="1.5" fill="#a89a72"/>
+        <text x="80" y="360" font-size="14" font-weight="700" fill="#6f6f6f">Librarian <tspan font-size="10" fill="#a89a72" font-family="ui-monospace,monospace">· candidate writes</tspan></text>
+        <text x="80" y="378" font-size="11" fill="#6f6f6f">stamps writer_iteration_id; awaits cert</text>
       </g>
 
-      <!-- Verifier checkpoint -->
+      <!-- RIGHT column: Verifier -->
+      <rect x="516" y="84" width="384" height="320" rx="14" fill="url(#verifier-col)"/>
+
+      <g transform="translate(536, 102)">
+        <rect width="120" height="22" rx="11" fill="#fff" stroke="#4a82bc" stroke-width="1.2"/>
+        <text x="60" y="15" font-size="11" font-family="ui-monospace,monospace" font-weight="700" text-anchor="middle" fill="#3a6da0">VERIFIER</text>
+      </g>
+      <text x="536" y="156" font-size="18" font-weight="700" letter-spacing="-0.4" fill="#1f1f1f">Sonnet-class</text>
+      <text x="536" y="178" font-size="11.5" font-family="ui-monospace,monospace" fill="#8a8579">model_id = claude-sonnet-4-6</text>
+
       <g>
-        <rect x="516" y="36" width="384" height="320" rx="14" fill="#dbe7f3" stroke="#4a82bc" stroke-width="2" filter="drop-shadow(0 2px 6px rgba(74,130,188,0.12))"/>
-        <text x="708" y="68" font-size="12" class="mono bold" text-anchor="middle" fill="#1a3a5e">VERIFIER CHECKPOINT · Sonnet-class</text>
-        <text x="708" y="84" font-size="11" class="mono dim" text-anchor="middle">model_id = claude-sonnet-4-6</text>
-
-        <g>
-          <rect x="556" y="116" width="160" height="64" rx="8" fill="#ffffff" stroke="#4a82bc" stroke-width="1.5"/>
-          <text x="636" y="140" font-size="14" class="bold" text-anchor="middle">Verifier</text>
-          <text x="636" y="156" font-size="10" class="mono dim" text-anchor="middle">V1 graders (pinned)</text>
-          <text x="636" y="170" font-size="10" class="mono dim" text-anchor="middle">+ distributional cert</text>
-        </g>
-        <g>
-          <rect x="736" y="116" width="144" height="64" rx="8" fill="#ffffff" stroke="#4a82bc" stroke-width="1.5"/>
-          <text x="808" y="140" font-size="14" class="bold" text-anchor="middle">Critic</text>
-          <text x="808" y="156" font-size="10" class="mono dim" text-anchor="middle">V2 falsifies on</text>
-          <text x="808" y="170" font-size="10" class="mono dim" text-anchor="middle">worst slices</text>
-        </g>
-
-        <g>
-          <rect x="556" y="232" width="324" height="64" rx="8" fill="#dde6cd" stroke="#5a6c46" stroke-width="1.5"/>
-          <text x="718" y="256" font-size="14" class="bold" text-anchor="middle" fill="#2a4a1a">Auditor</text>
-          <text x="718" y="272" font-size="10" class="mono dim" text-anchor="middle">why-doc + hash_precondition = store.live_hash()</text>
-          <text x="718" y="286" font-size="10" class="mono dim" text-anchor="middle">refuses cert if cert.builder == cert.verifier</text>
-        </g>
-        <line x1="708" y1="180" x2="708" y2="232" stroke="#4a82bc" stroke-width="2" marker-end="url(#m-arrow-calm)"/>
+        <rect x="536" y="204" width="180" height="58" rx="10" fill="#fff" filter="url(#role-shadow)"/>
+        <rect x="536" y="204" width="3" height="58" rx="1.5" fill="#4a82bc"/>
+        <text x="554" y="226" font-size="15" font-weight="700" fill="#1f1f1f">Verifier</text>
+        <text x="554" y="247" font-size="11.5" fill="#6f6f6f">V1 graders · pinned · cert</text>
+      </g>
+      <g>
+        <rect x="724" y="204" width="176" height="58" rx="10" fill="#fff" filter="url(#role-shadow)"/>
+        <rect x="724" y="204" width="3" height="58" rx="1.5" fill="#4a82bc"/>
+        <text x="742" y="226" font-size="15" font-weight="700" fill="#1f1f1f">Critic</text>
+        <text x="742" y="247" font-size="11.5" fill="#6f6f6f">V2 falsifies worst slice</text>
       </g>
 
-      <!-- artifact crossing -->
-      <line x1="384" y1="148" x2="556" y2="148" stroke="#d97757" stroke-width="2.5" stroke-dasharray="6 3" marker-end="url(#m-arrow-accent)"/>
-      <text x="470" y="138" font-size="11" class="mono bold" text-anchor="middle">artifact</text>
-      <text x="470" y="166" font-size="10" class="mono dim" text-anchor="middle">crosses checkpoint boundary</text>
+      <!-- Auditor: emphasized -->
+      <g>
+        <rect x="536" y="282" width="364" height="100" rx="12" fill="#eaf1da" stroke="#5a6c46" stroke-width="1.5" filter="url(#role-shadow)"/>
+        <rect x="536" y="282" width="4" height="100" rx="2" fill="#5a6c46"/>
+        <g transform="translate(558, 302)">
+          <circle cx="11" cy="11" r="14" fill="#dde6cd"/>
+          <svg x="3" y="3" width="16" height="16"><use href="#icon-shield" style="color:#5a6c46"/></svg>
+        </g>
+        <text x="588" y="316" font-size="16" font-weight="700" fill="#2a4a1a">Auditor</text>
+        <text x="558" y="340" font-size="11.5" fill="#3a3a3a">signs why-doc · sets <tspan font-family="ui-monospace,monospace" font-size="11">hash_precondition</tspan> = <tspan font-family="ui-monospace,monospace" font-size="11">store.live_hash()</tspan></text>
+        <text x="558" y="358" font-size="11.5" fill="#3a3a3a">refuses cert if <tspan font-family="ui-monospace,monospace" font-size="11">cert.builder == cert.verifier</tspan></text>
+        <text x="558" y="374" font-size="11" font-family="ui-monospace,monospace" fill="#5a6c46" font-weight="700">enforces the cross-checkpoint invariant in code</text>
+      </g>
 
-      <!-- cert + why-doc returning -->
-      <path d="M 556 264 Q 380 320 208 264" stroke="#5a6c46" stroke-width="2.5" stroke-dasharray="6 3" fill="none" marker-end="url(#m-arrow-good)"/>
-      <text x="470" y="335" font-size="11" class="mono bold" text-anchor="middle" fill="#2a4a1a">signed cert + why-doc · hash CAS</text>
+      <!-- Internal arrows: Researcher → Builder is implicit (stacked); add explicit arrows -->
+      <line x1="232" y1="262" x2="232" y2="270" stroke="#d97757" stroke-width="1.5" marker-end="url(#arrow-cross)"/>
 
-      <text x="470" y="378" font-size="11" class="mono dim" text-anchor="middle" font-style="italic">F1 cycle-1 fix · assert_cross_checkpoint() requires ≥2 distinct identity components (model_id, backend, tool_set)</text>
+      <line x1="626" y1="262" x2="626" y2="280" stroke="#4a82bc" stroke-width="1.5" marker-end="url(#m-arrow-calm)"/>
+      <line x1="812" y1="262" x2="812" y2="280" stroke="#4a82bc" stroke-width="1.5" marker-end="url(#m-arrow-calm)"/>
+
+      <!-- THE crossing — make it the visual focus -->
+      <g>
+        <line x1="406" y1="234" x2="528" y2="234" stroke="#d97757" stroke-width="3" stroke-dasharray="8 4" marker-end="url(#arrow-cross)" opacity="0.9"/>
+        <text x="467" y="222" font-size="13" font-weight="700" text-anchor="middle" fill="#1f1f1f">artifact</text>
+        <text x="467" y="252" font-size="10.5" font-family="ui-monospace,monospace" text-anchor="middle" fill="#8a8579">crosses checkpoint boundary</text>
+      </g>
+
+      <!-- Return: cert + why-doc -->
+      <g>
+        <path d="M 536 360 Q 470 430 232 380" stroke="#5a6c46" stroke-width="2" stroke-dasharray="6 4" fill="none" marker-end="url(#arrow-return)"/>
+        <text x="384" y="430" font-size="11.5" font-family="ui-monospace,monospace" text-anchor="middle" fill="#5a6c46" font-weight="700">signed cert + why-doc · hash-CAS to live</text>
+      </g>
+
+      <!-- Footer note -->
+      <text x="40" y="460" font-size="11" font-family="ui-monospace,monospace" fill="#8a8579" font-style="italic">F1 (cycle 1) · <tspan font-weight="700">assert_cross_checkpoint()</tspan> requires ≥ 2 distinct identity components (model_id, backend, tool_set)</text>
     </svg>
     <div class="figure-caption">Figure 4 · V1+V2 verification on a structurally different checkpoint. Orange roles run on the builder model (Opus-class). Blue roles run on the verifier model (Sonnet-class). The Auditor refuses to sign if the cert's <code>builder_checkpoint</code> matches its <code>verifier_checkpoint</code>. The substrate makes this impossible to violate accidentally.</div>
     <div class="failure-mode"><span class="fm-label">what fails without this:</span> The same model that produced the artifact rubber-stamps it. The Builder's blind spots <em>are</em> the Verifier's blind spots — same training corpus, same priors, same misunderstandings. This is cycle-1 finding <code>F1</code>: the entire substrate exists to make this impossible. Different <code>model_id</code> means at minimum a different snapshot of the world; not perfect, but structurally distinct enough that one model's confident wrong answer doesn't survive a second model's check.</div>
@@ -1517,74 +1755,103 @@
   </div>
 
   <div class="figure-wrap">
-    <svg class="csis-svg" viewBox="0 0 940 380" xmlns="http://www.w3.org/2000/svg" aria-label="Hash-preconditioned CAS promotion as a side-by-side success/failure timeline. TOP TRACK (green, SUCCESS path): time flows left to right. T0 — Auditor reads store.live_hash() = HASH_A and signs the why-doc with hash_precondition=HASH_A. T1 — no sibling writer mutates the store. T2 — store.promote(ids, hash_precondition=HASH_A) is called; precondition matches current live hash; atomic flip executes; candidate becomes live; iteration succeeds. BOTTOM TRACK (red, FAILURE path): same timeline. T0 — Auditor signs why-doc with hash_precondition=HASH_A. T1 — a sibling iteration's promote() lands and mutates the store to HASH_B. T2 — this iteration's store.promote(ids, hash_precondition=HASH_A) is called; precondition no longer matches current live hash; PromotionPreconditionFailure is raised atomically; nothing reaches live; this iteration rolls back cleanly using writer_iteration_id to identify its own candidate writes for cleanup (race-free).">
-      <!-- Timeline axis -->
-      <text x="470" y="26" font-size="13" class="mono dim" text-anchor="middle">time →</text>
-      <line x1="60" y1="44" x2="880" y2="44" stroke="#b8a880" stroke-width="2"/>
-      <line x1="124" y1="40" x2="124" y2="48" stroke="#b8a880" stroke-width="2"/>
-      <line x1="328" y1="40" x2="328" y2="48" stroke="#b8a880" stroke-width="2"/>
-      <line x1="532" y1="40" x2="532" y2="48" stroke="#b8a880" stroke-width="2"/>
-      <line x1="736" y1="40" x2="736" y2="48" stroke="#b8a880" stroke-width="2"/>
-      <text x="124" y="64" font-size="11" class="mono bold" text-anchor="middle">t1</text>
-      <text x="328" y="64" font-size="11" class="mono bold" text-anchor="middle">t2</text>
-      <text x="532" y="64" font-size="11" class="mono bold" text-anchor="middle">t3</text>
-      <text x="736" y="64" font-size="11" class="mono bold" text-anchor="middle">t4</text>
+    <svg class="csis-svg" viewBox="0 0 940 460" xmlns="http://www.w3.org/2000/svg" aria-label="Hash-preconditioned CAS promotion as a forking timeline. A shared opening event (Auditor reads live_hash = HASH_A and signs the why-doc with hash_precondition = HASH_A) at the left funnels into a single trunk that forks into two divergent futures depending on whether a sibling iteration mutates the store before this iteration's promote() lands. UPPER BRANCH (green, SUCCESS): no sibling moves the store; store.promote(ids, hash_precondition=HASH_A) finds live_hash == HASH_A, the precondition matches, the atomic candidate-to-live flip executes. LOWER BRANCH (red, FAILURE): a sibling iteration's promote() lands first; live_hash advances to HASH_B; this iteration's store.promote() finds HASH_B ≠ HASH_A, raises PromotionPreconditionFailure atomically, nothing reaches live, and the iteration rolls back cleanly by writer_iteration_id (race-free). Footer notes describe the layered cycle-7 F2 / cycle-8 G2 / cycle-9 H4 / snapshot-12 layered defenses.">
+      <defs>
+        <linearGradient id="bg-cas" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0" stop-color="#fdfaf3"/>
+          <stop offset="1" stop-color="#f7eedb"/>
+        </linearGradient>
+        <linearGradient id="success-glow" x1="0" y1="0" x2="1" y2="0">
+          <stop offset="0" stop-color="#eaf1da" stop-opacity="0.55"/>
+          <stop offset="1" stop-color="#eaf1da" stop-opacity="0.15"/>
+        </linearGradient>
+        <linearGradient id="failure-glow" x1="0" y1="0" x2="1" y2="0">
+          <stop offset="0" stop-color="#f7d9cd" stop-opacity="0.55"/>
+          <stop offset="1" stop-color="#f7d9cd" stop-opacity="0.15"/>
+        </linearGradient>
+        <filter id="step-shadow" x="-6%" y="-30%" width="112%" height="160%">
+          <feDropShadow dx="0" dy="2" stdDeviation="2.6" flood-color="#3c2810" flood-opacity="0.07"/>
+        </filter>
+        <marker id="arrow-fork-good" markerWidth="9" markerHeight="9" refX="8" refY="4.5" orient="auto">
+          <polygon points="0 0, 9 4.5, 0 9" fill="#5a6c46"/>
+        </marker>
+        <marker id="arrow-fork-bad" markerWidth="9" markerHeight="9" refX="8" refY="4.5" orient="auto">
+          <polygon points="0 0, 9 4.5, 0 9" fill="#b85e3f"/>
+        </marker>
+      </defs>
 
-      <!-- success path -->
-      <text x="60" y="106" font-size="13" class="bold" fill="#5a6c46">SUCCESS PATH</text>
-      <g>
-        <rect x="80" y="124" width="184" height="52" rx="8" fill="#dde6cd" stroke="#5a6c46" stroke-width="1.5"/>
-        <text x="172" y="146" font-size="12" class="bold" text-anchor="middle">Auditor reads</text>
-        <text x="172" y="164" font-size="10" class="mono" text-anchor="middle">live_hash = HASH_A</text>
-      </g>
-      <g>
-        <rect x="284" y="124" width="184" height="52" rx="8" fill="#dde6cd" stroke="#5a6c46" stroke-width="1.5"/>
-        <text x="376" y="146" font-size="12" class="bold" text-anchor="middle">Auditor signs why-doc</text>
-        <text x="376" y="164" font-size="10" class="mono" text-anchor="middle">precondition = HASH_A</text>
-      </g>
-      <g>
-        <rect x="488" y="124" width="184" height="52" rx="8" fill="#dde6cd" stroke="#5a6c46" stroke-width="1.5"/>
-        <text x="580" y="146" font-size="12" class="bold" text-anchor="middle">store.promote() CAS</text>
-        <text x="580" y="164" font-size="10" class="mono" text-anchor="middle">live_hash == HASH_A ✓</text>
-      </g>
-      <g>
-        <rect x="692" y="124" width="184" height="52" rx="8" fill="#788c5d" stroke="#5a6c46" stroke-width="1.5"/>
-        <text x="784" y="146" font-size="12" class="bold" text-anchor="middle" fill="white">candidate → live</text>
-        <text x="784" y="164" font-size="10" class="mono" text-anchor="middle" fill="white">atomic flip</text>
-      </g>
-      <line x1="264" y1="150" x2="284" y2="150" stroke="#5a6c46" stroke-width="2" marker-end="url(#m-arrow-good)"/>
-      <line x1="468" y1="150" x2="488" y2="150" stroke="#5a6c46" stroke-width="2" marker-end="url(#m-arrow-good)"/>
-      <line x1="672" y1="150" x2="692" y2="150" stroke="#5a6c46" stroke-width="2" marker-end="url(#m-arrow-good)"/>
+      <rect x="0" y="0" width="940" height="460" fill="url(#bg-cas)" rx="14"/>
 
-      <!-- failure path -->
-      <text x="60" y="222" font-size="13" class="bold" fill="#b85e3f">FAILURE PATH · sibling iteration moved the store</text>
-      <g>
-        <rect x="80" y="240" width="184" height="52" rx="8" fill="#f3dbd0" stroke="#b85e3f" stroke-width="1.5"/>
-        <text x="172" y="262" font-size="12" class="bold" text-anchor="middle">Auditor reads</text>
-        <text x="172" y="280" font-size="10" class="mono" text-anchor="middle">live_hash = HASH_A</text>
-      </g>
-      <g>
-        <rect x="284" y="240" width="184" height="52" rx="8" fill="#f3dbd0" stroke="#b85e3f" stroke-width="1.5"/>
-        <text x="376" y="262" font-size="12" class="bold" text-anchor="middle">sibling promotes</text>
-        <text x="376" y="280" font-size="10" class="mono" text-anchor="middle">live_hash NOW = HASH_B</text>
-      </g>
-      <g>
-        <rect x="488" y="240" width="184" height="52" rx="8" fill="#f3dbd0" stroke="#b85e3f" stroke-width="1.5"/>
-        <text x="580" y="262" font-size="12" class="bold" text-anchor="middle">store.promote() CAS</text>
-        <text x="580" y="280" font-size="10" class="mono" text-anchor="middle">HASH_B != HASH_A ✗</text>
-      </g>
-      <g>
-        <rect x="692" y="240" width="184" height="52" rx="8" fill="#c4543b" stroke="#7c2f18" stroke-width="1.5"/>
-        <text x="784" y="262" font-size="11" class="bold" text-anchor="middle" fill="white">PromotionPreconditionFailure</text>
-        <text x="784" y="280" font-size="10" class="mono" text-anchor="middle" fill="white">rollback · nothing reaches live</text>
-      </g>
-      <line x1="264" y1="266" x2="284" y2="266" stroke="#b85e3f" stroke-width="2" marker-end="url(#m-arrow-danger)"/>
-      <line x1="468" y1="266" x2="488" y2="266" stroke="#b85e3f" stroke-width="2" marker-end="url(#m-arrow-danger)"/>
-      <line x1="672" y1="266" x2="692" y2="266" stroke="#b85e3f" stroke-width="2" marker-end="url(#m-arrow-danger)"/>
+      <!-- Eyebrow -->
+      <text x="40"  y="36" font-size="11" font-family="ui-monospace,monospace" letter-spacing="2" fill="#a89a72">A SINGLE TRUNK · TWO FUTURES</text>
+      <text x="40"  y="64" font-size="22" font-weight="700" letter-spacing="-0.5" fill="#1f1f1f">The hash IS the precondition.</text>
+      <text x="40"  y="84" font-size="13" fill="#6f6f6f">Promotion succeeds only if the live store still looks the same as when the Auditor signed.</text>
 
-      <!-- footer notes -->
-      <text x="470" y="332" font-size="11" class="mono dim" text-anchor="middle">single-writer lock at promote site · cycle-7 F2 / cycle-8 G2 / cycle-9 H4 layered safety</text>
-      <text x="470" y="352" font-size="11" class="mono dim" text-anchor="middle">writer_iteration_id on every candidate makes cleanup race-free under any concurrency model</text>
+      <!-- Shared opening event (trunk) -->
+      <g>
+        <rect x="40" y="200" width="220" height="80" rx="12" fill="#fff" filter="url(#step-shadow)"/>
+        <rect x="40" y="200" width="4" height="80" rx="2" fill="#5a6c46"/>
+        <text x="60" y="222" font-size="11" font-family="ui-monospace,monospace" letter-spacing="1.5" fill="#5a6c46">SHARED · t0</text>
+        <text x="60" y="246" font-size="14" font-weight="700" fill="#1f1f1f">Auditor signs why-doc</text>
+        <text x="60" y="266" font-size="11.5" font-family="ui-monospace,monospace" fill="#6f6f6f">hash_precondition = HASH_A</text>
+      </g>
+
+      <!-- The fork: divergent branches starting from the trunk's right edge -->
+      <!-- Upper branch: success -->
+      <rect x="290" y="120" width="610" height="110" rx="14" fill="url(#success-glow)"/>
+      <text x="310" y="148" font-size="11" font-family="ui-monospace,monospace" letter-spacing="2" fill="#5a6c46">SUCCESS · live_hash unchanged</text>
+
+      <g>
+        <rect x="310" y="160" width="270" height="58" rx="10" fill="#fff" filter="url(#step-shadow)"/>
+        <rect x="310" y="160" width="3" height="58" rx="1.5" fill="#5a6c46"/>
+        <text x="328" y="182" font-size="13.5" font-weight="700" fill="#1f1f1f">store.promote(...)</text>
+        <text x="328" y="200" font-size="11.5" font-family="ui-monospace,monospace" fill="#5a6c46">live_hash == HASH_A ✓</text>
+      </g>
+      <g>
+        <rect x="608" y="160" width="270" height="58" rx="10" fill="#dde6cd" filter="url(#step-shadow)"/>
+        <rect x="608" y="160" width="3" height="58" rx="1.5" fill="#5a6c46"/>
+        <text x="626" y="182" font-size="13.5" font-weight="700" fill="#2a4a1a">atomic flip</text>
+        <text x="626" y="200" font-size="11.5" font-family="ui-monospace,monospace" fill="#5a6c46">candidate → live · sealed</text>
+      </g>
+
+      <line x1="580" y1="189" x2="606" y2="189" stroke="#5a6c46" stroke-width="2" marker-end="url(#arrow-fork-good)"/>
+
+      <!-- Lower branch: failure -->
+      <rect x="290" y="250" width="610" height="140" rx="14" fill="url(#failure-glow)"/>
+      <text x="310" y="278" font-size="11" font-family="ui-monospace,monospace" letter-spacing="2" fill="#b85e3f">FAILURE · sibling moved the store</text>
+
+      <g>
+        <rect x="310" y="290" width="180" height="58" rx="10" fill="#fff" filter="url(#step-shadow)"/>
+        <rect x="310" y="290" width="3" height="58" rx="1.5" fill="#b85e3f"/>
+        <text x="328" y="312" font-size="13" font-weight="700" fill="#1f1f1f">sibling promotes</text>
+        <text x="328" y="330" font-size="11" font-family="ui-monospace,monospace" fill="#b85e3f">live_hash → HASH_B</text>
+      </g>
+      <g>
+        <rect x="518" y="290" width="180" height="58" rx="10" fill="#fff" filter="url(#step-shadow)"/>
+        <rect x="518" y="290" width="3" height="58" rx="1.5" fill="#b85e3f"/>
+        <text x="536" y="312" font-size="13" font-weight="700" fill="#1f1f1f">store.promote(...)</text>
+        <text x="536" y="330" font-size="11" font-family="ui-monospace,monospace" fill="#b85e3f">HASH_B ≠ HASH_A ✗</text>
+      </g>
+      <g>
+        <rect x="726" y="290" width="160" height="58" rx="10" fill="#f3dbd0" filter="url(#step-shadow)" stroke="#7c2f18" stroke-width="1.2"/>
+        <rect x="726" y="290" width="3" height="58" rx="1.5" fill="#7c2f18"/>
+        <text x="742" y="310" font-size="11.5" font-weight="700" fill="#7c2f18">PromotionPrecondition</text>
+        <text x="742" y="324" font-size="11.5" font-weight="700" fill="#7c2f18">Failure</text>
+        <text x="742" y="340" font-size="10.5" font-family="ui-monospace,monospace" fill="#7c2f18">clean rollback</text>
+      </g>
+
+      <line x1="490" y1="319" x2="516" y2="319" stroke="#b85e3f" stroke-width="2" marker-end="url(#arrow-fork-bad)"/>
+      <line x1="698" y1="319" x2="724" y2="319" stroke="#b85e3f" stroke-width="2" marker-end="url(#arrow-fork-bad)"/>
+
+      <!-- Fork lines coming OUT of the trunk -->
+      <g fill="none" stroke-width="2">
+        <path d="M 260 220 Q 282 220 290 189" stroke="#5a6c46"/>
+        <path d="M 260 260 Q 282 260 290 319" stroke="#b85e3f"/>
+      </g>
+
+      <!-- Bottom annotations -->
+      <text x="40"  y="424" font-size="11.5" font-family="ui-monospace,monospace" fill="#6f6f6f">↳ writer_iteration_id makes the rollback race-free across any concurrency model</text>
+      <text x="40"  y="444" font-size="11" font-family="ui-monospace,monospace" fill="#8a8579">cycle-7 F2 · cycle-8 G2 · cycle-9 H4 · snapshot-12 cross-process lock — layered defense</text>
     </svg>
     <div class="figure-caption">Figure 5 · Hash-preconditioned promotion as compare-and-swap. Success (green): live store unchanged between why-doc sign and promote → atomic flip succeeds. Failure (red): sibling moved the store; CAS fails atomically; nothing reaches live; iteration rolls back cleanly. <code>writer_iteration_id</code> on candidates makes the rollback race-free.</div>
     <div class="failure-mode"><span class="fm-label">what fails without this:</span> A candidate verified against state-A promotes into state-B. Verification happened against a world that no longer exists by the time the write lands. Without the hash precondition, "I checked this works" silently degrades into "I checked this worked once" — and any sibling iteration that mutated the store in between just got its work overwritten by a stale verifier signature.</div>
@@ -1617,82 +1884,122 @@
   </div>
 
   <div class="figure-wrap">
-    <svg class="csis-svg" viewBox="0 0 940 460" xmlns="http://www.w3.org/2000/svg" aria-label="Sleep / Dreams consolidation pipeline as a left-to-right flow with a sleep boundary in the middle. LEFT (DAY phase): two stacked boxes — 'working memory (live)' and 'episodic memory (live)' — representing what the agent accumulated during the day's iterations. MIDDLE: a vertical sleep boundary line with a moon icon labeled 'sleep transition · agent halts'. RIGHT (NIGHT phase): the Dreams pipeline shown as three sequential stages — REPLAY (reads working+episodic live; no tool access, no agent prompts) → CONSOLIDATE (produces draft semantic/procedural/causal candidate entries) → SCORE (rank candidates by replay-coverage and consistency). After SCORE, an arrow exits to the right pointing at a final output box labeled 'candidate entries (semantic/procedural/causal)'. Below that output, another arrow points down to a final box labeled 'same V1+V2 verification stack · same cross-checkpoint cert · same hash-CAS promote' — emphasizing that nothing Dreams produces auto-promotes; everything goes through the same gates as any other candidate.">
-      <!-- Day phase -->
-      <g>
-        <rect x="40" y="30" width="380" height="180" rx="14" fill="#fbf4e7" stroke="#d97757" stroke-width="2" filter="drop-shadow(0 2px 6px rgba(217,119,87,0.10))"/>
-        <text x="230" y="58" font-size="13" class="mono bold" text-anchor="middle" fill="#b85e3f">DAY · agents running</text>
+    <svg class="csis-svg" viewBox="0 0 940 540" xmlns="http://www.w3.org/2000/svg" aria-label="The sleep/dreams cycle as a day-to-night-back-to-day flow. A horizontal day-to-night gradient runs across the top (warm cream on the left, deep dusk on the right). LEFT (DAY phase, sun icon): two stacked live-memory cards — working (live) and episodic (live) — represent what the agent accumulated during waking iterations. MIDDLE: a literal horizon line at the sleep boundary with a moon icon; an arrow flows from day-memory into the dreams pipeline as a 'live snapshot (read-only)'. RIGHT (NIGHT phase, moon icon): three soft-purple stages — replay (episodic → patterns), consolidate (extract durable facts), score (quality + redact) — connected by purple arrows; the panel notes 'no agent prompts · no tool access · no network · isolated process · partial-output redaction on cancel'. BELOW: the Dreams output flows into a wide orange candidate-bar labeled 'dream-output → candidate entries (semantic/procedural/causal)' stamped with writer_iteration_id=dream-&lt;date&gt;, then DOWN into a wide blue verification bar labeled 'V1 graders + V2 critic · cross-checkpoint cert · Auditor why-doc' — emphasizing that dream candidates go through THE SAME VERIFICATION as any other candidate. Footer notes csis/dreams/ is mocked locally; real Anthropic Dreams API integration deferred to Phase 1.">
+      <defs>
+        <linearGradient id="bg-dn" x1="0" y1="0" x2="1" y2="0">
+          <stop offset="0" stop-color="#fdf3e0"/>
+          <stop offset="0.5" stop-color="#f3e6c9"/>
+          <stop offset="1" stop-color="#e7dbe8"/>
+        </linearGradient>
+        <linearGradient id="bg-day" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0" stop-color="#fde7d8" stop-opacity="0.6"/>
+          <stop offset="1" stop-color="#fde7d8" stop-opacity="0.2"/>
+        </linearGradient>
+        <linearGradient id="bg-night" x1="0" y1="0" x2="0" y2="1">
+          <stop offset="0" stop-color="#e8e0f0" stop-opacity="0.7"/>
+          <stop offset="1" stop-color="#e8e0f0" stop-opacity="0.25"/>
+        </linearGradient>
+        <filter id="dn-shadow" x="-4%" y="-30%" width="108%" height="160%">
+          <feDropShadow dx="0" dy="2" stdDeviation="2.6" flood-color="#3c2810" flood-opacity="0.07"/>
+        </filter>
+        <marker id="arrow-dn-orange" markerWidth="9" markerHeight="9" refX="8" refY="4.5" orient="auto">
+          <polygon points="0 0, 9 4.5, 0 9" fill="#d97757"/>
+        </marker>
+        <marker id="arrow-dn-purple" markerWidth="9" markerHeight="9" refX="8" refY="4.5" orient="auto">
+          <polygon points="0 0, 9 4.5, 0 9" fill="#7a5fa0"/>
+        </marker>
+      </defs>
 
-        <g>
-          <rect x="60" y="80" width="160" height="48" rx="8" fill="#ffffff" stroke="#d97757" stroke-width="1.5"/>
-          <text x="140" y="100" font-size="12" class="bold" text-anchor="middle">working (live)</text>
-          <text x="140" y="118" font-size="10" class="mono dim" text-anchor="middle">in-flight iteration scratch</text>
-        </g>
-        <g>
-          <rect x="240" y="80" width="160" height="48" rx="8" fill="#ffffff" stroke="#d97757" stroke-width="1.5"/>
-          <text x="320" y="100" font-size="12" class="bold" text-anchor="middle">episodic (live)</text>
-          <text x="320" y="118" font-size="10" class="mono dim" text-anchor="middle">promoted iterations</text>
-        </g>
-        <text x="230" y="160" font-size="11" class="mono dim" text-anchor="middle">accumulates over a session</text>
-        <text x="230" y="178" font-size="11" class="mono dim" text-anchor="middle">read-only for Dreams to consume</text>
+      <!-- Day-night gradient strip across top -->
+      <rect x="0" y="0" width="940" height="60" fill="url(#bg-dn)" rx="14"/>
+      <text x="20"  y="36" font-size="11" font-family="ui-monospace,monospace" letter-spacing="2.5" fill="#b85e3f">☀ DAY</text>
+      <text x="920" y="36" font-size="11" font-family="ui-monospace,monospace" letter-spacing="2.5" text-anchor="end" fill="#4a3270">NIGHT ☾</text>
+
+      <!-- Headline -->
+      <text x="40"  y="98" font-size="22" font-weight="700" letter-spacing="-0.5" fill="#1f1f1f">Consolidation happens offline. Dreams produce candidates, never promotes.</text>
+
+      <!-- DAY column -->
+      <rect x="40"  y="120" width="380" height="200" rx="14" fill="url(#bg-day)"/>
+      <text x="60"  y="148" font-size="11" font-family="ui-monospace,monospace" letter-spacing="2" fill="#b85e3f">DAY · AGENTS RUNNING</text>
+
+      <g>
+        <rect x="60" y="166" width="170" height="58" rx="10" fill="#fff" filter="url(#dn-shadow)"/>
+        <rect x="60" y="166" width="3" height="58" rx="1.5" fill="#d97757"/>
+        <text x="80" y="188" font-size="14" font-weight="700" fill="#1f1f1f">working <tspan font-size="10.5" font-weight="400" fill="#3a6da0">· live</tspan></text>
+        <text x="80" y="208" font-size="11" fill="#6f6f6f">scratch · in-flight</text>
+      </g>
+      <g>
+        <rect x="240" y="166" width="170" height="58" rx="10" fill="#fff" filter="url(#dn-shadow)"/>
+        <rect x="240" y="166" width="3" height="58" rx="1.5" fill="#d97757"/>
+        <text x="260" y="188" font-size="14" font-weight="700" fill="#1f1f1f">episodic <tspan font-size="10.5" font-weight="400" fill="#3a6da0">· live</tspan></text>
+        <text x="260" y="208" font-size="11" fill="#6f6f6f">promoted iterations</text>
       </g>
 
-      <!-- Sleep boundary: continuous vertical line, moon at top, label below the rects -->
-      <line x1="430" y1="40" x2="430" y2="232" stroke="#b8a880" stroke-width="2" stroke-dasharray="6 4"/>
-      <svg x="412" y="60" width="36" height="36"><use href="#icon-moon" style="color:#b85e3f"/></svg>
-      <text x="430" y="252" font-size="12" class="mono bold" text-anchor="middle" fill="#b85e3f">sleep boundary · agent halts · Dreams runs</text>
+      <text x="235" y="252" font-size="11.5" font-family="ui-monospace,monospace" text-anchor="middle" fill="#8a8579">accumulates over a session</text>
+      <text x="235" y="270" font-size="11" font-family="ui-monospace,monospace" text-anchor="middle" fill="#8a8579">read-only for Dreams to consume</text>
 
-      <!-- Dreams pipeline -->
+      <!-- Horizon / sleep boundary -->
       <g>
-        <rect x="450" y="30" width="450" height="180" rx="14" fill="#e8e0f0" stroke="#7a5fa0" stroke-width="2" filter="drop-shadow(0 2px 6px rgba(122,95,160,0.10))"/>
-        <text x="675" y="58" font-size="13" class="mono bold" text-anchor="middle" fill="#4a3270">NIGHT · Dreams pipeline (offline)</text>
-
-        <g>
-          <rect x="470" y="80" width="140" height="48" rx="8" fill="#ffffff" stroke="#7a5fa0" stroke-width="1.5"/>
-          <text x="540" y="100" font-size="12" class="bold" text-anchor="middle">replay</text>
-          <text x="540" y="118" font-size="10" class="mono dim" text-anchor="middle">episodic → patterns</text>
-        </g>
-        <g>
-          <rect x="625" y="80" width="140" height="48" rx="8" fill="#ffffff" stroke="#7a5fa0" stroke-width="1.5"/>
-          <text x="695" y="100" font-size="12" class="bold" text-anchor="middle">consolidate</text>
-          <text x="695" y="118" font-size="10" class="mono dim" text-anchor="middle">extract durable facts</text>
-        </g>
-        <g>
-          <rect x="780" y="80" width="105" height="48" rx="8" fill="#ffffff" stroke="#7a5fa0" stroke-width="1.5"/>
-          <text x="833" y="100" font-size="12" class="bold" text-anchor="middle">score</text>
-          <text x="833" y="118" font-size="10" class="mono dim" text-anchor="middle">quality + redact</text>
-        </g>
-
-        <line x1="610" y1="104" x2="625" y2="104" stroke="#7a5fa0" stroke-width="2" marker-end="url(#m-arrow-purple)"/>
-        <line x1="765" y1="104" x2="780" y2="104" stroke="#7a5fa0" stroke-width="2" marker-end="url(#m-arrow-purple)"/>
-
-        <text x="675" y="160" font-size="11" class="mono dim" text-anchor="middle">no agent prompts · no tool access · no network</text>
-        <text x="675" y="178" font-size="11" class="mono dim" text-anchor="middle">isolated process · partial-output redaction on cancel</text>
+        <line x1="440" y1="130" x2="440" y2="310" stroke="#b8a880" stroke-width="1.2" stroke-dasharray="4 3"/>
+        <circle cx="440" cy="170" r="18" fill="#fff" stroke="#7a5fa0" stroke-width="1.5"/>
+        <svg x="426" y="156" width="28" height="28"><use href="#icon-moon" style="color:#7a5fa0"/></svg>
+        <text x="440" y="320" font-size="10.5" font-family="ui-monospace,monospace" text-anchor="middle" fill="#7a5fa0" font-weight="700">SLEEP BOUNDARY</text>
       </g>
 
-      <!-- Arrow into Dreams -->
-      <path d="M 230 128 Q 360 250 470 128" stroke="#d97757" stroke-width="2" fill="none" stroke-dasharray="4 3" marker-end="url(#m-arrow-accent)"/>
-      <text x="350" y="240" font-size="11" class="mono dim" text-anchor="middle">live snapshot (read-only)</text>
+      <!-- Live-snapshot arrow into Dreams -->
+      <path d="M 230 224 Q 350 290 458 224" stroke="#d97757" stroke-width="1.8" fill="none" stroke-dasharray="5 4" marker-end="url(#arrow-dn-orange)"/>
+      <text x="345" y="292" font-size="10.5" font-family="ui-monospace,monospace" text-anchor="middle" fill="#b85e3f">live snapshot (read-only)</text>
 
-      <!-- Output: candidate entries flow into the standard V1+V2 stack -->
+      <!-- NIGHT column: dreams pipeline -->
+      <rect x="460" y="120" width="440" height="200" rx="14" fill="url(#bg-night)"/>
+      <text x="480" y="148" font-size="11" font-family="ui-monospace,monospace" letter-spacing="2" fill="#4a3270">NIGHT · DREAMS PIPELINE (OFFLINE)</text>
+
       <g>
-        <rect x="40" y="270" width="860" height="60" rx="10" fill="#fbf4e7" stroke="#d97757" stroke-width="2"/>
-        <text x="470" y="294" font-size="13" class="bold" text-anchor="middle">dream-output → candidate entries (semantic / procedural / causal candidate side)</text>
-        <text x="470" y="314" font-size="11" class="mono dim" text-anchor="middle">stamped with writer_iteration_id = dream-&lt;date&gt; · trust = candidate</text>
+        <rect x="480" y="166" width="130" height="58" rx="10" fill="#fff" filter="url(#dn-shadow)"/>
+        <rect x="480" y="166" width="3" height="58" rx="1.5" fill="#7a5fa0"/>
+        <text x="500" y="188" font-size="14" font-weight="700" fill="#1f1f1f">replay</text>
+        <text x="500" y="208" font-size="11" fill="#6f6f6f">episodic → patterns</text>
+      </g>
+      <g>
+        <rect x="624" y="166" width="130" height="58" rx="10" fill="#fff" filter="url(#dn-shadow)"/>
+        <rect x="624" y="166" width="3" height="58" rx="1.5" fill="#7a5fa0"/>
+        <text x="644" y="188" font-size="14" font-weight="700" fill="#1f1f1f">consolidate</text>
+        <text x="644" y="208" font-size="11" fill="#6f6f6f">extract facts</text>
+      </g>
+      <g>
+        <rect x="768" y="166" width="116" height="58" rx="10" fill="#fff" filter="url(#dn-shadow)"/>
+        <rect x="768" y="166" width="3" height="58" rx="1.5" fill="#7a5fa0"/>
+        <text x="788" y="188" font-size="14" font-weight="700" fill="#1f1f1f">score</text>
+        <text x="788" y="208" font-size="11" fill="#6f6f6f">quality + redact</text>
       </g>
 
-      <!-- Down arrow into verification -->
-      <line x1="470" y1="330" x2="470" y2="360" stroke="#d97757" stroke-width="2.5" marker-end="url(#m-arrow-accent)"/>
+      <line x1="610" y1="195" x2="622" y2="195" stroke="#7a5fa0" stroke-width="2" marker-end="url(#arrow-dn-purple)"/>
+      <line x1="754" y1="195" x2="766" y2="195" stroke="#7a5fa0" stroke-width="2" marker-end="url(#arrow-dn-purple)"/>
 
-      <!-- Verification step (the same V1+V2 stack) -->
+      <text x="680" y="252" font-size="11.5" font-family="ui-monospace,monospace" text-anchor="middle" fill="#7a5fa0">no agent prompts · no tool access · no network</text>
+      <text x="680" y="270" font-size="11" font-family="ui-monospace,monospace" text-anchor="middle" fill="#7a5fa0">isolated process · partial-output redaction on cancel</text>
+
+      <!-- Output bar -->
       <g>
-        <rect x="120" y="370" width="700" height="60" rx="10" fill="#dbe7f3" stroke="#4a82bc" stroke-width="2"/>
-        <text x="470" y="394" font-size="13" class="bold" text-anchor="middle" fill="#1a3a5e">V1 graders + V2 critic · cross-checkpoint cert · Auditor why-doc</text>
-        <text x="470" y="414" font-size="11" class="mono dim" text-anchor="middle">dream candidates go through THE SAME VERIFICATION as any other candidate</text>
+        <rect x="40" y="346" width="860" height="64" rx="10" fill="#fde7d8" filter="url(#dn-shadow)"/>
+        <rect x="40" y="346" width="3" height="64" rx="1.5" fill="#d97757"/>
+        <text x="470" y="372" font-size="14" font-weight="700" text-anchor="middle" fill="#1f1f1f">dream-output → candidate entries <tspan font-size="11" font-weight="400" fill="#6f6f6f">(semantic / procedural / causal)</tspan></text>
+        <text x="470" y="394" font-size="11" font-family="ui-monospace,monospace" text-anchor="middle" fill="#b85e3f">stamped writer_iteration_id = dream-&lt;date&gt; · trust = candidate</text>
       </g>
 
-      <!-- final note -->
-      <text x="470" y="452" font-size="11" class="mono dim" text-anchor="middle" font-style="italic">csis/dreams/ — mocked locally; real Anthropic Dreams API integration deferred to Phase 1</text>
+      <!-- Down arrow -->
+      <line x1="470" y1="412" x2="470" y2="438" stroke="#d97757" stroke-width="2.4" marker-end="url(#arrow-dn-orange)"/>
+
+      <!-- V1+V2 same-stack reminder -->
+      <g>
+        <rect x="100" y="442" width="740" height="64" rx="10" fill="#dde9f5" filter="url(#dn-shadow)" stroke="#4a82bc" stroke-width="1.2"/>
+        <rect x="100" y="442" width="3" height="64" rx="1.5" fill="#4a82bc"/>
+        <text x="470" y="468" font-size="14" font-weight="700" text-anchor="middle" fill="#1a3a5e">V1 graders + V2 critic · cross-checkpoint cert · Auditor why-doc</text>
+        <text x="470" y="490" font-size="11" font-family="ui-monospace,monospace" text-anchor="middle" fill="#3a6da0">dream candidates go through <tspan font-weight="700">the same verification</tspan> as any other candidate</text>
+      </g>
+
+      <!-- Footer -->
+      <text x="40" y="534" font-size="11" font-family="ui-monospace,monospace" fill="#8a8579" font-style="italic">csis/dreams/ · mocked locally · real Anthropic Dreams API integration deferred to Phase 1</text>
     </svg>
     <div class="figure-caption">Figure 6 · The sleep/dreams cycle. Working+episodic live memory flows into the Dreams pipeline (offline; no agent prompts, no tool access). Dreams produce candidate entries in semantic/procedural/causal tiers. Those candidates go through <em>the same V1+V2 verification</em> as any other candidate. Nothing dreams produces auto-promotes.</div>
     <div class="failure-mode"><span class="fm-label">what fails without this:</span> The agent dreams up a "good idea" mid-iteration and acts on it before any verifier sees it. There's no gap between cognition and commitment — a hallucination becomes a memory becomes a future plan in three steps. Offline consolidation puts a hard boundary between <em>thinking about improvement</em> and <em>actually changing live state</em>, so even Dreams' best output still has to clear the same V1+V2 bar.</div>
