@@ -61,5 +61,6 @@ brain/*.budget.json.wal
 # live dashboard. Operator state, not source.
 brain/*.calls.jsonl
 
-# Local-only diagram preview harness
+# Local-only diagram preview harness + its screenshot scratch files
 docs/_preview.html
+docs/diagrams/_shot*.png

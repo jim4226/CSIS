@@ -1232,9 +1232,8 @@
     <!-- Companion: where prompt-injection attempts land — shallow not wide -->
     <svg class="csis-svg" viewBox="0 0 940 360" xmlns="http://www.w3.org/2000/svg" aria-label="Where prompt-injection attempts land — shallow, not wide. LEFT panel (warm red wash): a typical wide stack. A jailbreak labelled 'ignore previous and act as…' fires a glowing jagged red bolt that threads cleanly through the GAPS between six agent-prompt guard chips (prompt-guard, role-check, policy-LLM, tool-allow, jailbreak-cls, red-team-LLM) — never touching any of them — and reaches a 'protected resource' chip at the bottom, which glows red and is marked BREACHED. The structural failure: all six guards live at the same layer, so the jailbreak only has to find one gap. RIGHT panel (calm green wash): the CSIS shallow stack. The same jailbreak bolt flies in and SHATTERS against a single thick solid green L7 substrate wall — broken bolt fragments scatter back from the impact point. A check-marked label reads 'held at L7'. The wall rests on an intact gold L0 substrate foundation slab, and a dashed chip to the right notes the agent layers L1–L5 can see the prompt as input but cannot alter L0/L4/L7. Visual thesis: a shallow stack makes the invariant load-bearing because the agent layer cannot revoke what the agent layer does not own." style="margin-top:26px">
       <defs>
-        <filter id="sw-bolt-glow" x="-60%" y="-60%" width="220%" height="220%">
-          <feGaussianBlur stdDeviation="3.4" result="b"/>
-          <feMerge><feMergeNode in="b"/><feMergeNode in="SourceGraphic"/></feMerge>
+        <filter id="sw-bolt-glow" x="-80%" y="-80%" width="260%" height="260%">
+          <feGaussianBlur stdDeviation="2.2"/>
         </filter>
         <filter id="sw-card" x="-12%" y="-30%" width="124%" height="160%">
           <feDropShadow dx="0" dy="1.5" stdDeviation="2" flood-color="#3c2810" flood-opacity="0.10"/>
@@ -1259,6 +1258,9 @@
           <stop offset="0" stop-color="#e88a6e"/>
           <stop offset="1" stop-color="#d3604220"/>
         </radialGradient>
+        <marker id="sw-strike" markerWidth="12" markerHeight="12" refX="7" refY="6" orient="auto" markerUnits="userSpaceOnUse">
+          <path d="M1 1.5 L11 6 L1 10.5 L4 6 Z" fill="#c4543b"/>
+        </marker>
       </defs>
 
       <!-- Panels -->
@@ -1283,11 +1285,15 @@
         <g><rect x="320" y="200" width="100" height="34" rx="7" fill="#fff" stroke="#ecc4b3" stroke-width="1" filter="url(#sw-card)"/><text x="370" y="221" text-anchor="middle">red-team-LLM</text></g>
       </g>
 
-      <!-- the bolt threads the GAPS — never touches a guard -->
-      <path d="M40 124 L96 150 L172 142 L168 196 L176 250 L268 270 L320 286"
-            fill="none" stroke="#c4543b" stroke-width="3" stroke-linejoin="round"
-            stroke-linecap="round" filter="url(#sw-bolt-glow)" opacity="0.95"/>
-      <text x="196" y="197" font-size="9" font-family="ui-monospace,monospace" fill="#c4543b" opacity="0.8">↳ threads the gaps · touches nothing</text>
+      <!-- the jailbreak bolt slides down the one clear channel — touches no guard -->
+      <path d="M206 132 L177 142 L170 186 L178 222 L171 248 L255 270 L332 296"
+            fill="none" stroke="#e8896f" stroke-width="4.5" stroke-linejoin="round"
+            stroke-linecap="round" opacity="0.5" filter="url(#sw-bolt-glow)"/>
+      <path d="M206 132 L177 142 L170 186 L178 222 L171 248 L255 270 L332 296"
+            fill="none" stroke="#c4543b" stroke-width="2.6" stroke-linejoin="round"
+            stroke-linecap="round" marker-end="url(#sw-strike)"/>
+      <text x="60" y="266" font-size="9.5" font-family="ui-monospace,monospace" fill="#c4543b">threads the gap —</text>
+      <text x="60" y="281" font-size="9.5" font-family="ui-monospace,monospace" fill="#c4543b">touches no guard</text>
 
       <!-- breached resource -->
       <rect x="232" y="296" width="196" height="34" rx="8" fill="url(#sw-breach)" stroke="#c4543b" stroke-width="1.6"/>
@@ -1306,19 +1312,23 @@
 
       <text x="506" y="150" font-size="11.5" font-style="italic" fill="#c4543b">"ignore previous and act as…"</text>
 
-      <!-- the bolt flies in and shatters on the wall -->
-      <path d="M512 168 L566 158 L612 180 L662 166 L700 188"
-            fill="none" stroke="#c4543b" stroke-width="3" stroke-linejoin="round"
-            stroke-linecap="round" filter="url(#sw-bolt-glow)" opacity="0.95"/>
-      <!-- shatter shards bouncing back from impact -->
-      <g fill="#c4543b" opacity="0.9">
-        <path d="M702 188 L688 168 L698 178 Z"/>
-        <path d="M702 188 L690 210 L700 198 Z"/>
-        <path d="M702 188 L674 192 L690 188 Z"/>
-        <path d="M702 188 L680 150 L694 172 Z"/>
-        <circle cx="678" cy="226" r="3"/>
-        <circle cx="664" cy="160" r="2.4"/>
-        <circle cx="660" cy="208" r="2"/>
+      <!-- the same bolt flies in and shatters against the substrate wall -->
+      <path d="M512 172 L556 166 L606 184 L656 168 L710 192"
+            fill="none" stroke="#e8896f" stroke-width="4.5" stroke-linejoin="round"
+            stroke-linecap="round" opacity="0.5" filter="url(#sw-bolt-glow)"/>
+      <path d="M512 172 L556 166 L606 184 L656 168 L710 192"
+            fill="none" stroke="#c4543b" stroke-width="2.6" stroke-linejoin="round"
+            stroke-linecap="round"/>
+      <!-- impact spark + shards bouncing back off the wall -->
+      <circle cx="710" cy="192" r="8.5" fill="#ffdc8a" opacity="0.4"/>
+      <circle cx="710" cy="192" r="4.5" fill="#fff2d4" opacity="0.92"/>
+      <g fill="#c4543b">
+        <path d="M709 191 L684 175 L697 188 Z" opacity="0.95"/>
+        <path d="M709 191 L681 195 L698 196 Z" opacity="0.95"/>
+        <path d="M709 191 L687 212 L700 200 Z" opacity="0.95"/>
+        <path d="M709 191 L697 167 L705 185 Z" opacity="0.9"/>
+        <circle cx="676" cy="186" r="2.5" opacity="0.85"/>
+        <circle cx="681" cy="205" r="2" opacity="0.8"/>
       </g>
 
       <!-- the L7 wall — solid, thick, with depth -->
@@ -1328,13 +1338,11 @@
       <text x="739" y="150" font-size="14" font-weight="700" text-anchor="middle" fill="#ffffff">L7</text>
       <text x="739" y="210" font-size="10.5" font-family="ui-monospace,monospace" fill="#dce6cf" transform="rotate(90 739 210)" letter-spacing="2" text-anchor="middle">SUBSTRATE WALL</text>
 
-      <!-- held confirmation -->
-      <g transform="translate(640, 256)">
-        <circle cx="11" cy="11" r="12" fill="#6a8a50"/>
-        <path d="M5.5 11.5 L9.2 15 L16.5 7.5" fill="none" stroke="#fff" stroke-width="2.4" stroke-linecap="round" stroke-linejoin="round"/>
-        <text x="30" y="9" font-size="11.5" font-weight="700" fill="#4a6238">held at L7</text>
-        <text x="30" y="23" font-size="9.5" font-family="ui-monospace,monospace" fill="#6a8a50">attack terminates in code</text>
-      </g>
+      <!-- verdict: the attack is held at the wall, in code -->
+      <circle cx="698" cy="254" r="11" fill="#6a8a50"/>
+      <path d="M692.5 254.5 L696.2 258 L703.5 250.5" fill="none" stroke="#fff" stroke-width="2.3" stroke-linecap="round" stroke-linejoin="round"/>
+      <text x="681" y="250" font-size="11.5" font-weight="700" text-anchor="end" fill="#4a6238">held at L7</text>
+      <text x="681" y="265" font-size="9.5" font-family="ui-monospace,monospace" text-anchor="end" fill="#6a8a50">attack terminates in code</text>
 
       <!-- intact substrate to the right of the wall -->
       <g transform="translate(792, 132)">
@@ -1792,7 +1800,7 @@
       </g>
 
       <!-- Bottom annotations -->
-      <text x="40"  y="424" font-size="11.5" font-family="ui-monospace,monospace" fill="#6f6f6f">↳ writer_iteration_id makes the rollback race-free across any concurrency model</text>
+      <text x="40"  y="424" font-size="11.5" font-family="ui-monospace,monospace" fill="#6f6f6f">writer_iteration_id makes the rollback race-free across any concurrency model</text>
       <text x="40"  y="444" font-size="11" font-family="ui-monospace,monospace" fill="#8a8579">cycle-7 F2 · cycle-8 G2 · cycle-9 H4 · snapshot-12 cross-process lock — layered defense</text>
     </svg>
     <div class="figure-caption">Figure 5 · Hash-preconditioned promotion as compare-and-swap. Success (green): live store unchanged between why-doc sign and promote → atomic flip succeeds. Failure (red): sibling moved the store; CAS fails atomically; nothing reaches live; iteration rolls back cleanly. <code>writer_iteration_id</code> on candidates makes the rollback race-free.</div>
@@ -1853,8 +1861,8 @@
           <stop offset="1" stop-color="#fbe4d2"/>
         </linearGradient>
         <linearGradient id="dr-night" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0" stop-color="#3b3460"/>
-          <stop offset="1" stop-color="#2c2747"/>
+          <stop offset="0" stop-color="#574d7e"/>
+          <stop offset="1" stop-color="#473e69"/>
         </linearGradient>
         <linearGradient id="dr-node" x1="0" y1="0" x2="0" y2="1">
           <stop offset="0" stop-color="#f6f1fc"/>
@@ -1960,15 +1968,14 @@
 
       <!-- ===================== NIGHT PANEL ===================== -->
       <rect x="508" y="176" width="400" height="228" rx="16" fill="url(#dr-night)" filter="url(#dr-soft)"/>
-      <!-- faint stars inside the night panel -->
-      <g fill="#9a8fc4" opacity="0.55">
-        <circle cx="552" cy="350" r="1.5"/>
-        <circle cx="640" cy="368" r="1.2"/>
-        <circle cx="760" cy="356" r="1.5"/>
-        <circle cx="864" cy="344" r="1.3"/>
-        <circle cx="828" cy="372" r="1.1"/>
+      <!-- faint stars inside the night panel (kept clear of the constraint strip) -->
+      <g fill="#9a8fc4" opacity="0.5">
+        <circle cx="546" cy="306" r="1.5"/>
+        <circle cx="874" cy="305" r="1.3"/>
+        <circle cx="560" cy="390" r="1.2"/>
+        <circle cx="858" cy="392" r="1.5"/>
       </g>
-      <text x="532" y="208" font-size="11" font-family="ui-monospace,monospace" letter-spacing="2.2" fill="#b9a9dd">NIGHT · DREAMS PIPELINE · OFFLINE</text>
+      <text x="532" y="208" font-size="11" font-family="ui-monospace,monospace" letter-spacing="2.2" fill="#ddd3f6">NIGHT · DREAMS PIPELINE · OFFLINE</text>
 
       <!-- glowing connector thread behind the nodes -->
       <path d="M590 262 H 708 H 826" fill="none" stroke="#7a5fa0" stroke-width="2.5" opacity="0.55"/>
@@ -1990,19 +1997,18 @@
         <text x="826" y="278" font-size="9.5" font-family="ui-monospace,monospace" text-anchor="middle" fill="#7a5fa0">quality + redact</text>
       </g>
 
-      <text x="708" y="340" font-size="10.5" font-family="ui-monospace,monospace" text-anchor="middle" fill="#c9bce8">no agent prompts · no tools · no network</text>
-      <text x="708" y="358" font-size="10" font-family="ui-monospace,monospace" text-anchor="middle" fill="#9a8fc4">isolated process · partial-output redaction on cancel</text>
-      <text x="708" y="384" font-size="10" font-family="ui-monospace,monospace" text-anchor="middle" fill="#7e72a8">a hard wall between thinking about change and making it</text>
+      <!-- isolation constraints, contained so the rules read cleanly against the night -->
+      <rect x="536" y="315" width="344" height="56" rx="11" fill="#ffffff" fill-opacity="0.06" stroke="#a99fce" stroke-opacity="0.45" stroke-width="1"/>
+      <text x="708" y="339" font-size="11" font-family="ui-monospace,monospace" text-anchor="middle" fill="#ffffff" font-weight="700">no agent prompts · no tools · no network</text>
+      <text x="708" y="359" font-size="10.5" font-family="ui-monospace,monospace" text-anchor="middle" fill="#e9e2f7">isolated process · partial-output redaction on cancel</text>
 
-      <!-- dream-output motes drifting down toward the candidate bar -->
+      <!-- dream-output drifting down out of the panel into the candidate bar -->
       <g fill="#b69ae6" filter="url(#dr-mote)">
-        <circle cx="826" cy="312" r="3.6"/>
-        <circle cx="792" cy="338" r="3"/>
-        <circle cx="748" cy="370" r="2.6"/>
-        <circle cx="694" cy="398" r="3.2"/>
-        <circle cx="624" cy="420" r="2.4"/>
+        <circle cx="701" cy="383" r="3.4"/>
+        <circle cx="713" cy="400" r="3"/>
+        <circle cx="705" cy="417" r="2.6"/>
+        <circle cx="709" cy="431" r="2.2"/>
       </g>
-      <text x="884" y="332" font-size="9.5" font-family="ui-monospace,monospace" text-anchor="end" fill="#9a8fc4">dream-output ↓</text>
 
       <!-- ===================== CANDIDATE BAR ===================== -->
       <g>
