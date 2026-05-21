@@ -73,6 +73,19 @@ CW, LW, D, H = 2.9, 2.9, 1.4, 0.5
 CX, LX = -2.45, 2.45
 anchors = {}
 
+def entries(cx, y, top_z, tint, n=3, sealed=False):
+    """small 'entry' cards sitting on a slab top — adds informative detail."""
+    for k in range(n):
+        ex = cx - (n - 1) * 0.46 + k * 0.92
+        box("e", (ex, y, top_z + 0.075), (0.74, 0.86, 0.14),
+            tint, emit=(0.6 if sealed else 0.0), bevel=0.025)
+        if sealed:
+            bpy.ops.mesh.primitive_cylinder_add(radius=0.07, depth=0.05,
+                location=(ex, y, top_z + 0.16))
+            c = bpy.context.active_object
+            c.data.materials.append(clay("seal", (0.95, 0.95, 0.98), emit=2.0))
+            bpy.ops.object.shade_smooth()
+
 for i, tier in enumerate(TIERS):
     y = -i * SY
     star = (tier == "procedural")
@@ -80,6 +93,10 @@ for i, tier in enumerate(TIERS):
     panel((CX, y, 0.34), (CW, D, H), ORANGE, emit=0.02)
     box("live_%d" % i, (LX, y, 0.34), (LW, D, H), BLUE, emit=0.05)
     panel((LX, y, 0.34), (LW, D, H), BLUE, emit=0.02)
+    # detail: loose unsealed entry cards on candidate, sealed ones on live
+    top = 0.34 + H / 2
+    entries(CX, y, top, (1.0, 0.78, 0.62), n=3, sealed=False)
+    entries(LX, y, top, (0.62, 0.78, 0.96), n=3, sealed=True)
     # promote connector — a short glowing tube
     cu = bpy.data.curves.new("t", 'CURVE'); cu.dimensions = '3D'
     cu.bevel_depth = 0.07; cu.bevel_resolution = 4

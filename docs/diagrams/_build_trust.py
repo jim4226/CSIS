@@ -71,6 +71,7 @@ W, D, H = 2.3, 1.3, 0.56
 STEP_Y, STEP_Z = 1.12, 0.80
 anchors = {}
 
+front_edge = []   # visible top-front edge of each slab, for the ascent ribbon
 for i, (label, col, emit) in enumerate(LEVELS):
     y, z = -i * STEP_Y, i * STEP_Z
     box(label, (0, y, z), (W, D, H), col, emit=emit)
@@ -78,7 +79,35 @@ for i, (label, col, emit) in enumerate(LEVELS):
     pc = tuple(min(1.0, c * 1.16 + 0.03) for c in col)
     box(label + "_panel", (0, y, z + H / 2 - 0.012),
         (W - 0.52, D - 0.42, 0.06), pc, emit=emit * 0.5, bevel=0.025)
+    # two thin recessed "ledger" grooves on the slab front for extra detail
+    for gy in (0.15, -0.15):
+        box(label + "_gr", (0.5, y - D / 2 + 0.004, z + gy),
+            (W - 1.7, 0.05, 0.05),
+            tuple(max(0.0, c * 0.66) for c in col), bevel=0.012)
+    # a small emissive gate stud at the front-left of each step above raw
+    if i > 0:
+        bpy.ops.mesh.primitive_cylinder_add(radius=0.13, depth=0.07,
+            location=(-0.82, y - D / 2 + 0.02, z))
+        st = bpy.context.active_object
+        st.rotation_euler = (math.radians(90), 0, 0)
+        st.data.materials.append(clay("stud%d" % i, (0.40, 0.66, 0.34), emit=4.5))
+        bpy.ops.object.shade_smooth()
     anchors[label] = mathutils.Vector((0.0, y - D / 2, z))
+    front_edge.append((0.78, y - D / 2 + 0.05, z + H / 2 + 0.03))
+
+# glowing ascent ribbon along the visible top-front edge of the staircase
+cu = bpy.data.curves.new("ascent", 'CURVE')
+cu.dimensions = '3D'
+cu.bevel_depth = 0.05
+cu.bevel_resolution = 4
+sp = cu.splines.new('BEZIER')
+sp.bezier_points.add(len(front_edge) - 1)
+for bp, co in zip(sp.bezier_points, front_edge):
+    bp.co = co
+    bp.handle_left_type = bp.handle_right_type = 'AUTO'
+rib = bpy.data.objects.new("ascent", cu)
+bpy.context.collection.objects.link(rib)
+rib.data.materials.append(clay("ascent_m", (0.98, 0.88, 0.50), emit=5.5))
 
 # ---------- ground (shadow catcher) ----------
 bpy.ops.mesh.primitive_plane_add(size=90, location=(0, 0, -0.66))
