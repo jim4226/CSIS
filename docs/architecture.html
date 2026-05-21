@@ -587,11 +587,73 @@
     font-size: 10.5px;
     color: var(--ink-dim);
   }
+  .render-gate {
+    position: absolute;
+    transform: translateY(-50%);
+    display: flex;
+    align-items: center;
+    gap: 7px;
+    font-family: var(--mono);
+    font-size: 11px;
+    color: var(--good-deep);
+    white-space: nowrap;
+  }
+  .render-gate .rg-seal {
+    width: 19px;
+    height: 19px;
+    border-radius: 50%;
+    background: var(--good-soft);
+    border: 1.5px solid var(--good-deep);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    flex: none;
+  }
+  .render-gate b { color: var(--good-deep); font-weight: 700; }
+  .render-gate .rg-sub { color: var(--ink-faint); }
+  .render-note {
+    position: absolute;
+    transform: translateY(-50%);
+    max-width: 224px;
+    background: var(--danger-soft);
+    border-left: 3px solid var(--danger);
+    border-radius: 0 9px 9px 0;
+    padding: 9px 13px;
+    box-shadow: 0 4px 14px rgba(60, 40, 10, 0.12);
+  }
+  .render-note .rn-title {
+    font: 700 13px var(--sans);
+    color: #7c2f18;
+    letter-spacing: -0.2px;
+  }
+  .render-note .rn-sub {
+    font-family: var(--mono);
+    font-size: 10.5px;
+    color: var(--danger);
+    margin-top: 3px;
+    line-height: 1.5;
+  }
+  .render-foot {
+    position: absolute;
+    left: 3.5%;
+    bottom: 3%;
+    font-family: var(--mono);
+    font-size: 10.5px;
+    color: var(--ink-faint);
+    font-style: italic;
+  }
   @media (max-width: 720px) {
     .render-chip { padding: 4px 7px 4px 5px; gap: 5px; }
     .render-chip .rc-badge { width: 17px; height: 17px; font-size: 10px; border-radius: 5px; }
     .render-chip .rc-name { font-size: 9.5px; }
     .render-chip .rc-sub { display: none; }
+    .render-gate { font-size: 8px; gap: 3px; }
+    .render-gate .rg-seal { width: 12px; height: 12px; }
+    .render-gate .rg-sub { display: none; }
+    .render-note { max-width: 150px; padding: 5px 7px; }
+    .render-note .rn-title { font-size: 9px; }
+    .render-note .rn-sub { font-size: 7.5px; }
+    .render-foot { font-size: 7.5px; }
   }
 
   /* ----- interactive stack ----- */
@@ -1305,44 +1367,68 @@
   </div>
 
   <div class="figure-wrap">
-    <div class="render-fig" role="img" aria-label="3D render of the 6-level trust lattice as an ascending staircase. Five matte slabs climb from the lower right to the upper left, each a distinct colour and each sitting higher than the last so that elevation encodes trust: level 0 raw (grey, lowest), level 1 untrusted (gold), level 2 candidate (orange), level 3 verified (blue), level 4 promoted (green, highest and gently glowing). Crisp labels are overlaid beside each slab with a thin leader line. A sixth state, deprecated, is terminal — reachable as a downgrade from any non-raw level — and is described in the caption rather than drawn, to keep the climb uncluttered.">
+    <div class="render-fig" role="img" aria-label="3D render of the 6-level trust lattice as an ascending staircase. Five matte-clay slabs, each with a recessed top panel, climb from the lower right to the upper left — each a distinct colour and each sitting physically higher than the last, so elevation encodes trust: level 0 raw (grey, lowest), level 1 untrusted (gold), level 2 candidate (orange), level 3 verified (blue), level 4 promoted (green, highest, gently glowing). On the right, a crisp annotated ladder mirrors the climb: a labelled chip for each level joined by a thin leader line to its slab, and between each pair of chips a gate seal naming the structural check that must pass to climb that step — gate 1 write to storage, gate 2 basic Verifier check, gate 3 cross-checkpoint cert signed, gate 4 hash-CAS atomic flip. Lower left, a red callout marks the terminal deprecated state, reachable as a downgrade from any non-raw level. A footer notes the IntEnum encoding makes a trust comparison a single integer compare.">
       <img src="diagrams/trust_lattice.png" alt="3D staircase of the five CSIS trust levels rising from raw to promoted"/>
       <svg class="render-leaders" viewBox="0 0 1680 1120" preserveAspectRatio="none" aria-hidden="true">
-        <g stroke="#b8a880" stroke-width="2" fill="none">
-          <line x1="521" y1="347" x2="772" y2="325"/>
-          <line x1="655" y1="482" x2="907" y2="459"/>
-          <line x1="773" y1="605" x2="1042" y2="594"/>
-          <line x1="890" y1="706" x2="1176" y2="706"/>
-          <line x1="974" y1="806" x2="1277" y2="818"/>
+        <g stroke="#c2b48f" stroke-width="2" fill="none">
+          <line x1="519" y1="360" x2="1058" y2="302"/>
+          <line x1="653" y1="492" x2="1058" y2="459"/>
+          <line x1="771" y1="607" x2="1058" y2="610"/>
+          <line x1="875" y1="710" x2="1058" y2="756"/>
+          <line x1="969" y1="803" x2="1058" y2="896"/>
         </g>
-        <g fill="#b8a880">
-          <circle cx="521" cy="347" r="6"/>
-          <circle cx="655" cy="482" r="6"/>
-          <circle cx="773" cy="605" r="6"/>
-          <circle cx="890" cy="706" r="6"/>
-          <circle cx="974" cy="806" r="6"/>
+        <g fill="#c2b48f">
+          <circle cx="519" cy="360" r="6"/>
+          <circle cx="653" cy="492" r="6"/>
+          <circle cx="771" cy="607" r="6"/>
+          <circle cx="875" cy="710" r="6"/>
+          <circle cx="969" cy="803" r="6"/>
         </g>
       </svg>
-      <div class="render-chip" style="left:46%;top:29%">
-        <span class="rc-badge" style="background:#6a8a50">4</span>
-        <span class="rc-text"><span class="rc-name">promoted</span><br><span class="rc-sub">hash-CAS done · read as truth</span></span>
+
+      <div class="render-chip" style="left:63%;top:27%">
+        <span class="rc-badge" style="background:#5f9a3e">4</span>
+        <span class="rc-text"><span class="rc-name">promoted</span><br><span class="rc-sub">live · the next iteration reads this as truth</span></span>
       </div>
-      <div class="render-chip" style="left:54%;top:41%">
-        <span class="rc-badge" style="background:#4a82bc">3</span>
-        <span class="rc-text"><span class="rc-name">verified</span><br><span class="rc-sub">V1+V2 cert · cross-checkpoint</span></span>
+      <div class="render-chip" style="left:63%;top:41%">
+        <span class="rc-badge" style="background:#3a7bd0">3</span>
+        <span class="rc-text"><span class="rc-name">verified</span><br><span class="rc-sub">V1+V2 cert signed on a 2nd checkpoint</span></span>
       </div>
-      <div class="render-chip" style="left:62%;top:53%">
+      <div class="render-chip" style="left:63%;top:54.5%">
         <span class="rc-badge" style="background:#d97757">2</span>
-        <span class="rc-text"><span class="rc-name">candidate</span><br><span class="rc-sub">Verifier check passed</span></span>
+        <span class="rc-text"><span class="rc-name">candidate</span><br><span class="rc-sub">written, not yet visible to live reads</span></span>
       </div>
-      <div class="render-chip" style="left:70%;top:63%">
+      <div class="render-chip" style="left:63%;top:67.5%">
         <span class="rc-badge" style="background:#c2982f">1</span>
-        <span class="rc-text"><span class="rc-name">untrusted</span><br><span class="rc-sub">stored · may be poisoned</span></span>
+        <span class="rc-text"><span class="rc-name">untrusted</span><br><span class="rc-sub">stored on disk · may be poisoned</span></span>
       </div>
-      <div class="render-chip" style="left:76%;top:73%">
+      <div class="render-chip" style="left:63%;top:80%">
         <span class="rc-badge" style="background:#8a8579">0</span>
-        <span class="rc-text"><span class="rc-name">raw</span><br><span class="rc-sub">just-observed · in-memory</span></span>
+        <span class="rc-text"><span class="rc-name">raw</span><br><span class="rc-sub">just-observed · in-memory only</span></span>
       </div>
+
+      <div class="render-gate" style="left:64.5%;top:34%">
+        <span class="rg-seal"><svg width="11" height="11"><use href="#icon-lock" style="color:#5a6c46"/></svg></span>
+        <span><b>gate 4</b> &nbsp;hash-CAS atomic flip</span>
+      </div>
+      <div class="render-gate" style="left:64.5%;top:47.75%">
+        <span class="rg-seal"><svg width="11" height="11"><use href="#icon-lock" style="color:#5a6c46"/></svg></span>
+        <span><b>gate 3</b> &nbsp;cross-checkpoint cert</span>
+      </div>
+      <div class="render-gate" style="left:64.5%;top:61%">
+        <span class="rg-seal"><svg width="11" height="11"><use href="#icon-lock" style="color:#5a6c46"/></svg></span>
+        <span><b>gate 2</b> &nbsp;basic Verifier check</span>
+      </div>
+      <div class="render-gate" style="left:64.5%;top:73.75%">
+        <span class="rg-seal"><svg width="11" height="11"><use href="#icon-lock" style="color:#5a6c46"/></svg></span>
+        <span><b>gate 1</b> &nbsp;write to storage</span>
+      </div>
+
+      <div class="render-note" style="left:3.5%;top:84%">
+        <div class="rn-title">level 5 · deprecated <span style="font-weight:400">— terminal</span></div>
+        <div class="rn-sub">superseded or contradicted · downgrade is allowed from <b>any</b> non-raw level · no path out</div>
+      </div>
+      <div class="render-foot">trust.py · IntEnum 0–5 → <code style="background:none;color:var(--ink-dim)">entry.trust ≥ VERIFIED</code> is one integer compare</div>
     </div>
     <div class="figure-caption">Figure 2 · The 6-level trust lattice, rendered in 3D. Each level is a slab that sits <b>physically higher</b> than the one below — elevation <em>is</em> trust. The only way up a step is to clear that step's gate (<code>write</code> → <code>Verifier check</code> → <code>cross-checkpoint cert</code> → <code>hash-CAS</code>). The 6th state, <code>deprecated</code>, is terminal and always reachable as a downgrade from any non-raw level. The <code>IntEnum</code> ordering makes <code>entry.trust ≥ TrustLevel.VERIFIED</code> a single integer compare — no string parsing, no enum-lookup tax.</div>
     <div class="failure-mode"><span class="fm-label">what fails without this:</span> Trust becomes a free-text string and confidence collapses into authorization. An agent that asserts "I've verified this" gets treated the same as an artifact that <em>passed</em> verification. The lattice makes trust an integer ladder where the only path up runs through an explicit gate — so claiming a higher level is structurally impossible, not just discouraged.</div>
