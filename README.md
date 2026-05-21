@@ -59,6 +59,23 @@ flowchart LR
 - 3 domain adapters: PR maintenance (any git repo), self-improvement (this repo), Lean formal math (graceful fallback if Lean isn't installed)
 - 246 tests; every cycle's findings have regression tests, plus the distributional grader stack added in cycle 10 (Dice / IoU / landmark-error / ASSD with bootstrap CIs + per-slice breakdown)
 
+## Evals as a first-class primitive
+
+CSIS treats an **eval** as a composable primitive — the same way an agent platform treats a hook, a tool, or a skill. An eval is an object with a structured result schema (pass/fail semantics, uncertainty, evidence, per-slice breakdown) that plugs into the self-improvement loop in two roles at once: a **gate** that decides whether a proposed change may promote, and a **feedback signal** that tells the next iteration exactly where it is weak.
+
+One primitive, four flavors — the first three are load-bearing in the loop today; adaptive is the natural extension:
+
+| Eval type | Asserts | In CSIS |
+|---|---|---|
+| **Deterministic** | exact thresholds — unit tests, type checks, diff-scope limits | V1 pinned rubric graders (`passed: bool`) |
+| **Semantic** | judgement — LLM critic, reasoning / policy review | V2 falsifying critic, run on a structurally different checkpoint |
+| **Distributional** | a number with uncertainty — Dice, landmark error, ASSD, CIs, per-cohort slices | [`distributional_graders.py`](csis/verification/distributional_graders.py) — detailed below |
+| **Adaptive** | thresholds that move — tighten as the system improves, vary by risk tier | natural extension; the capability-tier ceiling already gates on oversight maturity |
+
+The loop is the point. The agent proposes a change → runs the evals → gets a **structured result** (not a bare number — slices, confidence intervals, worst-failure modes) → improves the weak slice → and the change only reaches live memory if the eval clears the bar. The eval output *shapes the next step*; it is never just a final report.
+
+That is the idea worth generalizing past this repo: **evals as programmable gates and feedback signals for continuously self-improving agent systems** — a primitive a Managed-Agents-style platform could expose natively, alongside agents, skills, tools, memory, and hooks. The distributional layer below is the most fully-built eval type — the worked example of everything above.
+
 ## Distributional graders — outcomes-based evaluation
 
 Most agent-eval frameworks (HealthBench, LLM-Rubric, the CSIS V1 grader set) are **rubric-shaped**: each grader returns `passed: bool`. That's right for PR maintenance, lint pipelines, and CI gates — tasks with discrete acceptance criteria.
