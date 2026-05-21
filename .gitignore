@@ -60,3 +60,6 @@ brain/*.budget.json.wal
 # Per-call observability sidecars written by _BackendTracker — used by the
 # live dashboard. Operator state, not source.
 brain/*.calls.jsonl
+
+# Local-only diagram preview harness
+docs/_preview.html

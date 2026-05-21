@@ -528,6 +528,72 @@
   .csis-svg .faint { fill: var(--ink-faint); }
   .csis-svg .bold { font-weight: 700; }
 
+  /* ----- 3D render figure (Blender still + crisp HTML label overlay) ----- */
+  .render-fig {
+    position: relative;
+    line-height: 0;
+    border-radius: 14px;
+    overflow: hidden;
+    background: linear-gradient(180deg, #fdfaf3 0%, #f3e9d2 100%);
+  }
+  .render-fig img {
+    width: 100%;
+    height: auto;
+    display: block;
+  }
+  .render-leaders {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    pointer-events: none;
+  }
+  .render-chip {
+    position: absolute;
+    transform: translateY(-50%);
+    display: flex;
+    align-items: center;
+    gap: 9px;
+    background: rgba(255, 253, 248, 0.94);
+    border: 1px solid var(--border-deep);
+    border-radius: 9px;
+    padding: 7px 12px 7px 8px;
+    box-shadow: 0 4px 14px rgba(60, 40, 10, 0.13);
+    backdrop-filter: blur(3px);
+    white-space: nowrap;
+  }
+  .render-chip .rc-badge {
+    width: 26px;
+    height: 26px;
+    border-radius: 7px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    font-family: var(--mono);
+    font-size: 14px;
+    font-weight: 700;
+    color: #fff;
+    flex: none;
+  }
+  .render-chip .rc-text { line-height: 1.25; }
+  .render-chip .rc-name {
+    font-size: 14px;
+    font-weight: 700;
+    letter-spacing: -0.2px;
+    color: var(--ink);
+  }
+  .render-chip .rc-sub {
+    font-family: var(--mono);
+    font-size: 10.5px;
+    color: var(--ink-dim);
+  }
+  @media (max-width: 720px) {
+    .render-chip { padding: 4px 7px 4px 5px; gap: 5px; }
+    .render-chip .rc-badge { width: 17px; height: 17px; font-size: 10px; border-radius: 5px; }
+    .render-chip .rc-name { font-size: 9.5px; }
+    .render-chip .rc-sub { display: none; }
+  }
+
   /* ----- interactive stack ----- */
   .stack-clickable {
     cursor: pointer;
@@ -1239,190 +1305,46 @@
   </div>
 
   <div class="figure-wrap">
-    <svg class="csis-svg" viewBox="0 0 940 724" xmlns="http://www.w3.org/2000/svg" aria-label="The 6-level trust lattice rendered as an ascending ladder. Each level is a card whose elevation (drop-shadow depth) literally encodes its trust — RAW sits flat on the page, PROMOTED floats highest. From bottom to top: level 0 RAW (gray, just-observed, in-memory only), level 1 UNTRUSTED (gold, stored on disk, may be poisoned, never deletable), level 2 CANDIDATE (orange, basic Verifier check passed, writes free, not visible to live reads), level 3 VERIFIED (blue, V1+V2 cert signed cross-checkpoint), level 4 PROMOTED (green, hash-CAS atomic flip done — the only level the next iteration reads as truth, marked with a star). A gradient spine on the left runs gray-to-green bottom-to-top, threading circular level medallions numbered 0 to 4. Between each pair of medallions sits a circular gate seal with a lock glyph and a label: GATE 1 write to storage, GATE 2 basic Verifier check, GATE 3 cert signed cross-checkpoint, GATE 4 hash-CAS atomic flip. To the lower right is a separate dimmed terminal card, LEVEL 5 DEPRECATED, with three dashed red downgrade arrows curving down into it from CANDIDATE, VERIFIED, and PROMOTED — deprecation is always allowed from any non-raw level and is terminal. Footer: the IntEnum encoding makes entry.trust >= TrustLevel.VERIFIED a single integer compare on the hot path.">
-      <defs>
-        <linearGradient id="tl-bg" x1="0" y1="0" x2="0" y2="1">
-          <stop offset="0" stop-color="#fdfbf5"/>
-          <stop offset="1" stop-color="#f5ecd7"/>
-        </linearGradient>
-        <linearGradient id="tl-spine" x1="0" y1="1" x2="0" y2="0">
-          <stop offset="0" stop-color="#b4aea0"/>
-          <stop offset="0.42" stop-color="#d6b35a"/>
-          <stop offset="0.72" stop-color="#7d9bc4"/>
-          <stop offset="1" stop-color="#6a8a50"/>
-        </linearGradient>
-        <linearGradient id="tl-c-promoted" x1="0" y1="0" x2="0.5" y2="1">
-          <stop offset="0" stop-color="#eef3e3"/><stop offset="1" stop-color="#ffffff"/>
-        </linearGradient>
-        <linearGradient id="tl-c-verified" x1="0" y1="0" x2="0.5" y2="1">
-          <stop offset="0" stop-color="#e6eef7"/><stop offset="1" stop-color="#ffffff"/>
-        </linearGradient>
-        <linearGradient id="tl-c-candidate" x1="0" y1="0" x2="0.5" y2="1">
-          <stop offset="0" stop-color="#fce9dc"/><stop offset="1" stop-color="#ffffff"/>
-        </linearGradient>
-        <linearGradient id="tl-c-untrusted" x1="0" y1="0" x2="0.5" y2="1">
-          <stop offset="0" stop-color="#f7edcf"/><stop offset="1" stop-color="#fffdf6"/>
-        </linearGradient>
-        <linearGradient id="tl-c-raw" x1="0" y1="0" x2="0.5" y2="1">
-          <stop offset="0" stop-color="#efebe1"/><stop offset="1" stop-color="#faf8f2"/>
-        </linearGradient>
-        <radialGradient id="tl-med-shine" cx="0.35" cy="0.3" r="0.8">
-          <stop offset="0" stop-color="#ffffff" stop-opacity="0.55"/>
-          <stop offset="0.6" stop-color="#ffffff" stop-opacity="0"/>
-        </radialGradient>
-        <filter id="tl-flat" x="-20%" y="-40%" width="140%" height="200%">
-          <feDropShadow dx="0" dy="1" stdDeviation="1.4" flood-color="#3c2810" flood-opacity="0.10"/>
-        </filter>
-        <filter id="tl-mid" x="-20%" y="-60%" width="140%" height="240%">
-          <feDropShadow dx="0" dy="4" stdDeviation="6" flood-color="#3c2810" flood-opacity="0.12"/>
-        </filter>
-        <filter id="tl-high" x="-25%" y="-90%" width="150%" height="300%">
-          <feDropShadow dx="0" dy="2" stdDeviation="2" flood-color="#3c2810" flood-opacity="0.10"/>
-          <feDropShadow dx="0" dy="12" stdDeviation="16" flood-color="#3c2810" flood-opacity="0.16"/>
-        </filter>
-        <filter id="tl-hero" x="-30%" y="-110%" width="160%" height="340%">
-          <feDropShadow dx="0" dy="2" stdDeviation="2" flood-color="#3c2810" flood-opacity="0.10"/>
-          <feDropShadow dx="0" dy="14" stdDeviation="20" flood-color="#3c2810" flood-opacity="0.16"/>
-          <feDropShadow dx="0" dy="0" stdDeviation="10" flood-color="#6a8a50" flood-opacity="0.30"/>
-        </filter>
-        <filter id="tl-med-shadow" x="-60%" y="-60%" width="220%" height="220%">
-          <feDropShadow dx="0" dy="2" stdDeviation="3.5" flood-color="#3c2810" flood-opacity="0.22"/>
-        </filter>
-        <marker id="tl-dn" markerWidth="8.5" markerHeight="8.5" refX="7" refY="4.25" orient="auto">
-          <path d="M0 0 L8.5 4.25 L0 8.5 L2.4 4.25 Z" fill="#c4543b"/>
-        </marker>
-      </defs>
-
-      <rect x="0" y="0" width="940" height="724" fill="url(#tl-bg)" rx="16"/>
-
-      <!-- Eyebrow + tiny key -->
-      <text x="48" y="46" font-size="11" font-family="ui-monospace,monospace" letter-spacing="2.5" fill="#a89a72">TRUST LATTICE · INTEGER-ORDERED · 0 → 4</text>
-      <g transform="translate(700, 36)">
-        <line x1="0" y1="6" x2="22" y2="6" stroke="#6a8a50" stroke-width="2.5"/>
-        <text x="30" y="10" font-size="10.5" font-family="ui-monospace,monospace" fill="#6a8a50">climb = pass a gate</text>
-      </g>
-      <g transform="translate(700, 54)">
-        <line x1="0" y1="6" x2="22" y2="6" stroke="#c4543b" stroke-width="2" stroke-dasharray="4 3"/>
-        <text x="30" y="10" font-size="10.5" font-family="ui-monospace,monospace" fill="#c4543b">downgrade = always allowed</text>
-      </g>
-
-      <!-- Spine: gradient, gray at base → green at apex, with an apex arrowhead -->
-      <line x1="150" y1="688" x2="150" y2="118" stroke="url(#tl-spine)" stroke-width="6" stroke-linecap="round"/>
-      <path d="M150 102 L141 123 L150 117 L159 123 Z" fill="#6a8a50"/>
-
-      <!-- ============ RUNG 4 · PROMOTED (floats highest) ============ -->
-      <g>
-        <rect x="170" y="92" width="474" height="80" rx="16" fill="url(#tl-c-promoted)" stroke="#cfdcc0" stroke-width="1" filter="url(#tl-hero)"/>
-        <text x="222" y="128" font-size="23" font-weight="700" letter-spacing="-0.5" fill="#2f4a1c">promoted</text>
-        <text x="222" y="150" font-size="12.5" fill="#5a5a5a">why-doc signed · hash-CAS matched · atomic flip complete</text>
-        <g transform="translate(560, 116)">
-          <path d="M14 0 L17.6 9.2 L27.4 9.9 L19.9 16.3 L22.3 25.9 L14 20.6 L5.7 25.9 L8.1 16.3 L0.6 9.9 L10.4 9.2 Z" fill="#6a8a50"/>
+    <div class="render-fig" role="img" aria-label="3D render of the 6-level trust lattice as an ascending staircase. Five matte slabs climb from the lower right to the upper left, each a distinct colour and each sitting higher than the last so that elevation encodes trust: level 0 raw (grey, lowest), level 1 untrusted (gold), level 2 candidate (orange), level 3 verified (blue), level 4 promoted (green, highest and gently glowing). Crisp labels are overlaid beside each slab with a thin leader line. A sixth state, deprecated, is terminal — reachable as a downgrade from any non-raw level — and is described in the caption rather than drawn, to keep the climb uncluttered.">
+      <img src="diagrams/trust_lattice.png" alt="3D staircase of the five CSIS trust levels rising from raw to promoted"/>
+      <svg class="render-leaders" viewBox="0 0 1680 1120" preserveAspectRatio="none" aria-hidden="true">
+        <g stroke="#b8a880" stroke-width="2" fill="none">
+          <line x1="521" y1="347" x2="772" y2="325"/>
+          <line x1="655" y1="482" x2="907" y2="459"/>
+          <line x1="773" y1="605" x2="1042" y2="594"/>
+          <line x1="890" y1="706" x2="1176" y2="706"/>
+          <line x1="974" y1="806" x2="1277" y2="818"/>
         </g>
-        <text x="610" y="146" font-size="9.5" font-family="ui-monospace,monospace" text-anchor="middle" fill="#6a8a50" font-weight="700">read as truth</text>
-        <!-- medallion -->
-        <circle cx="150" cy="132" r="33" fill="#6a8a50" stroke="#ffffff" stroke-width="3.5" filter="url(#tl-med-shadow)"/>
-        <circle cx="150" cy="132" r="33" fill="url(#tl-med-shine)"/>
-        <text x="150" y="142" font-size="26" font-weight="700" text-anchor="middle" fill="#ffffff">4</text>
-      </g>
-
-      <!-- gate 4 -->
-      <g transform="translate(0, 200)">
-        <circle cx="150" cy="0" r="19" fill="#ffffff" stroke="#6a8a50" stroke-width="2" filter="url(#tl-flat)"/>
-        <svg x="139" y="-11" width="22" height="22"><use href="#icon-lock" style="color:#6a8a50"/></svg>
-        <text x="200" y="-4" font-size="10" font-family="ui-monospace,monospace" letter-spacing="1.5" fill="#9a9486">GATE 4</text>
-        <text x="200" y="13" font-size="13.5" font-weight="700" fill="#4a6238">hash-CAS atomic flip</text>
-        <text x="470" y="9" font-size="11" font-family="ui-monospace,monospace" fill="#8a8579">store.promote(precondition_hash=…)</text>
-      </g>
-
-      <!-- ============ RUNG 3 · VERIFIED ============ -->
-      <g>
-        <rect x="170" y="240" width="474" height="76" rx="15" fill="url(#tl-c-verified)" stroke="#d2deec" stroke-width="1" filter="url(#tl-high)"/>
-        <text x="222" y="276" font-size="22" font-weight="700" letter-spacing="-0.5" fill="#1c3c5e">verified</text>
-        <text x="222" y="297" font-size="12.5" fill="#5a5a5a">V1 + V2 certificate signed on a different checkpoint</text>
-        <circle cx="150" cy="278" r="31" fill="#4a82bc" stroke="#ffffff" stroke-width="3.5" filter="url(#tl-med-shadow)"/>
-        <circle cx="150" cy="278" r="31" fill="url(#tl-med-shine)"/>
-        <text x="150" y="288" font-size="25" font-weight="700" text-anchor="middle" fill="#ffffff">3</text>
-      </g>
-
-      <!-- gate 3 -->
-      <g transform="translate(0, 344)">
-        <circle cx="150" cy="0" r="19" fill="#ffffff" stroke="#6a8a50" stroke-width="2" filter="url(#tl-flat)"/>
-        <svg x="139" y="-11" width="22" height="22"><use href="#icon-lock" style="color:#6a8a50"/></svg>
-        <text x="200" y="-4" font-size="10" font-family="ui-monospace,monospace" letter-spacing="1.5" fill="#9a9486">GATE 3</text>
-        <text x="200" y="13" font-size="13.5" font-weight="700" fill="#4a6238">cert signed cross-checkpoint</text>
-        <text x="470" y="9" font-size="11" font-family="ui-monospace,monospace" fill="#8a8579">Verifier model_id ≠ Builder model_id</text>
-      </g>
-
-      <!-- ============ RUNG 2 · CANDIDATE ============ -->
-      <g>
-        <rect x="170" y="384" width="474" height="76" rx="15" fill="url(#tl-c-candidate)" stroke="#f0d3c2" stroke-width="1" filter="url(#tl-mid)"/>
-        <text x="222" y="420" font-size="22" font-weight="700" letter-spacing="-0.5" fill="#1f1f1f">candidate</text>
-        <text x="222" y="441" font-size="12.5" fill="#5a5a5a">basic Verifier check passed · writes free · invisible to live reads</text>
-        <circle cx="150" cy="422" r="31" fill="#d97757" stroke="#ffffff" stroke-width="3.5" filter="url(#tl-med-shadow)"/>
-        <circle cx="150" cy="422" r="31" fill="url(#tl-med-shine)"/>
-        <text x="150" y="432" font-size="25" font-weight="700" text-anchor="middle" fill="#ffffff">2</text>
-      </g>
-
-      <!-- gate 2 -->
-      <g transform="translate(0, 488)">
-        <circle cx="150" cy="0" r="19" fill="#ffffff" stroke="#6a8a50" stroke-width="2" filter="url(#tl-flat)"/>
-        <svg x="139" y="-11" width="22" height="22"><use href="#icon-lock" style="color:#6a8a50"/></svg>
-        <text x="200" y="-4" font-size="10" font-family="ui-monospace,monospace" letter-spacing="1.5" fill="#9a9486">GATE 2</text>
-        <text x="200" y="13" font-size="13.5" font-weight="700" fill="#4a6238">basic Verifier check</text>
-        <text x="470" y="9" font-size="11" font-family="ui-monospace,monospace" fill="#8a8579">graders pass + structural smoke</text>
-      </g>
-
-      <!-- ============ RUNG 1 · UNTRUSTED ============ -->
-      <g>
-        <rect x="170" y="528" width="474" height="74" rx="14" fill="url(#tl-c-untrusted)" stroke="#e6d2a0" stroke-width="1" filter="url(#tl-flat)"/>
-        <text x="222" y="563" font-size="21" font-weight="700" letter-spacing="-0.4" fill="#1f1f1f">untrusted</text>
-        <text x="222" y="583" font-size="12.5" fill="#5a5a5a">stored on disk · may be poisoned · never deletable</text>
-        <circle cx="150" cy="565" r="29" fill="#c2982f" stroke="#ffffff" stroke-width="3.5" filter="url(#tl-med-shadow)"/>
-        <circle cx="150" cy="565" r="29" fill="url(#tl-med-shine)"/>
-        <text x="150" y="575" font-size="24" font-weight="700" text-anchor="middle" fill="#ffffff">1</text>
-      </g>
-
-      <!-- gate 1 -->
-      <g transform="translate(0, 624)">
-        <circle cx="150" cy="0" r="19" fill="#ffffff" stroke="#6a8a50" stroke-width="2" filter="url(#tl-flat)"/>
-        <svg x="139" y="-11" width="22" height="22"><use href="#icon-lock" style="color:#6a8a50"/></svg>
-        <text x="200" y="-4" font-size="10" font-family="ui-monospace,monospace" letter-spacing="1.5" fill="#9a9486">GATE 1</text>
-        <text x="200" y="13" font-size="13.5" font-weight="700" fill="#4a6238">write to storage</text>
-        <text x="470" y="9" font-size="11" font-family="ui-monospace,monospace" fill="#8a8579">canonical hash + actor allow-list</text>
-      </g>
-
-      <!-- ============ RUNG 0 · RAW (flat on the page) ============ -->
-      <g>
-        <rect x="170" y="660" width="474" height="56" rx="12" fill="url(#tl-c-raw)" stroke="#e2dccb" stroke-width="1"/>
-        <text x="222" y="688" font-size="19" font-weight="700" letter-spacing="-0.3" fill="#6a6a6a">raw</text>
-        <text x="222" y="706" font-size="12" fill="#8a8579">just-observed · in-memory only · never persisted in this state</text>
-        <circle cx="150" cy="688" r="27" fill="#9a958a" stroke="#ffffff" stroke-width="3.5" filter="url(#tl-med-shadow)"/>
-        <circle cx="150" cy="688" r="27" fill="url(#tl-med-shine)"/>
-        <text x="150" y="697" font-size="22" font-weight="700" text-anchor="middle" fill="#ffffff">0</text>
-      </g>
-
-      <!-- ============ TERMINAL · DEPRECATED ============ -->
-      <g>
-        <rect x="690" y="392" width="214" height="150" rx="16" fill="#f5ddd2" stroke="#dba491" stroke-width="1.2" filter="url(#tl-mid)"/>
-        <circle cx="744" cy="436" r="22" fill="#c4543b" stroke="#ffffff" stroke-width="3" filter="url(#tl-med-shadow)"/>
-        <text x="744" y="444" font-size="17" font-weight="700" text-anchor="middle" fill="#ffffff">5</text>
-        <text x="784" y="430" font-size="9.5" font-family="ui-monospace,monospace" letter-spacing="1.5" fill="#b85e3f">TERMINAL</text>
-        <text x="784" y="448" font-size="17" font-weight="700" letter-spacing="-0.3" fill="#7c2f18">deprecated</text>
-        <line x1="712" y1="468" x2="882" y2="468" stroke="#dba491" stroke-width="1"/>
-        <text x="712" y="490" font-size="12" fill="#7c2f18">superseded or contradicted</text>
-        <text x="712" y="510" font-size="12" fill="#7c2f18">by a newer promoted entry</text>
-        <text x="712" y="530" font-size="10" font-family="ui-monospace,monospace" fill="#b85e3f">no path out · retained for audit replay</text>
-      </g>
-
-      <!-- Downgrade arrows: PROMOTED, VERIFIED, CANDIDATE → DEPRECATED -->
-      <g fill="none" stroke="#c4543b" stroke-width="1.6" stroke-dasharray="5 4" opacity="0.85">
-        <path d="M644 132 Q 700 150 716 392" marker-end="url(#tl-dn)"/>
-        <path d="M644 278 Q 690 320 700 392" marker-end="url(#tl-dn)"/>
-        <path d="M644 422 Q 668 446 686 452" marker-end="url(#tl-dn)"/>
-      </g>
-
-    </svg>
-    <div class="figure-caption">Figure 2 · The 6-level trust lattice. A level's <b>elevation encodes its trust</b> — <code>raw</code> sits flat on the page, <code>promoted</code> floats highest. The gradient spine threads four gate seals; crossing each gate is the <em>only</em> way up. Dashed red arrows = deprecation, always allowed from any non-raw level and terminal. The <code>IntEnum</code> ordering makes <code>entry.trust ≥ TrustLevel.VERIFIED</code> a single integer compare — no string parsing, no enum-lookup tax.</div>
+        <g fill="#b8a880">
+          <circle cx="521" cy="347" r="6"/>
+          <circle cx="655" cy="482" r="6"/>
+          <circle cx="773" cy="605" r="6"/>
+          <circle cx="890" cy="706" r="6"/>
+          <circle cx="974" cy="806" r="6"/>
+        </g>
+      </svg>
+      <div class="render-chip" style="left:46%;top:29%">
+        <span class="rc-badge" style="background:#6a8a50">4</span>
+        <span class="rc-text"><span class="rc-name">promoted</span><br><span class="rc-sub">hash-CAS done · read as truth</span></span>
+      </div>
+      <div class="render-chip" style="left:54%;top:41%">
+        <span class="rc-badge" style="background:#4a82bc">3</span>
+        <span class="rc-text"><span class="rc-name">verified</span><br><span class="rc-sub">V1+V2 cert · cross-checkpoint</span></span>
+      </div>
+      <div class="render-chip" style="left:62%;top:53%">
+        <span class="rc-badge" style="background:#d97757">2</span>
+        <span class="rc-text"><span class="rc-name">candidate</span><br><span class="rc-sub">Verifier check passed</span></span>
+      </div>
+      <div class="render-chip" style="left:70%;top:63%">
+        <span class="rc-badge" style="background:#c2982f">1</span>
+        <span class="rc-text"><span class="rc-name">untrusted</span><br><span class="rc-sub">stored · may be poisoned</span></span>
+      </div>
+      <div class="render-chip" style="left:76%;top:73%">
+        <span class="rc-badge" style="background:#8a8579">0</span>
+        <span class="rc-text"><span class="rc-name">raw</span><br><span class="rc-sub">just-observed · in-memory</span></span>
+      </div>
+    </div>
+    <div class="figure-caption">Figure 2 · The 6-level trust lattice, rendered in 3D. Each level is a slab that sits <b>physically higher</b> than the one below — elevation <em>is</em> trust. The only way up a step is to clear that step's gate (<code>write</code> → <code>Verifier check</code> → <code>cross-checkpoint cert</code> → <code>hash-CAS</code>). The 6th state, <code>deprecated</code>, is terminal and always reachable as a downgrade from any non-raw level. The <code>IntEnum</code> ordering makes <code>entry.trust ≥ TrustLevel.VERIFIED</code> a single integer compare — no string parsing, no enum-lookup tax.</div>
     <div class="failure-mode"><span class="fm-label">what fails without this:</span> Trust becomes a free-text string and confidence collapses into authorization. An agent that asserts "I've verified this" gets treated the same as an artifact that <em>passed</em> verification. The lattice makes trust an integer ladder where the only path up runs through an explicit gate — so claiming a higher level is structurally impossible, not just discouraged.</div>
   </div>
 
