@@ -151,7 +151,7 @@ The dashboard reads from on-disk artifacts only (event log, budget JSONs, memory
 
 ## Architecture
 
-> **Full visual walkthrough** lives at **[https://jim4226.github.io/CSIS/architecture.html](https://jim4226.github.io/CSIS/architecture.html)** — that's the canonical architecture document. It opens with an explicit **threat model** (adversary capability × invariant × layer that catches it), walks through **six interactive diagrams** (8-layer stack with click-to-expand layer details, 6-level trust lattice, 5-tier memory hierarchy, V1+V2 cross-checkpoint verification, hash-CAS promotion, sleep/dreams consolidation) with a "what fails without this" annotation under each, and closes with an **observability table** showing how every invariant is actually measured in production. The diagrams + design rationale below are summary-level so you can read the README on GitHub and still get the shape.
+> **Full visual walkthrough** lives at **[https://jim4226.github.io/CSIS/architecture.html](https://jim4226.github.io/CSIS/architecture.html)** — that's the canonical architecture document. It opens with an explicit **threat model** (adversary capability × invariant × layer that catches it), walks through **six diagrams** — an interactive 3D 8-layer stack with click-to-expand layer details, plus the 6-level trust lattice, 5-tier memory hierarchy, V1+V2 cross-checkpoint verification, hash-CAS promotion, and sleep/dreams consolidation — each with a "what fails without this" annotation, and closes with an **observability table** showing how every invariant is actually measured in production. The renders + design rationale below are summary-level so you can read the README on GitHub and still get the shape.
 
 ### The 8-layer stack
 
