@@ -155,50 +155,21 @@ The dashboard reads from on-disk artifacts only (event log, budget JSONs, memory
 
 ### The 8-layer stack
 
-```mermaid
-flowchart TB
-    L7["<b>L7 · Safety envelope</b><br/>Constitution · TierGuard · Tripwires · ShutdownToken · WrappedBackend invariant<br/><i>csis/safety/ — enforced AT THE SUBSTRATE, not as agent-prompt instructions</i>"]:::safety
-    L6["<b>L6 · Meta-improvement</b><br/><i>deferred to Phase 1 — improving the improver</i>"]:::deferred
-    L5["<b>L5 · Improvement (I1-I3)</b><br/>Procedural-tier skill accumulation — the actual self-improving surface, gated by everything below"]:::builder
-    L4["<b>L4 · Verification &amp; critic</b><br/>V1 pinned graders (rubric + distributional) · V2 critic falsifies · cert is cross-checkpoint signed<br/><i>csis/verification/ — runs on a structurally different LLM checkpoint than the Builder</i>"]:::verify
-    L3["<b>L3 · Curiosity &amp; frontier</b><br/>Frontier-item generator: seeds + gap-driven + rollback follow-ups · salt threaded for forensic replay"]:::builder
-    L2["<b>L2 · Memory hierarchy</b><br/>5 tiers × candidate/live · 6 trust levels · hash-preconditioned <code>promote()</code> is the only mutation primitive<br/><i>csis/memory/store.py — writer_iteration_id stamp on every candidate (cycle-9 H4)</i>"]:::builder
-    L1["<b>L1 · Agent runtime</b><br/>Coordinator runs the 8-step loop · delegates to Researcher / Builder / Critic / Verifier / Librarian / Auditor<br/><i>csis/agents/coordinator.py — delegation depth = 1</i>"]:::builder
-    L0["<b>L0 · Substrate</b><br/>event log (hash-chained) · capability tags · canonical JSON hashing<br/><i>csis/substrate/ — the only layer everyone trusts unconditionally</i>"]:::substrate
+![The 8-layer CSIS stack — a 3D tower of eight matte slabs, L0 substrate (gold) at the bottom up to L7 safety envelope (green) at the top, with L4 verification highlighted in blue and L6 meta-improvement dimmed as a Phase-1 deferral](docs/diagrams/stack_labeled.png)
 
-    L7 --> L6 --> L5 --> L4 --> L3 --> L2 --> L1 --> L0
-
-    classDef substrate fill:#efe2c3,stroke:#c89b3c,stroke-width:2px,color:#2a2a2a
-    classDef builder fill:#fbf4e7,stroke:#d97757,stroke-width:2px,color:#2a2a2a
-    classDef verify fill:#dbe7f3,stroke:#4a82bc,stroke-width:2px,color:#1a3a5e
-    classDef safety fill:#dde6cd,stroke:#5a6c46,stroke-width:2px,color:#2a4a1a
-    classDef deferred fill:#f6ecd6,stroke:#b8a880,stroke-width:2px,color:#8a7c5a
-```
-
-> Orange-bordered layers (L1, L2, L3, L5) are the **builder path** — what does the work. Blue-bordered L4 is the only layer that runs on a **structurally different LLM checkpoint** (Sonnet-class verifying Opus-class). Gold-bordered L0 is the substrate everyone trusts unconditionally. Green-bordered L7 wraps the whole stack and is enforced as code, not as agent-prompt instructions.
+> Orange layers (L1, L2, L3, L5) are the **builder path** — what does the work. Blue **L4** is the only layer that runs on a **structurally different LLM checkpoint** (Sonnet-class verifying Opus-class). Gold **L0** is the substrate everyone trusts unconditionally. Green **L7** wraps the whole stack and is enforced as code, not as agent-prompt instructions. Dimmed **L6** is the explicit Phase-1 deferral. The stack is also an [interactive 3D scene](https://jim4226.github.io/CSIS/architecture.html#stack) on the architecture page.
 
 ### The 6-level trust lattice
 
-```mermaid
-flowchart LR
-    raw([raw<br/><sub>just-observed</sub>]):::raw -->|stored| untrusted([untrusted<br/><sub>may be poisoned</sub>]):::untrusted
-    untrusted -->|Verifier check| candidate([candidate<br/><sub>awaiting Auditor</sub>]):::candidate
-    candidate -->|cert signed<br/>cross-checkpoint| verified([verified<br/><sub>citable as ground truth</sub>]):::verified
-    verified -->|why-doc + hash CAS| promoted([promoted<br/><sub>citable as ground truth</sub>]):::promoted
+![The 6-level trust lattice — a 3D ascending staircase of five trust levels (raw, untrusted, candidate, verified, promoted), each higher and a distinct colour, with gate seals between every step and a terminal deprecated state](docs/diagrams/trust_lattice_labeled.png)
 
-    candidate -.->|deprecate| deprecated([deprecated<br/><sub>terminal · auditor only</sub>]):::deprecated
-    verified -.->|deprecate| deprecated
-    promoted -.->|deprecate| deprecated
+> **The only path UP is through a gate.** A level's *elevation* encodes its trust — `raw` sits flat, `promoted` floats highest. Each step is cleared by one structural gate (`write` → `Verifier check` → `cross-checkpoint cert` → `hash-CAS`). Deprecation is always allowed from any non-raw level and is terminal. The lattice is an `IntEnum` so `entry.trust >= TrustLevel.VERIFIED` is a single integer compare in hot paths. Source: [`csis/memory/trust.py`](csis/memory/trust.py).
 
-    classDef raw fill:#f6ecd6,stroke:#b8a880,color:#2a2a2a
-    classDef untrusted fill:#fbf4e7,stroke:#c89b3c,color:#2a2a2a
-    classDef candidate fill:#fbf4e7,stroke:#d97757,color:#2a2a2a
-    classDef verified fill:#dbe7f3,stroke:#4a82bc,color:#1a3a5e
-    classDef promoted fill:#dde6cd,stroke:#5a6c46,color:#2a4a1a
-    classDef deprecated fill:#f3dbd0,stroke:#b85e3f,color:#5a2a1a
-```
+### The 5-tier memory hierarchy
 
-> **The only path UP is through a gate.** Dashed red arrows show deprecation — always allowed from any non-raw level; terminal once reached. The lattice is an `IntEnum` so `entry.trust >= TrustLevel.VERIFIED` is a single integer compare in hot paths. Source: [`csis/memory/trust.py`](csis/memory/trust.py).
+![The 5-tier memory hierarchy — a 3D ledger of five rows, each pairing an orange candidate slab with a blue live slab joined by a glowing promote() connector; tiers are working, episodic, semantic, procedural, causal](docs/diagrams/memory_labeled.png)
+
+> Every tier has a **candidate side** (writes free, each entry stamped with the `writer_iteration_id` of whoever wrote it) and a **live side** (read-only). `promote()` is the *only* path from candidate to live — a hash-preconditioned compare-and-swap. `procedural` is the tier where self-improvement actually accumulates. Source: [`csis/memory/store.py`](csis/memory/store.py).
 
 ### Code map
 
