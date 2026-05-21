@@ -10,7 +10,7 @@ should run on macOS / Linux unchanged.
 ```bash
 pip install pydantic pytest
 
-# Run the test suite (85 tests).
+# Run the test suite (246 passing, 4 skipped).
 python -m pytest tests/ -v
 
 # Run a single 8-step loop iteration end-to-end (no API key needed).
@@ -49,28 +49,39 @@ substrate refuses and emits a rolled-back event.
 ## File map
 
 ```
-csis/                       implementation (2,800 LOC, 28 files)
-  substrate/                event log, capability tags, hashing
-  memory/                   trust levels, MemoryStore, hierarchy
+csis/                       implementation (~7,200 LOC, 53 files)
+  substrate/                event log, capability tags, hashing, file lock
+  memory/                   trust levels, MemoryStore, 5-tier hierarchy
   safety/                   constitution, tier_guard, tripwires, shutdown
   backends/                 LLMBackend ABC + MockBackend + AnthropicBackend
-  verification/             V1 graders, V2 critic, cert build (F1, F6, F7)
-  dreams/                   mock Dream pipeline + quality + F4 redaction
+  verification/             V1 graders, distributional graders, V2 critic, cert
+  improvement/              procedural skill library (I1-I3)
+  dreams/                   mock Dream pipeline + quality + partial-output redaction
+  curiosity.py              frontier-item generator
   agents/                   coordinator + 6 sub-agents
-  loop.py                   runnable demo entry point
-  __main__.py               python -m csis runs the demo
+  domains/                  pr_maintenance / self_improve / lean_math adapters
+  runtime/                  shared runtime plumbing
+  ui/                       localhost read-only dashboard
+  budget.py                 BudgetTracker — per-run / per-day cost ceilings
+  daemon.py                 24/7 loop runner (python -m csis.daemon)
+  loop.py                   single-iteration demo entry point
+  __main__.py               python -m csis runs one demo iteration
 
-tests/                      66+ pytest tests, one per major invariant
+tests/                      246 passing tests (25 files), one per major invariant
+
 scripts/
   demo_pr_scenario.py       5-scenario PR-maintenance walkthrough
+  burst.py                  finite real-backend run with a hard cost ceiling
+  run_daemon.ps1            PowerShell daemon launcher (restarts on crash)
+  install_service.ps1       install the daemon as a Windows service (NSSM)
 
 brain/                      auto-save catalog (read this to resume cold)
   BRAIN.html                top-level index — open in a browser
   README.md                 catalog layout explanation
-  snapshots/                point-in-time state files (00, 01, 02, ...)
+  snapshots/                point-in-time state files (00-initial ... 12-...)
   plans/                    blueprint outputs from planning sub-agents
-  critiques/                red-team reports (pre- and post-impl)
-  research/                 SDK / pattern research
+  critiques/                red-team reports (pre-impl, post-impl, per cycle)
+  research/                 SDK / pattern research + distributional-grader design
 ```
 
 ## Tier-by-tier mapping (CSIS doc § to code)
@@ -188,7 +199,7 @@ override this, by L0 design.
 
 ## Where to look next
 
-- `brain/snapshots/02-cycle1-complete.md` — what's in the current build.
+- `brain/snapshots/12-chain-integrity-fix.md` — the current build state (highest-numbered snapshot).
 - `brain/critiques/01-pre-impl-redteam.md` — pre-impl threat model (18 findings).
 - `brain/critiques/02-post-impl-redteam.md` — post-impl threat model.
 - `CSIS-architecture.html` — the spec this implements (open in browser).
@@ -258,6 +269,9 @@ There is no per-day budget cap baked into the daemon. The companion
 `scripts/burst.py` is for when you want to spend a fixed amount of LLM
 budget on a short burst of real work, then exit. Pair it with the mock
 daemon running 24/7 as a watchdog.
+
+`burst.py` defaults to `--backend anthropic` — real LLM calls, real cost.
+Pass `--backend mock` for a zero-cost dry run of the same flow.
 
 ```bash
 # 10 real iterations against the CSIS codebase itself.

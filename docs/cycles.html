@@ -1,0 +1,390 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>CSIS — nine cycles of red-team → fix → regression-test</title>
+<meta name="description" content="The audit log of CSIS: nine cycles of red-team → fix → regression-test. 99 findings — 96 closed in code, 3 deferred, 0 open. Test count grew 92 → 213 across the nine cycles.">
+<meta property="og:title" content="CSIS — nine cycles of self-critique">
+<meta property="og:description" content="The audit log: nine cycles of red-team → fix → regression-test. 99 findings, 0 open. The two structural patterns that kept reappearing.">
+<meta property="og:type" content="website">
+<meta property="og:url" content="https://jim4226.github.io/CSIS/cycles.html">
+<style>
+  :root {
+    --bg: #fbf4e7;
+    --bg-card: #ffffff;
+    --bg-soft: #f6ecd6;
+    --ink: #2a2a2a;
+    --ink-dim: #6b6b6b;
+    --accent: #d97757;
+    --accent-deep: #b85e3f;
+    --good: #788c5d;
+    --calm: #6a9bcc;
+    --gold: #c89b3c;
+    --crit: #c0563a;
+    --border: #e7d8b5;
+    --mono: ui-monospace, "SF Mono", "JetBrains Mono", Consolas, "Liberation Mono", monospace;
+    --sans: -apple-system, "Segoe UI", "Inter", "Helvetica Neue", Arial, sans-serif;
+    --serif: "Iowan Old Style", "Charter", "Lora", Georgia, serif;
+  }
+  * { box-sizing: border-box; }
+  html { scroll-behavior: smooth; }
+  body {
+    margin: 0;
+    font-family: var(--sans);
+    background: var(--bg);
+    color: var(--ink);
+    line-height: 1.55;
+    font-size: 17px;
+    -webkit-font-smoothing: antialiased;
+  }
+  .container { max-width: 1080px; margin: 0 auto; padding: 48px 32px 96px; }
+
+  /* ---- nav ---- */
+  .nav {
+    display: flex; justify-content: space-between; align-items: center;
+    margin-bottom: 40px; font-family: var(--mono); font-size: 14px;
+  }
+  .nav .brand { color: var(--accent); font-weight: 700; letter-spacing: -0.5px; font-size: 16px; }
+  .nav a { color: var(--ink-dim); text-decoration: none; margin-left: 24px; transition: color 0.15s ease; }
+  .nav a:hover { color: var(--accent); }
+
+  /* ---- hero ---- */
+  .hero h1 {
+    font-family: var(--sans); font-size: 56px; font-weight: 700;
+    letter-spacing: -2px; line-height: 1.04; margin: 0 0 16px 0;
+  }
+  .hero h1 .accent { color: var(--accent); }
+  .hero h2 {
+    font-family: var(--serif); font-size: 23px; font-weight: 400; line-height: 1.45;
+    margin: 0 0 28px 0; color: var(--ink-dim); max-width: 860px;
+  }
+  .badges { display: flex; gap: 10px; flex-wrap: wrap; margin-bottom: 14px; }
+  .badge {
+    font-family: var(--mono); font-size: 13px; padding: 6px 12px;
+    border-radius: 5px; color: white; font-weight: 600;
+  }
+  .badge.phase { background: var(--accent); }
+  .badge.tests { background: var(--good); }
+  .badge.cycles { background: var(--calm); }
+  .badge.findings { background: var(--good); }
+
+  /* ---- section ---- */
+  section { margin-bottom: 60px; }
+  h3.section-title {
+    font-family: var(--mono); font-size: 12px; text-transform: uppercase;
+    letter-spacing: 2px; color: var(--accent); margin: 0 0 12px 0; font-weight: 700;
+  }
+  h4.section-h {
+    font-family: var(--sans); font-size: 30px; font-weight: 700;
+    letter-spacing: -0.8px; line-height: 1.15; margin: 0 0 22px 0;
+  }
+  .section-intro { font-size: 17px; color: var(--ink-dim); max-width: 780px; margin: 0 0 28px 0; }
+  .section-intro code { font-family: var(--mono); font-size: 0.9em; background: var(--bg-soft);
+    padding: 1px 6px; border-radius: 3px; color: var(--accent-deep); }
+
+  /* ---- numbers table ---- */
+  .num-table {
+    width: 100%; border-collapse: collapse; font-family: var(--mono); font-size: 14px;
+    background: var(--bg-card); border: 1px solid var(--border); border-radius: 10px; overflow: hidden;
+  }
+  .num-table th {
+    background: var(--bg-soft); text-align: right; padding: 11px 14px; font-weight: 600;
+    color: var(--ink); border-bottom: 1px solid var(--border); font-size: 11px;
+    text-transform: uppercase; letter-spacing: 0.8px;
+  }
+  .num-table th:first-child { text-align: left; }
+  .num-table td { padding: 11px 14px; border-bottom: 1px solid var(--border); text-align: right; }
+  .num-table td:first-child { text-align: left; }
+  .num-table tr:last-child td { border-bottom: none; }
+  .num-table tr.total { background: var(--bg-soft); font-weight: 700; }
+  .num-table .cn { color: var(--accent); font-weight: 700; }
+  .num-table .zero { color: var(--good); font-weight: 700; }
+  .num-table .ta { color: var(--accent-deep); font-weight: 700; }
+
+  /* ---- cycle narrative ---- */
+  .cycle {
+    display: grid; grid-template-columns: 64px 1fr; gap: 22px;
+    padding: 22px 0; border-bottom: 1px dashed var(--border);
+  }
+  .cycle:last-child { border-bottom: none; }
+  .cycle .marker {
+    font-family: var(--mono); font-size: 30px; font-weight: 700;
+    color: var(--accent); line-height: 1; text-align: center;
+  }
+  .cycle .marker .tag {
+    display: block; font-size: 9px; letter-spacing: 1px; color: var(--ink-dim);
+    text-transform: uppercase; margin-top: 6px; font-weight: 600;
+  }
+  .cycle .body h5 {
+    font-family: var(--sans); font-size: 19px; font-weight: 700;
+    letter-spacing: -0.4px; margin: 0 0 8px 0;
+  }
+  .cycle .body p { margin: 0 0 8px 0; color: var(--ink-dim); font-size: 15.5px; }
+  .cycle .body code {
+    font-family: var(--mono); font-size: 12.5px; background: var(--bg-soft);
+    padding: 1px 6px; border-radius: 3px; color: var(--accent-deep);
+  }
+  .cycle .body .tests-delta {
+    font-family: var(--mono); font-size: 12px; color: var(--good); font-weight: 700;
+  }
+  .cycle .body .pivot {
+    display: inline-block; font-family: var(--mono); font-size: 10.5px;
+    background: var(--accent); color: white; padding: 2px 8px; border-radius: 4px;
+    font-weight: 700; letter-spacing: 0.5px; text-transform: uppercase; margin-bottom: 8px;
+  }
+
+  /* ---- pattern + deferral cards ---- */
+  .cards { display: grid; grid-template-columns: 1fr 1fr; gap: 22px; }
+  @media (max-width: 820px) {
+    .cards { grid-template-columns: 1fr; }
+    .hero h1 { font-size: 40px; }
+    .cycle { grid-template-columns: 48px 1fr; gap: 16px; }
+    .container { padding: 32px 20px 64px; }
+  }
+  .card {
+    background: var(--bg-card); border: 1px solid var(--border);
+    border-radius: 10px; padding: 22px 24px;
+  }
+  .card.deferral { border-left: 3px solid var(--gold); }
+  .card .label {
+    font-family: var(--mono); font-size: 11px; text-transform: uppercase;
+    letter-spacing: 1.5px; color: var(--accent); font-weight: 700; margin-bottom: 8px;
+  }
+  .card.deferral .label { color: var(--gold); }
+  .card h5 {
+    font-family: var(--sans); font-size: 20px; font-weight: 700;
+    letter-spacing: -0.5px; margin: 0 0 10px 0;
+  }
+  .card p { margin: 0 0 10px 0; color: var(--ink-dim); font-size: 15px; }
+  .card p:last-child { margin-bottom: 0; }
+  .card code {
+    font-family: var(--mono); font-size: 12.5px; background: var(--bg-soft);
+    padding: 1px 6px; border-radius: 3px; color: var(--accent-deep);
+  }
+  .card .takeaway { color: var(--ink); font-weight: 600; }
+
+  /* ---- closing list ---- */
+  .closing { background: var(--bg-card); border: 1px solid var(--border);
+    border-radius: 10px; padding: 8px 26px; }
+  .closing li { padding: 14px 0; border-bottom: 1px dashed var(--border);
+    color: var(--ink-dim); font-size: 15.5px; }
+  .closing li:last-child { border-bottom: none; }
+  .closing li b { color: var(--ink); }
+  .closing code { font-family: var(--mono); font-size: 12.5px; background: var(--bg-soft);
+    padding: 1px 6px; border-radius: 3px; color: var(--accent-deep); }
+
+  a.inline { color: var(--accent); text-decoration: none; border-bottom: 1px solid transparent;
+    transition: border-color 0.15s ease; }
+  a.inline:hover { border-bottom-color: var(--accent); }
+
+  /* ---- footer ---- */
+  footer {
+    margin-top: 88px; padding-top: 32px; border-top: 1px solid var(--border);
+    font-family: var(--mono); font-size: 13px; color: var(--ink-dim);
+    display: flex; justify-content: space-between; flex-wrap: wrap; gap: 16px;
+  }
+  footer a { color: var(--accent); text-decoration: none; }
+  footer a:hover { text-decoration: underline; }
+</style>
+</head>
+<body>
+
+<div class="container">
+
+  <nav class="nav">
+    <span class="brand">CSIS</span>
+    <div>
+      <a href="index.html">Home</a>
+      <a href="architecture.html">Architecture</a>
+      <a href="cycles.html">Cycles</a>
+      <a href="dashboard-demo.html">Dashboard</a>
+      <a href="https://github.com/jim4226/CSIS">GitHub</a>
+    </div>
+  </nav>
+
+  <header class="hero">
+    <h1>Nine cycles of <span class="accent">red-team → fix → regression-test</span></h1>
+    <h2>A self-improving system that doesn't audit itself is a vibes-driven research demo. This is the audit log — every cycle, parallel red-team agents attacked the previous cycle's fixes, the findings landed in code with regression tests, and the next cycle usually found the previous one had fixed the bug at the wrong abstraction layer.</h2>
+    <div class="badges">
+      <span class="badge phase">9 cycles</span>
+      <span class="badge findings">99 findings · 0 open</span>
+      <span class="badge tests">92 → 213 tests</span>
+      <span class="badge cycles">4 architectural pivots</span>
+    </div>
+  </header>
+
+  <section id="numbers">
+    <h3 class="section-title">The numbers</h3>
+    <h4 class="section-h">99 findings. 96 closed in code, 3 deferred, 0 open.</h4>
+    <p class="section-intro">Each cycle's critique lives at <code>brain/critiques/</code> with reproducible attacks and <code>file:line</code> evidence; each cycle's shipped state is snapshotted under <code>brain/snapshots/</code>. Test count grew <strong>92 → 213 (+121)</strong> across the nine cycles. The three deferrals — E8, H2, H11 — each carry an explicit Phase-1 plan.</p>
+
+    <table class="num-table">
+      <thead>
+        <tr>
+          <th>Cycle</th><th>Findings</th><th>Critical</th><th>High</th>
+          <th>Medium</th><th>Low</th><th>Open</th><th>Deferred</th><th>Tests after</th>
+        </tr>
+      </thead>
+      <tbody>
+        <tr><td><span class="cn">1</span> · pre-impl</td><td>18</td><td>2</td><td>6</td><td>7</td><td>3</td><td class="zero">0</td><td>0</td><td>52</td></tr>
+        <tr><td><span class="cn">2</span> · post-impl</td><td>13</td><td>2</td><td>6</td><td>3</td><td>2</td><td class="zero">0</td><td>0</td><td>78</td></tr>
+        <tr><td><span class="cn">3</span> · deltas</td><td>11</td><td>2</td><td>4</td><td>4</td><td>1</td><td class="zero">0</td><td>0</td><td>114</td></tr>
+        <tr><td><span class="cn">4</span> · fixes</td><td>11</td><td>2</td><td>4</td><td>4</td><td>1</td><td class="zero">0</td><td>0</td><td>141</td></tr>
+        <tr><td><span class="cn">5</span> · fixes</td><td>11</td><td>3</td><td>3</td><td>4</td><td>1</td><td class="zero">0</td><td>0</td><td>165</td></tr>
+        <tr><td><span class="cn">6</span> · fixes</td><td>10</td><td>3</td><td>3</td><td>3</td><td>1</td><td class="zero">0</td><td>1</td><td>186</td></tr>
+        <tr><td><span class="cn">7</span> · fixes</td><td>7</td><td>1</td><td>2</td><td>3</td><td>1</td><td class="zero">0</td><td>0</td><td>195</td></tr>
+        <tr><td><span class="cn">8</span> · fixes</td><td>6</td><td>2</td><td>2</td><td>2</td><td>0</td><td class="zero">0</td><td>0</td><td>202</td></tr>
+        <tr><td><span class="cn">9</span> · fixes</td><td>12</td><td>4</td><td>3</td><td>2</td><td>3</td><td class="zero">0</td><td>2</td><td class="ta">213</td></tr>
+        <tr class="total"><td>Total</td><td>99</td><td>21</td><td>33</td><td>32</td><td>13</td><td class="zero">0</td><td>3</td><td>—</td></tr>
+      </tbody>
+    </table>
+    <p class="section-intro" style="margin-top:16px;font-size:14px;">Since the nine cycles, two further work items — the distributional-grader stack and a cross-process event-log chain-integrity fix — brought the suite to <strong>246 passing</strong> (4 skipped). Those are feature and bug work, not red-team cycles, so they don't appear in the table above.</p>
+  </section>
+
+  <section id="cycle-by-cycle">
+    <h3 class="section-title">Cycle by cycle</h3>
+    <h4 class="section-h">What the loop learned, one cycle at a time.</h4>
+
+    <div class="cycle">
+      <div class="marker">1<span class="tag">pre-impl</span></div>
+      <div class="body">
+        <h5>The pre-implementation red team</h5>
+        <p>Found 18 architecture-level issues <em>before</em> any code existed — F2 (TOCTOU between Auditor sign and promote), F1 (mock-vs-mock self-confirmation). Foundational invariants went into the design rather than getting discovered at runtime.</p>
+        <p class="tests-delta">test bar set at 52</p>
+      </div>
+    </div>
+
+    <div class="cycle">
+      <div class="marker">2<span class="tag">post-impl</span></div>
+      <div class="body">
+        <h5>The post-implementation red team</h5>
+        <p>13 new findings against the <em>implementation</em> — P1 (fake-PROMOTED ghosts after a failed promote), P2 (stale-hash semantics), P5 (patterns defeated by hyphen substitution). All critical and high closed.</p>
+        <p class="tests-delta">tests 52 → 78</p>
+      </div>
+    </div>
+
+    <div class="cycle">
+      <div class="marker">3<span class="tag">deltas</span></div>
+      <div class="body">
+        <h5>The cycle-2 fixes became the attack surface</h5>
+        <p>C1 (canon regression — one canonical form wasn't enough; needed a strip+space dual form), C2 (budget-tracker single-process lock insufficient when run in parallel).</p>
+        <p class="tests-delta">tests 78 → 114</p>
+      </div>
+    </div>
+
+    <div class="cycle">
+      <div class="marker">4<span class="tag">fixes</span></div>
+      <div class="body">
+        <h5>C-class fixes landed</h5>
+        <p>The TOCTOU window in <code>_build_diff</code> got closed with a frozen <code>live_snapshot</code>.</p>
+        <p class="tests-delta">tests 114 → 141</p>
+      </div>
+    </div>
+
+    <div class="cycle">
+      <div class="marker">5<span class="tag">fixes</span></div>
+      <div class="body">
+        <h5>Dual-form fallout</h5>
+        <p>D1 (dual-form canonicalization false positives), D2 (a shallow snapshot let mutation through), D3 (sibling-reservation race in the budget tracker).</p>
+        <p class="tests-delta">tests 141 → 165</p>
+      </div>
+    </div>
+
+    <div class="cycle">
+      <div class="marker">6<span class="tag">fixes</span></div>
+      <div class="body">
+        <h5>An embarrassing one</h5>
+        <p>E1 — a bare <code>except:</code> swallowed a <code>NameError</code> in the cycle-5 D4 fix, silently leaking VERIFIED candidates after every TierMismatch for the whole cycle. Lesson written in stone: <span class="takeaway">regression tests must assert the remediation <em>effect</em>, not just surface events.</span></p>
+        <p class="tests-delta">tests 165 → 186 · E8 (Pydantic frozen-dict) deferred</p>
+      </div>
+    </div>
+
+    <div class="cycle">
+      <div class="marker">7<span class="tag">fixes</span></div>
+      <div class="body">
+        <h5>Another embarrassing one</h5>
+        <p>F1 caught a <code>_wrapped</code> name-mangling escape that the cycle-6 docstring had <em>explicitly acknowledged</em> and shipped anyway. Lesson written in stone, again: <span class="takeaway">a docstring saying "known limit" must be followed by <code>#&nbsp;TODO(cycleN):&nbsp;fix</code>.</span></p>
+        <p class="tests-delta">tests 186 → 195</p>
+      </div>
+    </div>
+
+    <div class="cycle">
+      <div class="marker">8<span class="tag">pivot</span></div>
+      <div class="body">
+        <span class="pivot">architectural pivot #1</span>
+        <h5>Stop fighting subclass attacks; constrain the wrap site</h5>
+        <p>G1 was the third generation of the same <code>_wrapped</code> exposure attack (C4 → E4 → F1 → G1). Each prior cycle added another guard to <code>_BackendTracker.__init_subclass__</code>; each got bypassed by the next escape — literal name, mangled name, post-hoc setattr, metaclass. Cycle 8 dropped the subclass guard and added a wrap-site <code>type(self.backend) is _BackendTracker</code> check at <code>Daemon.__init__</code>.</p>
+        <p class="tests-delta">tests 195 → 202</p>
+      </div>
+    </div>
+
+    <div class="cycle">
+      <div class="marker">9<span class="tag">pivot</span></div>
+      <div class="body">
+        <span class="pivot">architectural pivot #2</span>
+        <h5>The chokepoint was one layer down — and a humbling rerun of pivot #1</h5>
+        <p>Twelve findings, four critical. H1 found cycle 8's wrap-site check was at the <em>wrong layer</em> — <code>Coordinator</code>, not <code>Daemon</code>, is the actual chokepoint, and three production scripts bypassed the Daemon entirely. H3 found the check ran only once in <code>__init__</code>; a later <code>setattr</code> swapped the wrapper silently. H4 found cycle-8's pre-consolidate snapshot was racy. Fixes: chokepoint relocation, property setters that re-validate on every assignment, and a <code>writer_iteration_id</code> stamp on every candidate. H2 and H11 honestly deferred — in-process pure-Python guards have a ceiling.</p>
+        <p class="tests-delta">tests 202 → 213</p>
+      </div>
+    </div>
+  </section>
+
+  <section id="patterns">
+    <h3 class="section-title">Two patterns that kept reappearing</h3>
+    <h4 class="section-h">The same two lessons, across four architectural pivots.</h4>
+    <div class="cards">
+      <div class="card">
+        <div class="label">pattern 1</div>
+        <h5>Identity beats timing</h5>
+        <p>Cycle 7 narrowed TierMismatch cleanup to "walk <code>entry.tier</code>" — but the buggy-Librarian threat model is exactly "wrote to one tier and lied about it." Cycle 8 added a pre-consolidate snapshot to identify "what this iteration introduced" by id-set difference. Cycle 9 found that has its own race window.</p>
+        <p>The fix that ended the arms race wasn't a wider snapshot — it was a <code>writer_iteration_id</code> field on the candidate itself, stamped atomically at <code>write_candidate</code> time. <span class="takeaway">Ownership belongs on the data, not in the timing.</span></p>
+      </div>
+      <div class="card">
+        <div class="label">pattern 2</div>
+        <h5>Chokepoints beat perimeters</h5>
+        <p>Cycle 4 captured the wrapped backend in a closure. Cycles 6 and 7 found subclass and name-mangling escapes; the guard kept widening. Cycle 8 dropped the subclass guard for a wrap-site type check. Cycle 9 found three scripts bypassed that wrap site entirely.</p>
+        <p>The fix moved the check into <code>Coordinator.__init__</code> — the real chokepoint every LLM call passes through — with property setters that re-validate on assignment. <span class="takeaway">Constrain the finite chokepoint; don't perimeter-fence an infinite surface.</span></p>
+      </div>
+    </div>
+  </section>
+
+  <section id="deferrals">
+    <h3 class="section-title">Two honest deferrals from cycle 9</h3>
+    <h4 class="section-h">Where in-process guards hit their ceiling.</h4>
+    <div class="cards">
+      <div class="card deferral">
+        <div class="label">deferred → Phase 1</div>
+        <h5>H2 · closure-cell mutation</h5>
+        <p><code>fn.__closure__[i].cell_contents = EvilBackend()</code> swaps the wrapped backend while <code>type(self.backend) is _BackendTracker</code> still passes — reproduced live with 100 unmetered calls in the cycle-9 critique.</p>
+        <p>In pure Python, any in-process attacker with code-execution rights defeats any in-process guard. The wrapped-backend invariant is for <em>honest code paths that forget to wrap</em> (cycle 9 found three). For adversarial in-process attackers the answer is process-level isolation — not an in-process guard.</p>
+      </div>
+      <div class="card deferral">
+        <div class="label">deferred → Phase 1</div>
+        <h5>H11 · POSIX unlink-during-lock race</h5>
+        <p>A POSIX-only race where deleting the lock file mid-lock could let a second opener acquire a parallel lock. Not reproducible on Windows — the OS blocks the unlink.</p>
+        <p>Deferred to Phase-1 Linux verification with an <code>xfail</code>-shaped test marker, so the gap is tracked in the suite rather than forgotten.</p>
+      </div>
+    </div>
+  </section>
+
+  <section id="closing">
+    <h3 class="section-title">Reading the trail · what it doesn't claim</h3>
+    <h4 class="section-h">How to follow it, and where it stops.</h4>
+    <ul class="closing">
+      <li><b>How to read it.</b> Each cycle's critique is under <code>brain/critiques/</code> with reproducible attacks; each cycle's shipped state is under <code>brain/snapshots/</code>. Cold-start entry point: open <code>brain/BRAIN.html</code> — the catalog, with clickable links to every cycle, plan, critique, snapshot, and source file.</li>
+      <li><b>Not a proof of safety.</b> 99 findings closed and a regression test per finding are <em>evidence</em> of careful engineering — not <em>certification</em> of safe behavior under adversarial conditions. The H2 / H11 deferrals are explicit about exactly that.</li>
+      <li><b>The LLM backend is mock by default.</b> Real Anthropic calls are gated behind <code>--backend anthropic</code>, an <code>ANTHROPIC_API_KEY</code>, cost ceilings, and WAL-backed budget metering.</li>
+      <li><b>"Self-improving" in Phase 0</b> means the infrastructure for self-improvement is working and tested. Real learning happens via <code>scripts/burst.py</code> on demand against the real backend.</li>
+    </ul>
+  </section>
+
+  <footer>
+    <span>CSIS · Phase-0 · MIT-licensed · <a href="https://github.com/jim4226/CSIS">github.com/jim4226/CSIS</a></span>
+    <span><a href="index.html">Home</a> · <a href="architecture.html">Architecture</a> · <a href="https://github.com/jim4226/CSIS/blob/main/CYCLES.md">CYCLES.md</a> · <a href="https://github.com/jim4226/CSIS/tree/main/brain/critiques">Critiques</a></span>
+  </footer>
+
+</div>
+
+</body>
+</html>

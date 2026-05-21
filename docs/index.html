@@ -4,9 +4,9 @@
 <meta charset="utf-8">
 <meta name="viewport" content="width=device-width, initial-scale=1">
 <title>CSIS — 9 cycles of self-critique against a self-improving agent system</title>
-<meta name="description" content="Coordinator-led multi-agent system built in public alongside 9 cycles of red-team → fix → regression-test. 244 tests, 99 findings closed, 0 open.">
+<meta name="description" content="Coordinator-led multi-agent system built in public alongside 9 cycles of red-team → fix → regression-test. 246 tests passing, 99 findings, 0 open.">
 <meta property="og:title" content="CSIS — 9 cycles of self-critique against a self-improving agent system">
-<meta property="og:description" content="Coordinator-led multi-agent system built in public alongside 9 cycles of red-team → fix → regression-test. 244 tests, 99 findings closed, 0 open.">
+<meta property="og:description" content="Coordinator-led multi-agent system built in public alongside 9 cycles of red-team → fix → regression-test. 246 tests passing, 99 findings, 0 open.">
 <meta property="og:type" content="website">
 <meta property="og:url" content="https://jim4226.github.io/CSIS/">
 <meta name="twitter:card" content="summary_large_image">
@@ -602,15 +602,15 @@
 
     <div class="badges">
       <span class="badge phase">phase 0 · runnable</span>
-      <span class="badge tests">244 tests passing</span>
+      <span class="badge tests">246 tests passing</span>
       <span class="badge cycles">9 critique cycles</span>
-      <span class="badge findings">99 findings closed · 0 open</span>
+      <span class="badge findings">99 findings · 0 open</span>
       <span class="badge license">MIT</span>
     </div>
 
     <div class="ctas">
       <a class="cta primary" href="https://github.com/jim4226/CSIS">View on GitHub →</a>
-      <a class="cta secondary" href="https://github.com/jim4226/CSIS/blob/main/CYCLES.md">Read the cycle trail</a>
+      <a class="cta secondary" href="cycles.html">Read the cycle trail →</a>
       <a class="cta primary" href="architecture.html">Architecture in 6 diagrams →</a>
       <a class="cta secondary" href="dashboard-demo.html">Live dashboard demo →</a>
       <a class="cta secondary" href="playground.html">Tripwire playground →</a>
@@ -767,9 +767,9 @@
   </section>
 
   <section id="distributional">
-    <h3 class="section-title">Cycle 10 — distributional graders</h3>
+    <h3 class="section-title">Beyond the nine cycles — distributional graders</h3>
     <h4 class="section-h">Outcomes-based eval where the answer is a number with uncertainty.</h4>
-    <p class="section-intro">Rubric eval (HealthBench-style, LLM-Rubric, CSIS V1) collapses every grader to <code class="inline">passed: bool</code>. That fits PR maintenance, lint pipelines, and CI gates. It does <em>not</em> fit medical image segmentation, orthopedic reconstruction, calibration, or any domain whose acceptance criterion is a continuous metric over a sample distribution. Cycle 10 ships the missing layer.</p>
+    <p class="section-intro">Rubric eval (HealthBench-style, LLM-Rubric, CSIS V1) collapses every grader to <code class="inline">passed: bool</code>. That fits PR maintenance, lint pipelines, and CI gates. It does <em>not</em> fit medical image segmentation, orthopedic reconstruction, calibration, or any domain whose acceptance criterion is a continuous metric over a sample distribution. CSIS ships the missing layer.</p>
 
     <div class="patterns" style="margin-bottom: 18px;">
       <div class="pattern">
@@ -815,7 +815,7 @@ result = grader.evaluate([
 <span class="cmd">cd</span> CSIS
 <span class="cmd">pip install</span> pydantic pytest
 
-<span class="comment"># Run the test suite (244 passing)</span>
+<span class="comment"># Run the test suite (246 passing, 4 skipped)</span>
 <span class="cmd">python -m pytest</span> tests/ -v
 
 <span class="comment"># One full 8-step iteration end-to-end, mock backend</span>
@@ -855,7 +855,7 @@ result = grader.evaluate([
     <h3 class="section-title">What this is NOT a claim about</h3>
     <h4 class="section-h">Where the system genuinely doesn't deliver yet.</h4>
     <ul style="color: var(--ink-dim); line-height: 1.7; max-width: 760px;">
-      <li><b>Not a proof of safety.</b> 244 tests + 99 findings closed are evidence of careful engineering, not certification of safe behavior under adversarial conditions. Cycle 9 H2/H11 deferrals are explicit about this.</li>
+      <li><b>Not a proof of safety.</b> 246 tests and 99 findings (96 closed, 3 deferred) are evidence of careful engineering, not certification of safe behavior under adversarial conditions. Cycle 9 H2/H11 deferrals are explicit about this.</li>
       <li><b>The LLM backend is mock by default.</b> Real Anthropic calls are gated behind <code class="inline">--backend anthropic</code> + an <code class="inline">ANTHROPIC_API_KEY</code> + cost ceilings + WAL-backed budget metering. No agent is currently improving itself at production scale on this codebase.</li>
       <li><b>"Self-improving" in Phase 0 means the infrastructure for self-improvement is working and tested.</b> Real learning happens via <code class="inline">scripts/burst.py</code> on demand. The longer-arc framing is in <a class="inline" href="https://github.com/jim4226/CSIS/blob/main/CSIS-architecture.html">CSIS-architecture.html</a> Appendix A.</li>
     </ul>
@@ -912,7 +912,7 @@ const CYCLES = {
       ["C4", "Wrapped-backend exposure via `_wrapped` attribute — early form of an attack class that recurred in cycles 6, 7, 8, and 9 before the architectural pivot."],
       ["C7", "Build-diff TOCTOU — diff was computed against a possibly-mutated snapshot, allowing a window where the live state changed mid-diff."],
     ],
-    critique: "https://github.com/jim4226/CSIS/blob/main/brain/critiques/04-cycle4-redteam.md",
+    critique: "https://github.com/jim4226/CSIS/blob/main/brain/critiques/03-cycle3-redteam.md",
     snapshot: "https://github.com/jim4226/CSIS/blob/main/brain/snapshots/06-cycle4-shipped.md",
   },
   5: {
@@ -923,7 +923,7 @@ const CYCLES = {
       ["D2", "Shallow snapshot allowed mutation — the live_snapshot was returning references rather than deep copies, so a concurrent writer could mutate the snapshot."],
       ["D3", "Sibling reservation race in budget — two daemons could each reserve 60% of the cap and both overshoot if reservations weren't persisted."],
     ],
-    critique: "https://github.com/jim4226/CSIS/blob/main/brain/critiques/05-cycle5-redteam.md",
+    critique: "https://github.com/jim4226/CSIS/blob/main/brain/critiques/04-cycle4-redteam.md",
     snapshot: "https://github.com/jim4226/CSIS/blob/main/brain/snapshots/07-cycle5-shipped.md",
   },
   6: {
@@ -934,7 +934,7 @@ const CYCLES = {
       ["E2", "Noun-suffix lookahead in patterns trivially bypassed by attackers appending 'configuration'/'mode'/'hook'/etc."],
       ["E3", "Multi-call same-pid daemons mis-cancelled reservations because they were matched by pid, not by per-call token."],
     ],
-    critique: "https://github.com/jim4226/CSIS/blob/main/brain/critiques/06-cycle6-redteam.md",
+    critique: "https://github.com/jim4226/CSIS/blob/main/brain/critiques/05-cycle5-redteam.md",
     snapshot: "https://github.com/jim4226/CSIS/blob/main/brain/snapshots/08-cycle6-shipped.md",
   },
   7: {

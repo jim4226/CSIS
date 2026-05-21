@@ -620,33 +620,3 @@
 </div>
 </body>
 </html>
-rt = <span class="kw">await</span> coord.delegate(verifier_alt_ckpt,
-        <span class="str">f"Verify against: </span>{artifacts}<span class="str">"</span>,
-        tools=[run_grader, falsify])
-    <span class="kw">if not</span> cert.passes:
-        rollback(plan); <span class="kw">return</span>
-
-    <span class="com"># 6. Librarian writes verified deltas to CANDIDATE stores (not live)</span>
-    deltas = <span class="kw">await</span> coord.delegate(librarian,
-        <span class="str">f"Consolidate to candidate stores: </span>{artifacts}, {cert}<span class="str">"</span>)
-
-    <span class="com"># 7-8. Auditor (different checkpoint) writes why-doc with hash precondition</span>
-    why = <span class="kw">await</span> coord.delegate(auditor_alt_ckpt,
-        <span class="str">f"Write why-doc with diff: </span>{plan}, {artifacts}, {cert}, {deltas}<span class="str">"</span>)
-    <span class="kw">if not</span> auditor_signs(why, hash_precondition=live_store_hash()):
-        rollback(plan); page_overseer(why); <span class="kw">return</span>
-
-    promote(deltas)                                   <span class="com"># atomic candidate→live rotation</span>
-    coord.session_log.emit_event((plan, artifacts, cert, deltas, why))
-    interp.scan(coord.recent_threads())                <span class="com"># SAE features as candidate tripwire</span>
-    <span class="kw">if</span> tripwires.fired(): coord.halt_and_escalate()
-</code></pre>
-</section>
-
-<div class="footer">
-  CSIS · v0.2 · Phase-0 contract draft · Prepared for Anthropic technical review
-</div>
-
-</div>
-</body>
-</html>

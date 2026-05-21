@@ -6,7 +6,7 @@
   <img alt="phase" src="https://img.shields.io/badge/phase-0%20%E2%80%94%20runnable-d97757">
   <img alt="tests" src="https://img.shields.io/badge/tests-246%20passing-788c5d">
   <img alt="cycles" src="https://img.shields.io/badge/critique%E2%86%92fix%20cycles-9-6a9bcc">
-  <img alt="findings" src="https://img.shields.io/badge/findings-99%20closed%20%C2%B7%200%20open-788c5d">
+  <img alt="findings" src="https://img.shields.io/badge/findings-99%20%C2%B7%200%20open-788c5d">
   <img alt="python" src="https://img.shields.io/badge/python-3.10%2B-6a9bcc">
   <img alt="license" src="https://img.shields.io/badge/license-MIT-c89b3c">
 </p>
@@ -57,7 +57,7 @@ flowchart LR
 - Constitution + tripwires + shutdown token + tier guard, all enforced as code
 - 24/7 daemon: curiosity-driven frontier-item generation, budget caps, watchdog, stop file, auto-snapshots
 - 3 domain adapters: PR maintenance (any git repo), self-improvement (this repo), Lean formal math (graceful fallback if Lean isn't installed)
-- 246 tests; every cycle's findings have regression tests, plus the distributional grader stack added in cycle 10 (Dice / IoU / landmark-error / ASSD with bootstrap CIs + per-slice breakdown)
+- 246 tests passing (4 skipped); every cycle's findings have regression tests, plus the distributional grader stack added after the nine cycles (Dice / IoU / landmark-error / ASSD with bootstrap CIs + per-slice breakdown)
 
 ## Evals as a first-class primitive
 
@@ -168,7 +168,7 @@ The dashboard reads from on-disk artifacts only (event log, budget JSONs, memory
 
 ## Architecture
 
-> **Full visual walkthrough** lives at **[https://jim4226.github.io/CSIS/architecture.html](https://jim4226.github.io/CSIS/architecture.html)** — that's the canonical architecture document. It opens with an explicit **threat model** (adversary capability × invariant × layer that catches it), walks through **six diagrams** — an interactive 3D 8-layer stack with click-to-expand layer details, plus the 6-level trust lattice, 5-tier memory hierarchy, V1+V2 cross-checkpoint verification, hash-CAS promotion, and sleep/dreams consolidation — each with a "what fails without this" annotation, and closes with an **observability table** showing how every invariant is actually measured in production. The renders + design rationale below are summary-level so you can read the README on GitHub and still get the shape.
+> **Full visual walkthrough** lives at **[https://jim4226.github.io/CSIS/architecture.html](https://jim4226.github.io/CSIS/architecture.html)** — that's the canonical architecture document. It opens with an explicit **threat model** (adversary capability × invariant × layer that catches it), walks through **six diagrams** — an interactive 3D 8-layer stack with click-to-expand layer details, the 6-level trust lattice and 5-tier memory hierarchy as 3D renders, and V1+V2 cross-checkpoint verification, hash-CAS promotion, and sleep/dreams consolidation as flow diagrams — each with a "what fails without this" annotation, and closes with an **observability table** showing how every invariant is actually measured in production. The renders + design rationale below are summary-level so you can read the README on GitHub and still get the shape.
 
 ### The 8-layer stack
 
@@ -210,9 +210,9 @@ Full per-role tier matrix, cross-checkpoint requirements, and design rationale p
 Every interesting state of the build is snapshotted under [`brain/`](brain/). This folder is durable working memory that lets any future contributor (or a future Claude session) pick up cold.
 
 - [`brain/BRAIN.html`](brain/BRAIN.html) — top-level index, open in a browser
-- [`brain/snapshots/`](brain/snapshots/) — 12 point-in-time state files (00-initial → 12-chain-integrity-fix)
+- [`brain/snapshots/`](brain/snapshots/) — 13 point-in-time state files (00-initial → 12-chain-integrity-fix)
 - [`brain/plans/`](brain/plans/) — architecture + verification blueprints from planning sub-agents
-- [`brain/critiques/`](brain/critiques/) — 9 cycles of pre-impl and post-impl red-team reports
+- [`brain/critiques/`](brain/critiques/) — the red-team critique reports: pre-impl, post-impl, and one per cycle
 - [`brain/research/`](brain/research/) — Anthropic SDK research with current API signatures
 - [`brain/synthesis/01-validation.md`](brain/synthesis/01-validation.md) — cross-cutting validation that the implementation is coherent
 
@@ -246,13 +246,13 @@ To resume cold: read `brain/BRAIN.html`, then the highest-numbered snapshot, the
 
 ## How this was built
 
-Nine cycles, all LLM-driven, all documented under [`brain/critiques/`](brain/critiques/) and [`brain/snapshots/`](brain/snapshots/). Cycle-by-cycle breakdown in **[CYCLES.md](CYCLES.md)**.
+Nine cycles, all LLM-driven — red-team reports under [`brain/critiques/`](brain/critiques/), shipped-state snapshots under [`brain/snapshots/`](brain/snapshots/). Cycle-by-cycle breakdown in **[CYCLES.md](CYCLES.md)** — or the visual walkthrough at **[cycles.html](https://jim4226.github.io/CSIS/cycles.html)**.
 
 The pattern that emerged: each cycle, parallel red-team agents attack the prior cycle's fixes; findings are triaged into a critique doc with reproducible attacks and `file:line` evidence; fixes land in code with regression tests; results are snapshotted. Cycles 4-9 each found that the previous cycle's pivot was at the right concept but the wrong abstraction layer, and the next cycle moved it.
 
 ## Status
 
-Phase 0. Runnable end-to-end on mock or real Anthropic backend. Architecture-document, critique trail, and 244 tests are the proof that's the right framing for "Phase-0 is done."
+Phase 0. Runnable end-to-end on mock or real Anthropic backend. Architecture-document, critique trail, and 246 passing tests are the proof that's the right framing for "Phase-0 is done."
 
 The system runs 24/7 in mock mode as a structural watchdog. Real-backend learning happens via `scripts/burst.py` on demand. Both paths are documented in [RUN.md](RUN.md).
 

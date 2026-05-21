@@ -937,9 +937,9 @@
   <h1>The <span class="accent">architecture</span><br/>in six diagrams.</h1>
   <h2>CSIS is a coordinator-led multi-agent system designed for one purpose: lay down the safety substrate that lets an agent organism improve itself <em>continuously</em> without auto-promoting bad updates. Six structural commitments make that possible — each diagram below is one of them.</h2>
   <div class="meta-row">
-    <span class="meta-chip"><strong>244</strong> regression tests</span>
-    <span class="meta-chip"><strong>10</strong> critique cycles</span>
-    <span class="meta-chip"><strong>99</strong> findings closed · 0 open</span>
+    <span class="meta-chip"><strong>246</strong> regression tests</span>
+    <span class="meta-chip"><strong>9</strong> critique cycles</span>
+    <span class="meta-chip"><strong>99</strong> findings · 0 open</span>
     <span class="meta-chip"><strong>MIT</strong> licensed</span>
   </div>
 </header>
@@ -955,7 +955,7 @@
     <li><a href="#promotion">Hash-preconditioned CAS promotion</a></li>
     <li><a href="#dreams">Sleep / Dreams consolidation</a></li>
     <li><a href="#observability">How you know it's working — observability</a></li>
-    <li><a href="#patterns">Two patterns from 10 cycles</a></li>
+    <li><a href="#patterns">Two patterns from 9 cycles</a></li>
   </ol>
 </div>
 
@@ -1000,13 +1000,13 @@
       <tr>
         <td class="adv">Race: sibling iteration mutates store between sign and promote</td>
         <td class="invariant">Promotion is atomic vs. exact store state at sign time.</td>
-        <td class="layer">L3 · hash-CAS <code>store.promote(hash_precondition=...)</code></td>
+        <td class="layer">L2 · hash-CAS <code>store.promote(hash_precondition=...)</code></td>
         <td class="observed">Hash-CAS failure rate</td>
       </tr>
       <tr>
         <td class="adv">Bad write becomes truth on next read; poisoning compounds</td>
         <td class="invariant">Candidate writes never appear in live reads; only path is signed promotion.</td>
-        <td class="layer">L3 · candidate/live split · <code>writer_iteration_id</code> stamp (H4)</td>
+        <td class="layer">L2 · candidate/live split · <code>writer_iteration_id</code> stamp (H4)</td>
         <td class="observed">Distributional cert per-slice CI · regression tests</td>
       </tr>
       <tr>
@@ -1047,7 +1047,7 @@
       <div class="label">why explicit</div>
       <h5>Spelling out the adversary is the spine of every other section</h5>
       <p>The invariants below aren't decorative — each one is the answer to a specific row in the table above. Without the threat model, a reader has to reverse-engineer the design from inference. With it, every later diagram becomes "oh, this is how we catch row N."</p>
-      <p>The list isn't exhaustive (no list of attacks ever is). It's the set of attack classes that fell out of 10 cycles of red-team → fix → regression-test. New rows get added when a critique cycle finds something not on the list.</p>
+      <p>The list isn't exhaustive (no list of attacks ever is). It's the set of attack classes that fell out of nine cycles of red-team → fix → regression-test. New rows get added when a critique cycle finds something not on the list.</p>
     </div>
     <div class="rationale-card">
       <div class="label">what we don't claim</div>
@@ -1069,7 +1069,7 @@
   </div>
 
   <!-- 3D stack: interactive Three.js scene -->
-  <div class="three-stack" id="three-stack" role="img" aria-label="Interactive 3D scene of the 8-layer CSIS stack. Eight floating colored slabs stacked vertically in a perspective view. From bottom: L0 substrate (gold) — capability tags and event log foundation. L1 agent runtime (orange) — Coordinator + 6 specialised roles. L2 memory hierarchy (orange) — 5 tiers candidate/live. L3 promotion (orange) — hash-CAS atomic flips. L4 verification (blue) — V1+V2 on a structurally different LLM checkpoint. L5 improvement (orange) — Dreams pipeline output goes here. L6 meta-improvement (translucent gold, dashed) — deferred to Phase 1. L7 safety envelope (green) — Constitution, TierGuard, tripwires, enforced AT THE SUBSTRATE. The scene auto-rotates slowly; drag to orbit, scroll to zoom, click any layer to expand its component list in the panel below the 2D diagram.">
+  <div class="three-stack" id="three-stack" role="img" aria-label="Interactive 3D scene of the 8-layer CSIS stack. Eight floating colored slabs stacked vertically in a perspective view. From bottom: L0 substrate (gold) — capability tags and event log foundation. L1 agent runtime (orange) — Coordinator + 6 specialised roles. L2 memory hierarchy (orange) — 5 tiers candidate/live. L3 curiosity (orange) — frontier-item generator. L4 verification (blue) — V1+V2 on a structurally different LLM checkpoint. L5 improvement (orange) — Dreams pipeline output goes here. L6 meta-improvement (translucent gold, dashed) — deferred to Phase 1. L7 safety envelope (green) — Constitution, TierGuard, tripwires, enforced AT THE SUBSTRATE. The scene auto-rotates slowly; drag to orbit, scroll to zoom, click any layer to expand its component list in the panel below the 2D diagram.">
     <div class="three-stack-overlay">
       <strong>Drag</strong> to orbit · <strong>Scroll</strong> to zoom · <strong>Click</strong> a layer to expand
     </div>
@@ -1084,7 +1084,7 @@
       <li><strong>L0 · Substrate</strong> — gold slab — <code>EventLog</code> (hash-chained), <code>CapabilityTag</code>, <code>canonical_json_hash</code>, <code>TierGuard</code>. The only layer everyone trusts unconditionally.</li>
       <li><strong>L1 · Agent runtime</strong> — orange slab — <code>Coordinator</code> drives the 8-step loop; delegates to Researcher, Builder, Verifier, Critic, Librarian, Auditor; delegation depth = 1.</li>
       <li><strong>L2 · Memory hierarchy</strong> — orange slab — <code>MemoryStore</code> per tier (candidate ↔ live), <code>MemoryHierarchy</code> wraps 5 tiers, <code>TrustLevel</code> IntEnum, <code>writer_iteration_id</code> stamp.</li>
-      <li><strong>L3 · Promotion</strong> — orange slab — hash-preconditioned <code>store.promote()</code>; atomic candidate→live flip; <code>PromotionPreconditionFailure</code> on stale hash.</li>
+      <li><strong>L3 · Curiosity &amp; frontier</strong> — orange slab — the frontier-item generator; proposes the next falsifiable goal each iteration works on.</li>
       <li><strong>L4 · Verification</strong> — blue slab (different checkpoint) — V1 pinned graders + V2 Critic on Sonnet-class verifying Opus-class builder; <code>assert_cross_checkpoint()</code> at cert build site.</li>
       <li><strong>L5 · Improvement</strong> — orange slab — Dreams pipeline (offline; replay → consolidate → score); output is candidate entries, never auto-promotes.</li>
       <li><strong>L6 · Meta-improvement</strong> — translucent dashed gold — deferred to Phase 1. Substrate-shape preserved.</li>
@@ -1689,7 +1689,7 @@
       <div class="label">why V1 + V2</div>
       <h5>Programmatic checks AND adversarial attempts</h5>
       <p>V1 graders are pinned (source-hashed at task start; rejected if they drift mid-task) and run programmatically — tests pass, lint clean, Dice ≥ 0.85 with CI lower bound clearing the bar. Reproducible.</p>
-      <p>V2 is the Critic — explicitly trying to falsify. For distributional outcomes (cycle 10), the Critic attacks the <em>worst slice</em> (lowest-Dice organ, highest-error landmark) rather than the artifact globally. Targeted falsification budget.</p>
+      <p>V2 is the Critic — explicitly trying to falsify. For distributional outcomes, the Critic attacks the <em>worst slice</em> (lowest-Dice organ, highest-error landmark) rather than the artifact globally. Targeted falsification budget.</p>
     </div>
   </div>
 </section>
@@ -2107,13 +2107,13 @@
       </tr>
       <tr>
         <td class="adv">Regression test count + pass rate</td>
-        <td class="invariant">244 tests gate every commit. A regression means a critique-cycle finding got re-broken; the test that originally caught it now fails.</td>
+        <td class="invariant">246 tests gate every commit. A regression means a critique-cycle finding got re-broken; the test that originally caught it now fails.</td>
         <td class="layer"><code>python -m pytest tests/ -q</code> · CI</td>
         <td class="observed">Subclass attack · grader drift · cycle-9 H1+H4 fixes</td>
       </tr>
       <tr>
         <td class="adv">Cycle audit trail</td>
-        <td class="invariant">Every finding (99 across 10 cycles), every fix, every regression test. New findings get filed under <code>brain/critiques/</code>; closed ones get a row in <code>CYCLES.md</code>.</td>
+        <td class="invariant">Every finding (99 across nine cycles), every fix, every regression test. New findings get filed under <code>brain/critiques/</code>; closed ones get a row in <code>CYCLES.md</code>.</td>
         <td class="layer"><a class="inline" href="https://github.com/jim4226/CSIS/blob/main/CYCLES.md">CYCLES.md</a> · <code>brain/critiques/</code></td>
         <td class="observed">New attack classes not yet in §0</td>
       </tr>
@@ -2145,9 +2145,9 @@
 <!-- ============================================================ -->
 <section id="patterns">
   <div class="section-head">
-    <h3 class="section-label"><span class="num">8</span> what 10 cycles taught us</h3>
+    <h3 class="section-label"><span class="num">8</span> what nine cycles taught us</h3>
     <h4 class="section-h">Two patterns that fell out of running this against itself.</h4>
-    <p class="section-intro">After 10 cycles of red-team → fix → regression-test (full trail in <a class="inline" href="https://github.com/jim4226/CSIS/blob/main/CYCLES.md">CYCLES.md</a>), two structural patterns kept reappearing across four architectural pivots. They generalize past CSIS to most agent-system design.</p>
+    <p class="section-intro">After nine cycles of red-team → fix → regression-test (full trail in <a class="inline" href="https://jim4226.github.io/CSIS/cycles.html">cycles.html</a>), two structural patterns kept reappearing across four architectural pivots. They generalize past CSIS to most agent-system design.</p>
   </div>
 
   <div class="rationale">
@@ -2156,7 +2156,7 @@
       <h5>Identity beats timing</h5>
       <p>Cycle 8 detected "which iteration wrote this candidate?" via a pre-consolidate snapshot diff — infer ownership from timing. Cycle 9 found the race window.</p>
       <p>The fix wasn't a tighter snapshot. It was a <code>writer_iteration_id</code> field on the candidate itself, stamped atomically at <code>write_candidate</code> time. <strong>Ownership belongs on the data, not in the timing.</strong></p>
-      <p>The same lesson applies in cycle 10: distributional cert evidence (CI bounds, sample size, slice breakdown) belongs <em>on the cert</em>, not inferred at read time from a <code>passed: bool</code>. Bind the truth to the artifact.</p>
+      <p>The same lesson applies to the distributional graders: cert evidence (CI bounds, sample size, slice breakdown) belongs <em>on the cert</em>, not inferred at read time from a <code>passed: bool</code>. Bind the truth to the artifact.</p>
     </div>
     <div class="rationale-card">
       <div class="label">pattern 2 · cycle 4 → 9</div>
@@ -2174,7 +2174,7 @@
 <section>
   <div class="closer">
     <h4>From architecture to artifact</h4>
-    <p>Everything above is implemented and gated by 244 regression tests. The full cycle trail is at <a class="inline" href="https://github.com/jim4226/CSIS/blob/main/CYCLES.md">CYCLES.md</a>. The cycle-10 distributional graders are at <a class="inline" href="https://github.com/jim4226/CSIS/blob/main/brain/research/02-distributional-graders.md">brain/research/02-distributional-graders.md</a>. The live dashboard renders all of this against a running daemon — <a class="inline" href="dashboard-demo.html">simulated demo here</a>, real one at <code class="inline">python -m csis.ui</code>.</p>
+    <p>Everything above is implemented and gated by 246 regression tests. The full cycle trail is at <a class="inline" href="https://github.com/jim4226/CSIS/blob/main/CYCLES.md">CYCLES.md</a>. The cycle-10 distributional graders are at <a class="inline" href="https://github.com/jim4226/CSIS/blob/main/brain/research/02-distributional-graders.md">brain/research/02-distributional-graders.md</a>. The live dashboard renders all of this against a running daemon — <a class="inline" href="dashboard-demo.html">simulated demo here</a>, real one at <code class="inline">python -m csis.ui</code>.</p>
     <p>The original v0.2 spec this implementation derives from: <a class="inline" href="https://github.com/jim4226/CSIS/blob/main/CSIS-architecture.html">CSIS-architecture.html</a>.</p>
   </div>
 </section>
@@ -2261,7 +2261,7 @@ const LAYER_DETAILS = {
     components: [
       ["GraderRegistry", "source-hash-pinned at task start · cert build fails if any grader drifts"],
       ["V1 rubric graders", "tests_pass · lint · typecheck · coverage_delta · diff_scope · perf_regression"],
-      ["V1 distributional graders (cycle 10)", "DiceGrader · IoUGrader · LandmarkErrorGrader · AssdGrader · bootstrap percentile CI · per-slice breakdown"],
+      ["V1 distributional graders", "DiceGrader · IoUGrader · LandmarkErrorGrader · AssdGrader · bootstrap percentile CI · per-slice breakdown"],
       ["V2 Critic stack", "min_critic_attempts · seeded flaw evaluator · targets worst slice for distributional certs"],
       ["VerifierCertificate", "carries both grader_results and distributional_results · refuses to sign if builder_ckpt == verifier_ckpt"],
       ["assert_cross_checkpoint", "≥2 distinct identity components (model_id / backend / tool_set)"],
@@ -2378,7 +2378,7 @@ else {
     { id: 'L0', name: 'Substrate',         hex: 0xc89b3c, edge: 0x8a6e1c, y: 0.00, dashed: false },
     { id: 'L1', name: 'Agent runtime',     hex: 0xe89977, edge: 0xb85e3f, y: 0.85, dashed: false },
     { id: 'L2', name: 'Memory hierarchy',  hex: 0xe89977, edge: 0xb85e3f, y: 1.70, dashed: false },
-    { id: 'L3', name: 'Promotion',         hex: 0xe89977, edge: 0xb85e3f, y: 2.55, dashed: false },
+    { id: 'L3', name: 'Curiosity & frontier', hex: 0xe89977, edge: 0xb85e3f, y: 2.55, dashed: false },
     { id: 'L4', name: 'Verification',      hex: 0x6a9bcc, edge: 0x1a3a5e, y: 3.40, dashed: false },
     { id: 'L5', name: 'Improvement',       hex: 0xe89977, edge: 0xb85e3f, y: 4.25, dashed: false },
     { id: 'L6', name: 'Meta (deferred)',   hex: 0xd6c995, edge: 0x8a7a52, y: 5.10, dashed: true  },

@@ -143,7 +143,6 @@
   <tr><td><a href="../CSIS-memo.docx">CSIS-memo.docx</a></td><td>8-page memo</td></tr>
   <tr><td><a href="../CSIS-whitepaper.docx">CSIS-whitepaper.docx</a></td><td>Long-form formal version</td></tr>
   <tr><td><a href="../CSIS-deck.pptx">CSIS-deck.pptx</a></td><td>19-slide deck</td></tr>
-  <tr><td><a href="../Email-to-Anthropic.md">Email-to-Anthropic.md</a></td><td>Cover-email drafts</td></tr>
 </table>
 
 <h2>Snapshots (chronological)</h2>
@@ -161,6 +160,7 @@
   <tr><td>09</td><td><a href="snapshots/09-cycle7-shipped.md">snapshots/09-cycle7-shipped.md</a></td><td>All 7 cycle-7 findings closed; 195/195 tests; cycle-8 dispatched; diminishing-returns reflection</td></tr>
   <tr><td>10</td><td><a href="snapshots/10-cycle8-shipped.md">snapshots/10-cycle8-shipped.md</a></td><td>All 6 cycle-8 findings closed (G1 architectural pivot on <code>_wrapped</code>, G2 pre-consolidate snapshot); 202/202 tests; pause/pivot decision point</td></tr>
   <tr><td>11</td><td><a href="snapshots/11-cycle9-shipped.md">snapshots/11-cycle9-shipped.md</a></td><td>All 12 cycle-9 findings closed (H1 chokepoint relocation to Coordinator, H4 writer-id tagging, H3 setter re-validation, H5 budget WAL); 213/213 tests; H2 + H11 deferred to Phase-1 process isolation</td></tr>
+  <tr><td>12</td><td><a href="snapshots/12-chain-integrity-fix.md">snapshots/12-chain-integrity-fix.md</a></td><td>Cross-process event-log chain-integrity fix — inter-process file lock on <code>EventLog.emit()</code> so parallel daemons can't tear the seq chain</td></tr>
 </table>
 
 <h2>Plans</h2>
@@ -177,7 +177,7 @@
   <tr><td><a href="critiques/02-post-impl-redteam.md">critiques/02-post-impl-redteam.md</a></td><td>Post-impl (cycle 2)</td><td>13 findings · 2 critical (P1 pre-bump ghosts, P2 stale hash semantics) · all addressed</td></tr>
   <tr><td><a href="critiques/03-cycle3-redteam.md">critiques/03-cycle3-redteam.md</a></td><td>Cycle 3 deltas</td><td>11 findings · 2 critical (C1 canon regression, C2 budget no-lock) · all addressed</td></tr>
   <tr><td><a href="critiques/04-cycle4-redteam.md">critiques/04-cycle4-redteam.md</a></td><td>Cycle 4 fixes</td><td>11 findings · 3 critical (D1 dual-form FPs, D2 shallow snapshot, D3 sibling reservation) · all addressed</td></tr>
-  <tr><td><a href="critiques/05-cycle5-redteam.md">critiques/05-cycle5-redteam.md</a></td><td>Cycle 5 fixes</td><td>11 findings · 3 critical (D1 dual-form FPs, D2 shallow snapshot, D3 sibling reservation) · all addressed</td></tr>
+  <tr><td><a href="critiques/05-cycle5-redteam.md">critiques/05-cycle5-redteam.md</a></td><td>Cycle 5 fixes</td><td>10 findings · 3 critical (E1 bare-except dead-code leak, E2 noun-suffix bypass, E3 same-pid reservation race) · 9 closed, E8 deferred</td></tr>
   <tr><td><a href="critiques/06-cycle6-redteam.md">critiques/06-cycle6-redteam.md</a></td><td>Cycle 6 fixes</td><td>7 findings · 1 critical (F1 acknowledged-but-shipped mangling escape) · all addressed</td></tr>
   <tr><td><a href="critiques/07-cycle7-redteam.md">critiques/07-cycle7-redteam.md</a></td><td>Cycle 7 fixes</td><td>6 findings · 2 critical (G1 3rd-gen <code>_wrapped</code> bypass, G3 cap/no-cap tracker race) · all addressed via architectural pivot</td></tr>
   <tr><td><a href="critiques/08-cycle8-redteam.md">critiques/08-cycle8-redteam.md</a></td><td>Cycle 8 fixes (3-agent synthesis)</td><td>12 findings · 4 critical (H1 chokepoint at Daemon-not-Coordinator, H2 closure-cell mutation, H3 post-init setattr, H4 sibling-write race) · 10 addressed, 2 deferred (H2 + H11 require process-level isolation)</td></tr>
@@ -200,7 +200,7 @@
   <tr><td><code>../csis/dreams/</code></td><td>Mock Dream pipeline with per-tier cadence (F10) + partial-output redaction (F4).</td></tr>
   <tr><td><code>../csis/substrate/event_log.py</code></td><td>Append-only JSONL with SHA-256 chain.</td></tr>
   <tr><td><code>../csis/loop.py</code></td><td>Runnable demo entry point.</td></tr>
-  <tr><td><code>../tests/</code></td><td>52 tests, one per major invariant + integration.</td></tr>
+  <tr><td><code>../tests/</code></td><td>246 passing tests, one per major invariant + integration.</td></tr>
 </table>
 
 <h2>How to resume cold</h2>
@@ -214,7 +214,7 @@
 </ol>
 
 <div class="footer">
-  CSIS · BRAIN index · last refreshed at cycle 1 boundary · 2026-05-16
+  CSIS · BRAIN index · last refreshed after cycle 9 + chain-integrity fix · 2026-05-21
 </div>
 
 </body>
