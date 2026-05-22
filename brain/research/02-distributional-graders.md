@@ -28,7 +28,7 @@ CSIS's existing graders are all rubric-shaped: `tests_pass_grader`, `lint_grader
 
 ### 1.2 What rubric eval cannot do
 
-Now consider Jaron's actual day job at **Bone Vision**: 2D X-ray → 3D bone reconstruction at sub-mm precision via custom transformers. The "is this model good?" question has answers like:
+Now consider a real deployment target — **Bone Vision**, orthopedic reconstruction: 2D X-ray → 3D bone reconstruction at sub-mm precision via custom transformers. The "is this model good?" question has answers like:
 
 > Mean ASSD = 0.412 mm, 95% CI [0.398, 0.427] across N=523 cases. Per-anatomy breakdown: vertebra L3 0.31mm [0.28, 0.34]; femoral neck 0.58mm [0.54, 0.63]; pelvic inlet 0.71mm [0.65, 0.78]. Mean landmark Euclidean error 1.42mm [1.36, 1.48] with max-landmark-error > 2mm in 4.3% of cases.
 
