@@ -12,3 +12,10 @@ Status values:
 | URL | First seen | Status | Notes |
 |---|---|---|---|
 | (none) | (initial) | quiet-day-empty | Ledger initialized; first real entries land on the routine's first scheduled run. |
+| https://www.anthropic.com/research/glasswing-initial-update | 2026-05-23 | opened-PR | PR #8 — glasswing-frontier-ranking; FrontierItem.score + Curiosity.batch() |
+| https://www.anthropic.com/news/anthropic-acquires-stainless | 2026-05-23 | out-of-scope | Business acquisition; no consumable artifact for CSIS |
+| https://www.anthropic.com/news/widening-conversation-ai | 2026-05-23 | out-of-scope | Policy/governance piece |
+| https://www.anthropic.com/news/anthropic-kpmg | 2026-05-23 | out-of-scope | Enterprise partnership |
+| https://www.anthropic.com/news/pwc-expanded-partnership | 2026-05-23 | out-of-scope | Enterprise partnership |
+| https://www.anthropic.com/news/gates-foundation-partnership | 2026-05-23 | out-of-scope | Philanthropy partnership |
+| https://www.anthropic.com/research/2028-ai-leadership | 2026-05-23 | out-of-scope | Policy/futures paper |
