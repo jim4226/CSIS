@@ -51,6 +51,26 @@ def test_curiosity_record_rollback_prioritizes_followup(tmp_path: Path) -> None:
     assert "tripwire:exfil" in item.text
 
 
+def test_curiosity_batch_ranks_by_score(tmp_path: Path) -> None:
+    """batch() surfaces rollback follow-ups first (score=1.0) ahead of seeds."""
+    import random
+
+    cfg = CSISConfig.for_tests(tmp_path)
+    hierarchy = MemoryHierarchy.open(cfg.memory_root)
+    cur = Curiosity.with_rng(random.Random(99))
+    cur.record_rollback("failing item", "assertion error")
+    items = cur.batch(3, hierarchy)
+    assert len(items) == 3
+    # Rollback follow-up must appear first with the highest score.
+    assert items[0].source == "rollback-follow-up"
+    assert items[0].score == 1.0
+    # Remaining items must have a lower score.
+    assert all(i.score < 1.0 for i in items[1:])
+    # Scores must be non-increasing (sorted descending).
+    scores = [i.score for i in items]
+    assert scores == sorted(scores, reverse=True)
+
+
 # ---- daemon -------------------------------------------------------------
 
 
