@@ -56,6 +56,7 @@ class FrontierItem:
     text: str
     source: str  # "seed" | "rollback-follow-up" | "gap-driven"
     priority: int = 0
+    score: float = 0.0  # normalized 0.0-1.0 priority for ranked-batch scheduling
     salt: int | None = None  # D9: recorded on gap-driven items for replay
 
 
@@ -99,7 +100,7 @@ class Curiosity:
         """Pick the next frontier item."""
         # 1) Drain pending rollback follow-ups first; they encode learning.
         if self._rollback_followups:
-            return FrontierItem(text=self._rollback_followups.popleft(), source="rollback-follow-up", priority=5)
+            return FrontierItem(text=self._rollback_followups.popleft(), source="rollback-follow-up", priority=5, score=1.0)
 
         # 2) Gap-driven: which tier has the fewest promoted entries?
         gap_item = self._gap_driven(hierarchy)
@@ -111,9 +112,28 @@ class Curiosity:
             candidate = self.seeds[self._seed_index % len(self.seeds)]
             self._seed_index += 1
             if candidate not in self.recent:
-                return FrontierItem(text=candidate, source="seed", priority=1)
+                return FrontierItem(text=candidate, source="seed", priority=1, score=0.2)
         # All seeds in recent — pick a random one.
-        return FrontierItem(text=self._rng.choice(self.seeds), source="seed", priority=0)
+        return FrontierItem(text=self._rng.choice(self.seeds), source="seed", priority=0, score=0.0)
+
+    def batch(self, n: int, hierarchy: MemoryHierarchy) -> list[FrontierItem]:
+        """Consume *n* frontier items and return them ranked by score descending.
+
+        Inspired by Project Glasswing's threat-model-builder pattern: rather
+        than scheduling items one at a time from a fixed waterfall, surface a
+        ranked batch so the Coordinator can reason about the full candidate
+        landscape before picking which to act on.
+
+        The items are consumed from the queues (same as calling `next()` n
+        times), then re-sorted so higher-score items — rollback follow-ups
+        first, then gap-driven, then seeds — appear at the front regardless
+        of the order they emerged from the waterfall.
+        """
+        return sorted(
+            (self.next(hierarchy) for _ in range(n)),
+            key=lambda i: i.score,
+            reverse=True,
+        )
 
     def _gap_driven(self, hierarchy: MemoryHierarchy) -> FrontierItem | None:
         # Count promoted entries per tier; bias toward the smallest non-skill tier.
@@ -141,5 +161,6 @@ class Curiosity:
             ),
             source="gap-driven",
             priority=3,
+            score=0.6,
             salt=salt,
         )
