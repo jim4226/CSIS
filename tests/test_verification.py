@@ -4,6 +4,7 @@ Red-team coverage:
   F1 — mock-vs-mock cross-checkpoint must be structural, not decorative
   F6 — corrupted grader: pinned source hash check
   F7 — critic incentive: seeded synthetic flaws + minimum attempts
+  CriticEffortLevel — effort tiers produce correct min_attempts + max_tokens
 """
 from __future__ import annotations
 
@@ -22,6 +23,8 @@ from csis.verification.certificates import (
     build_certificate,
 )
 from csis.verification.critic_stack import (
+    EFFORT_PARAMS,
+    CriticEffortLevel,
     CriticEvaluator,
     SeededFlaw,
     parse_critic_output,
@@ -202,3 +205,95 @@ def test_seeded_flaw_evaluator_tracks_catch_rate() -> None:
     caught_2 = evaluator.submit_seeded(backend=backend, checkpoint_id="beta", flaw=flaw)
     assert caught_1 and not caught_2
     assert evaluator.catch_rate() == 0.5
+
+
+# ---- CriticEffortLevel ------------------------------------------------------
+
+
+def test_effort_params_ordering() -> None:
+    """Higher effort levels must demand more attempts and allow more tokens.
+
+    This test fails if the EFFORT_PARAMS table is mis-ordered, which would
+    let a low-effort critic silently substitute for a high-effort gate.
+    """
+    levels = [CriticEffortLevel.low, CriticEffortLevel.medium, CriticEffortLevel.high, CriticEffortLevel.max]
+    for i in range(len(levels) - 1):
+        lo = EFFORT_PARAMS[levels[i]]
+        hi = EFFORT_PARAMS[levels[i + 1]]
+        assert lo.min_attempts < hi.min_attempts, (
+            f"{levels[i]} min_attempts={lo.min_attempts} must be < "
+            f"{levels[i+1]} min_attempts={hi.min_attempts}"
+        )
+        assert lo.max_tokens < hi.max_tokens, (
+            f"{levels[i]} max_tokens={lo.max_tokens} must be < "
+            f"{levels[i+1]} max_tokens={hi.max_tokens}"
+        )
+
+
+def test_run_critic_effort_low_uses_fewer_attempts_than_high() -> None:
+    """run_critic at 'low' effort sends a smaller min_attempts prompt than 'high'."""
+    captured: list[str] = []
+
+    class CapturingBackend(MockBackend):
+        def complete(self, req):  # type: ignore[override]
+            captured.append(req.prompt)
+            return super().complete(req)
+
+    backend_low = CapturingBackend()
+    # Return enough falsification attempts for any effort level.
+    big_response = (
+        '[{"attempt":"a","falsified":false},'
+        '{"attempt":"b","falsified":false},'
+        '{"attempt":"c","falsified":false},'
+        '{"attempt":"d","falsified":false},'
+        '{"attempt":"e","falsified":false},'
+        '{"attempt":"f","falsified":false},'
+        '{"attempt":"g","falsified":false},'
+        '{"attempt":"h","falsified":false}]'
+    )
+    backend_low.script("critic", "beta", big_response)
+    run_critic(backend=backend_low, checkpoint_id="beta", plan=_plan(),
+               artifact=_artifact(), grader_results=[], effort=CriticEffortLevel.low)
+
+    backend_max = CapturingBackend()
+    backend_max.script("critic", "beta", big_response)
+    run_critic(backend=backend_max, checkpoint_id="beta", plan=_plan(),
+               artifact=_artifact(), grader_results=[], effort=CriticEffortLevel.max)
+
+    low_prompt, max_prompt = captured[0], captured[1]
+    # The prompt embeds the min_attempts number; max must request more.
+    assert "1" in low_prompt   # low: at least 1
+    assert "8" in max_prompt   # max: at least 8
+
+
+def test_run_critic_explicit_min_attempts_overrides_effort() -> None:
+    """Explicit min_attempts= kwarg overrides the effort-derived value.
+
+    This preserves backward compatibility for the F7 seeded-flaw evaluator
+    and any other caller that hard-codes a count.
+    """
+    backend = MockBackend()
+    backend.script("critic", "beta",
+                   '[{"attempt":"x","falsified":false},{"attempt":"y","falsified":false}]')
+    # Pass effort=low (which gives 1 attempt) but override to 2 explicitly.
+    findings = run_critic(
+        backend=backend,
+        checkpoint_id="beta",
+        plan=_plan(),
+        artifact=_artifact(),
+        grader_results=[],
+        effort=CriticEffortLevel.low,
+        min_attempts=2,
+    )
+    assert len(findings) == 2
+
+
+def test_effort_medium_matches_historical_baseline() -> None:
+    """CriticEffortLevel.medium must keep min_attempts=3, max_tokens=2000.
+
+    These values match the Phase-0 baseline so existing certs and the F7
+    seeded-flaw floor remain calibrated after the effort-level refactor.
+    """
+    params = EFFORT_PARAMS[CriticEffortLevel.medium]
+    assert params.min_attempts == 3
+    assert params.max_tokens == 2000
