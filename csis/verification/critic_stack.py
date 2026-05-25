@@ -10,16 +10,58 @@ seeded synthetic flaws. `CriticEvaluator.check_seeded_flaw_catch_rate()`
 returns a recent precision metric; if it drops below floor, promotions
 freeze. This is a separate signal from the verified-gain rate so the
 Critic can't be tuned-into-quietude.
+
+``CriticEffortLevel`` parameterises review depth, mirroring the effort tiers
+shipped in Claude Code v2.1.147 (``/code-review low|medium|high|max``). The
+Coordinator picks ``low`` for cheap sanity-checks inside a tight budget and
+``max`` for pre-promotion gates where a missed flaw is costlier than latency.
+The mapping is intentionally coarse — the point is that the Coordinator can
+express intent without hard-coding token counts in call sites.
 """
 from __future__ import annotations
 
 import json
 import re
 from dataclasses import dataclass, field
+from enum import Enum
 from typing import Iterable
 
 from csis.backends.base import LLMBackend, LLMRequest
 from csis.contracts import Artifact, CriticFinding, GraderResult, Plan
+
+
+class CriticEffortLevel(str, Enum):
+    """How deeply should the critic look?
+
+    Maps to (min_attempts, max_tokens) in EFFORT_PARAMS.
+
+    low   — quick sanity check; 1 attempt, 500 tokens. Use inside tight
+             per-iteration budgets (e.g. rapid Researcher → Builder loops).
+    medium — default; 3 attempts, 2 000 tokens. Matches the historical
+             Phase-0 baseline.
+    high  — thorough; 5 attempts, 4 000 tokens. Use before Verifier cert.
+    max   — exhaustive; 8 attempts, 8 000 tokens. Use at promotion gates
+             where a missed flaw is more costly than extra latency.
+    """
+
+    low = "low"
+    medium = "medium"
+    high = "high"
+    max = "max"
+
+
+@dataclass(frozen=True)
+class _EffortParams:
+    min_attempts: int
+    max_tokens: int
+
+
+EFFORT_PARAMS: dict[CriticEffortLevel, _EffortParams] = {
+    CriticEffortLevel.low:    _EffortParams(min_attempts=1, max_tokens=500),
+    CriticEffortLevel.medium: _EffortParams(min_attempts=3, max_tokens=2000),
+    CriticEffortLevel.high:   _EffortParams(min_attempts=5, max_tokens=4000),
+    CriticEffortLevel.max:    _EffortParams(min_attempts=8, max_tokens=8000),
+}
 
 
 CRITIC_SYSTEM_PROMPT = """You are the Critic in CSIS Phase-0.
@@ -84,14 +126,24 @@ def run_critic(
     plan: Plan,
     artifact: Artifact,
     grader_results: list[GraderResult],
-    min_attempts: int = 3,
+    min_attempts: int | None = None,
+    effort: CriticEffortLevel = CriticEffortLevel.medium,
 ) -> list[CriticFinding]:
+    """Run the V2 critic at the requested effort level.
+
+    ``effort`` selects the (min_attempts, max_tokens) pair from EFFORT_PARAMS.
+    If ``min_attempts`` is supplied explicitly it overrides the effort-derived
+    value; this preserves backward compatibility for callers that hard-code a
+    count (e.g. the F7 seeded-flaw evaluator, which always wants exactly 3).
+    """
+    params = EFFORT_PARAMS[effort]
+    effective_min = min_attempts if min_attempts is not None else params.min_attempts
     req = LLMRequest(
         role="critic",
         checkpoint_id=checkpoint_id,
         system=CRITIC_SYSTEM_PROMPT,
-        prompt=build_critic_prompt(plan, artifact, grader_results, min_attempts),
-        max_tokens=2000,
+        prompt=build_critic_prompt(plan, artifact, grader_results, effective_min),
+        max_tokens=params.max_tokens,
     )
     resp = backend.complete(req)
     return parse_critic_output(resp.text)
