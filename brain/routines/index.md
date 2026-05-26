@@ -11,4 +11,12 @@ Status values:
 
 | URL | First seen | Status | Notes |
 |---|---|---|---|
-| (none) | (initial) | quiet-day-empty | Ledger initialized; first real entries land on the routine's first scheduled run. |
+| https://www.anthropic.com/research/glasswing-initial-update | 2026-05-23 | opened-PR | PR #8 glasswing-frontier-ranking (Theme 7) — backfilled from PR description |
+| https://www.anthropic.com/news/anthropic-acquires-stainless | 2026-05-23 | deferred | MCP server generation; no stable post-acquisition API surface yet; reconsidered 2026-05-26, still deferred |
+| https://www.anthropic.com/news/widening-conversation-ai | 2026-05-24 | opened-PR | PR #10 value-reminder-tripwire (Theme 3) — backfilled from PR description |
+| https://www.anthropic.com/news/anthropic-kpmg | 2026-05-24 | out-of-scope | Enterprise partnership announcement — backfilled from log PR #11 |
+| https://code.claude.com/docs/en/changelog | 2026-05-25 | opened-PR | PR #12 event-span-agent-ids (v2.1.145) + PR #13 critic-effort-levels (v2.1.147) — backfilled from PR descriptions |
+| https://www.anthropic.com/news/chris-olah-pope-leo-encyclical | 2026-05-25 | out-of-scope | Alignment/ethics commentary, not an architectural primitive — backfilled from log PR #14 |
+| https://www.anthropic.com/engineering/how-we-contain-claude | 2026-05-26 | opened-PR | PR #15 external-content-layer (Theme 3+6) |
+| https://code.claude.com/docs/en/agent-sdk/overview | 2026-05-26 | opened-PR | PR #16 domain-system-prompt (Theme 1+6) |
+| https://platform.claude.com/docs/en/managed-agents/overview | 2026-05-26 | deferred | Dreams API in research preview; awaiting operator access confirmation (P1.1) |
