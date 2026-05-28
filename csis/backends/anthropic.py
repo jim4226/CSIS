@@ -5,7 +5,7 @@ is set, instantiation raises immediately — the prototype falls back to
 MockBackend in that case (handled at config-load time).
 
 Mapping from CSIS checkpoint labels to Anthropic models:
-    "alpha"  ->  claude-opus-4-7
+    "alpha"  ->  claude-opus-4-8
     "beta"   ->  claude-sonnet-4-6
 Custom labels can override via the constructor mapping.
 
@@ -26,9 +26,9 @@ from csis.backends.base import LLMBackend, LLMRequest, LLMResponse
 
 
 _DEFAULT_MODEL_MAP = {
-    "mock-alpha": "claude-opus-4-7",
+    "mock-alpha": "claude-opus-4-8",
     "mock-beta": "claude-sonnet-4-6",
-    "alpha": "claude-opus-4-7",
+    "alpha": "claude-opus-4-8",
     "beta": "claude-sonnet-4-6",
 }
 
@@ -85,11 +85,15 @@ class AnthropicBackend(LLMBackend):
 
         for attempt in range(self._MAX_RETRIES + 1):
             try:
+                extra: dict = {}
+                if req.effort is not None:
+                    extra["effort"] = req.effort
                 msg = self._client.messages.create(
                     model=model,
                     max_tokens=req.max_tokens,
                     system=req.system,
                     messages=[{"role": "user", "content": req.prompt}],
+                    **extra,
                 )
                 break
             except RateLimitError as exc:  # 429

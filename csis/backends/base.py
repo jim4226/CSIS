@@ -26,6 +26,9 @@ class LLMRequest:
     tools: list[str] = field(default_factory=list)
     max_tokens: int = 2000
     metadata: dict[str, Any] = field(default_factory=dict)
+    # Computational effort hint for models that support it (e.g. claude-opus-4-8).
+    # None means use the model's default (which is "high" for Opus 4.8).
+    effort: str | None = None
 
 
 @dataclass
