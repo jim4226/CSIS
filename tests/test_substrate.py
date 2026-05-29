@@ -195,3 +195,51 @@ def test_capability_tag_input_hash_must_look_like_sha256() -> None:
             tier=CapabilityTier.T0,
             input_hash="not-a-hash",
         )
+
+
+# ---- tool_parameters field (v2.1.157 parity) --------------------------------
+
+
+def test_event_tool_parameters_round_trip(tmp_path: Path) -> None:
+    """tool_parameters survive a write → disk → fresh-load round-trip and the
+    chain remains valid (v2.1.157 parity: tool_decision events carry params)."""
+    log = EventLog(tmp_path / "tp.jsonl")
+    params = {"tool": "bash", "command": "pytest tests/ -q"}
+    signed = log.emit(
+        "coordinator",
+        "tool_decision",
+        {"decision": "allow"},
+        tool_parameters=params,
+    )
+    assert signed.event.tool_parameters == params
+
+    # Reload from disk and verify the field survived serialization.
+    log2 = EventLog(tmp_path / "tp.jsonl")
+    events = list(log2.iter_events())
+    assert len(events) == 1
+    assert events[0].event.tool_parameters == params
+
+    ok, reason = log2.verify_chain()
+    assert ok, reason
+
+
+def test_event_tool_parameters_backward_compat(tmp_path: Path) -> None:
+    """JSONL written before tool_parameters existed deserializes with None default."""
+    path = tmp_path / "legacy.jsonl"
+    # Manually write a signed event that lacks the tool_parameters key entirely.
+    from csis.substrate.event_log import Event, SignedEvent, GENESIS_PREV_HASH
+    old_event = Event(seq=0, timestamp=1_000_000.0, actor="coordinator", kind="boot", payload={})
+    raw = old_event.model_dump()
+    raw.pop("tool_parameters", None)  # ensure the field is absent
+    old_event_raw = json.dumps(raw, separators=(",", ":"), sort_keys=True)
+    event_hash = SignedEvent.compute_hash(old_event, GENESIS_PREV_HASH)
+    signed_raw = json.dumps(
+        {"event": raw, "prev_hash": GENESIS_PREV_HASH, "event_hash": event_hash},
+        separators=(",", ":"),
+    )
+    path.write_text(signed_raw + "\n", encoding="utf-8")
+
+    log = EventLog(path)
+    events = list(log.iter_events())
+    assert len(events) == 1
+    assert events[0].event.tool_parameters is None
