@@ -121,6 +121,26 @@ _TRIP_PATTERNS: list[tuple[str, re.Pattern[str]]] = [
             r")\b"
         ),
     ),
+    # Claude Code v2.1.154 introduced "dynamic workflows" that can spawn
+    # hundreds of parallel agents — a T2+ capability in CSIS's tier model.
+    # The same release added a keyword guard to prevent accidental invocation
+    # from user prompts. This tripwire is the CSIS equivalent: it fires when
+    # agent-produced text requests dynamic workflow invocation or large-scale
+    # parallel agent spawning, both of which exceed the Phase-0 T1 ceiling.
+    # Catches: "create a dynamic workflow", "orchestrate hundreds of subagents",
+    # "spawn 100 workers". Does NOT catch routine sequential agent descriptions
+    # ("run sub-agents sequentially") or single-digit spawn counts.
+    (
+        "dynamic_workflow_escalation",
+        re.compile(
+            r"\b("
+            r"(create|spawn|launch|invoke|start|use|run|trigger|execute)\s+(a\s+)?dynamic\s+workflow"
+            r"|"
+            r"(orchestrate|spawn|launch|run)\s+"
+            r"(hundreds|thousands|\d{3,})\s+(of\s+)?(parallel\s+)?(agents?|subagents?|workers?)"
+            r")\b"
+        ),
+    ),
 ]
 
 
