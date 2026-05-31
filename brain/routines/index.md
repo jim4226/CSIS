@@ -12,3 +12,10 @@ Status values:
 | URL | First seen | Status | Notes |
 |---|---|---|---|
 | (none) | (initial) | quiet-day-empty | Ledger initialized; first real entries land on the routine's first scheduled run. |
+| https://www.anthropic.com/news/claude-opus-4-8 | 2026-05-31 | opened-PR | PR #26: add alpha-4.8 → claude-opus-4-8 checkpoint |
+| https://www.anthropic.com/research/glasswing-initial-update | 2026-05-31 | out-of-scope | vulnerability discovery program; no CSIS theme match |
+| https://www.anthropic.com/research/coding-agents-social-sciences | 2026-05-31 | out-of-scope | sociology adoption survey; no CSIS theme match |
+| https://www.anthropic.com/news/series-h | 2026-05-31 | out-of-scope | business/financial news |
+| https://www.anthropic.com/news/milan-office-opening | 2026-05-31 | out-of-scope | office opening; no CSIS theme match |
+| https://www.anthropic.com/news/kiyoung-choi-representative-director-anthropic-korea | 2026-05-31 | out-of-scope | executive appointment; no CSIS theme match |
+| https://www.anthropic.com/news/chris-olah-pope-leo-encyclical | 2026-05-31 | out-of-scope | public remarks on encyclical; no CSIS theme match |
