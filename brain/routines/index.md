@@ -12,3 +12,5 @@ Status values:
 | URL | First seen | Status | Notes |
 |---|---|---|---|
 | (none) | (initial) | quiet-day-empty | Ledger initialized; first real entries land on the routine's first scheduled run. |
+| https://www.anthropic.com/news/claude-opus-4-8 | 2026-06-01 | opened-PR | PR #28: conversation_history + mid_conv_system support (reconsidered from 2026-05-31 deferred) |
+| https://www.anthropic.com/news/confidential-draft-s1-sec | 2026-06-01 | out-of-scope | S-1 SEC filing; business news, no CSIS theme match |
