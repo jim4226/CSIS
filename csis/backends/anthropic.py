@@ -85,11 +85,20 @@ class AnthropicBackend(LLMBackend):
 
         for attempt in range(self._MAX_RETRIES + 1):
             try:
+                # Build the messages array. When conversation_history is
+                # provided, prepend it so mid_conv_system blocks (and prior
+                # assistant turns) reach the API before the current user turn.
+                current_turn = {"role": "user", "content": req.prompt}
+                messages = (
+                    list(req.conversation_history) + [current_turn]
+                    if req.conversation_history
+                    else [current_turn]
+                )
                 msg = self._client.messages.create(
                     model=model,
                     max_tokens=req.max_tokens,
                     system=req.system,
-                    messages=[{"role": "user", "content": req.prompt}],
+                    messages=messages,
                 )
                 break
             except RateLimitError as exc:  # 429
