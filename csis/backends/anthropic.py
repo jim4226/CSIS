@@ -40,6 +40,7 @@ class AnthropicBackend(LLMBackend):
         self,
         api_key: str | None = None,
         model_map: dict[str, str] | None = None,
+        fallback_models: list[str] | None = None,
     ) -> None:
         try:
             import anthropic  # type: ignore  # noqa: F401
@@ -58,6 +59,8 @@ class AnthropicBackend(LLMBackend):
             )
         self._client = Anthropic(api_key=key)
         self._model_map = {**_DEFAULT_MODEL_MAP, **(model_map or {})}
+        # Fallback chain: tried in order after primary exhausts capacity retries.
+        self._fallback_models: list[str] = list(fallback_models or [])
 
     def _resolve_model(self, checkpoint_id: str) -> str:
         return self._model_map.get(checkpoint_id, "claude-opus-4-7")
@@ -69,10 +72,11 @@ class AnthropicBackend(LLMBackend):
     _BASE_BACKOFF_S = 1.0  # exponential: 1, 2, 4, 8 with jitter
 
     def complete(self, req: LLMRequest) -> LLMResponse:
-        model = self._resolve_model(req.checkpoint_id)
+        primary = self._resolve_model(req.checkpoint_id)
         retries: list[dict] = []
         msg = None
         last_exc = None
+        current_model = primary
         started = time.monotonic()
 
         # Lazy-import the SDK error types so the module still loads if the
@@ -83,41 +87,53 @@ class AnthropicBackend(LLMBackend):
             APIStatusError = Exception  # type: ignore
             RateLimitError = Exception  # type: ignore
 
-        for attempt in range(self._MAX_RETRIES + 1):
-            try:
-                msg = self._client.messages.create(
-                    model=model,
-                    max_tokens=req.max_tokens,
-                    system=req.system,
-                    messages=[{"role": "user", "content": req.prompt}],
-                )
-                break
-            except RateLimitError as exc:  # 429
-                last_exc = exc
-                if attempt >= self._MAX_RETRIES:
+        # Outer loop: primary model, then each fallback on capacity errors.
+        # Fallbacks get one attempt each; only capacity failures (429 / 5xx)
+        # advance to the next model. Caller errors (4xx) raise immediately.
+        for model_idx, current_model in enumerate([primary] + self._fallback_models):
+            max_retries = self._MAX_RETRIES if model_idx == 0 else 0
+            capacity_failed = False
+
+            for attempt in range(max_retries + 1):
+                try:
+                    msg = self._client.messages.create(
+                        model=current_model,
+                        max_tokens=req.max_tokens,
+                        system=req.system,
+                        messages=[{"role": "user", "content": req.prompt}],
+                    )
                     break
-                backoff = self._BASE_BACKOFF_S * (2 ** attempt) + random.uniform(0, 0.5)
-                retries.append({"attempt": attempt + 1, "reason": "rate_limit", "backoff_s": round(backoff, 3)})
-                time.sleep(backoff)
-            except APIStatusError as exc:  # 5xx / other status errors
-                status = getattr(exc, "status_code", 0)
-                # Only retry transient server errors. 400/401/403/404 are
-                # caller-error and won't get better on retry.
-                if status < 500 or attempt >= self._MAX_RETRIES:
+                except RateLimitError as exc:  # 429
                     last_exc = exc
-                    raise
-                last_exc = exc
-                backoff = self._BASE_BACKOFF_S * (2 ** attempt) + random.uniform(0, 0.5)
-                retries.append({"attempt": attempt + 1, "reason": f"http_{status}", "backoff_s": round(backoff, 3)})
-                time.sleep(backoff)
+                    capacity_failed = True
+                    if attempt >= max_retries:
+                        break
+                    backoff = self._BASE_BACKOFF_S * (2 ** attempt) + random.uniform(0, 0.5)
+                    retries.append({"attempt": attempt + 1, "model": current_model, "reason": "rate_limit", "backoff_s": round(backoff, 3)})
+                    time.sleep(backoff)
+                except APIStatusError as exc:  # 5xx / other status errors
+                    status = getattr(exc, "status_code", 0)
+                    if status < 500:
+                        # 4xx: caller error; don't retry or fall back.
+                        last_exc = exc
+                        raise
+                    last_exc = exc
+                    capacity_failed = True
+                    if attempt >= max_retries:
+                        break
+                    backoff = self._BASE_BACKOFF_S * (2 ** attempt) + random.uniform(0, 0.5)
+                    retries.append({"attempt": attempt + 1, "model": current_model, "reason": f"http_{status}", "backoff_s": round(backoff, 3)})
+                    time.sleep(backoff)
+
+            if msg is not None or not capacity_failed:
+                break  # success, or non-capacity failure already raised above
 
         latency_ms = int((time.monotonic() - started) * 1000)
 
         if msg is None:
-            # Exhausted retries on a retryable error. Surface the last
-            # exception with observability context attached.
+            n = len(self._fallback_models) + 1
             raise RuntimeError(
-                f"Anthropic backend exhausted {self._MAX_RETRIES} retries "
+                f"Anthropic backend exhausted retries across {n} model(s) "
                 f"after {latency_ms} ms; last error: {type(last_exc).__name__}: {last_exc}"
             ) from last_exc
 
@@ -136,7 +152,7 @@ class AnthropicBackend(LLMBackend):
             tokens_out=getattr(usage, "output_tokens", 0) or 0,
             raw={
                 "backend": "anthropic",
-                "model": model,
+                "model": current_model,
                 "stop_reason": getattr(msg, "stop_reason", None),
                 "latency_ms": latency_ms,
                 "retries": retries,
