@@ -14,7 +14,7 @@ import uuid
 from dataclasses import dataclass, field
 from typing import Optional
 
-from csis.agents.auditor import TierMismatch, write_why_doc
+from csis.agents.auditor import TierMismatch, fast_audit_check, write_why_doc
 from csis.agents.base import AgentContext, Role
 from csis.agents.builder import execute_plan
 from csis.agents.librarian import consolidate_to_candidates
@@ -385,6 +385,20 @@ class Coordinator:
             return result
 
         # Auditor (steps 7-8): write why-doc, sign with hash precondition, promote.
+
+        # Tier-1 fast structural pre-check (no LLM call). Catches obvious
+        # invariant violations before we spend tokens on write_why_doc().
+        # Pattern from the security-guidance plugin: cheap check → model
+        # review → deeper review on commit.
+        precheck_violations = fast_audit_check(cert, candidates, target_tier)
+        if precheck_violations:
+            self.event_log.emit("coordinator", "auditor.precheck.failed", {
+                "iteration_id": iteration_id,
+                "violations": precheck_violations,
+            })
+            self._rollback(result, f"audit-precheck:{precheck_violations[0]!r}")
+            return result
+
         # D4 (cycle-5) fix: catch TierMismatch so a Librarian bug doesn't
         # leak VERIFIED-trust candidates on disk forever. The rollback
         # path discards the just-verified candidates AND any wrong-tier
