@@ -85,6 +85,7 @@ class AgentContext:
     role: Role
     checkpoint_id: str
     backend: LLMBackend
+    advisor_model: str | None = None
 
     @property
     def actor_name(self) -> str:
@@ -97,5 +98,6 @@ class AgentContext:
             system=SYSTEM_PROMPTS[self.role],
             prompt=prompt,
             max_tokens=max_tokens,
+            advisor_model=self.advisor_model,
         )
         return self.backend.complete(req)

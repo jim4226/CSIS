@@ -151,7 +151,9 @@ class Coordinator:
             if side == "builder"
             else self.config.auditor_checkpoint
         )
-        return AgentContext(role=role, checkpoint_id=ckpt, backend=self.backend)
+        # Advisor model applies to the Builder only; other roles run without one.
+        advisor = self.config.builder_advisor_model if role is Role.BUILDER else None
+        return AgentContext(role=role, checkpoint_id=ckpt, backend=self.backend, advisor_model=advisor)
 
     # ---- the loop -------------------------------------------------------
 
