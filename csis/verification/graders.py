@@ -9,6 +9,12 @@ F6 mitigation (corrupted grader): the GraderRegistry pins each grader's
 source-hash at task start. If the file/function content changes mid-task,
 the cert build fails. We compute the hash from the function's source code
 via `inspect.getsource`.
+
+Each grader also populates `GraderResult.provenance` with the command it
+would run in Phase-1 plus a `mode` flag distinguishing mock (Phase-0)
+from subprocess (Phase-1, P1.7). This follows the deterministic-execution-
+layer pattern: the Verifier can audit the execution path, not just the
+outcome (see anthropic.com/research/agents-in-biology, 2026-06-08).
 """
 from __future__ import annotations
 
@@ -69,29 +75,63 @@ class GraderRegistry:
 # ---- Phase-0 PR-maintenance grader set ------------------------------------
 # These mock graders read artifact.extra["scenarios"] for deterministic
 # outcomes. In a real run they'd shell out to pytest/mypy/ruff/etc.
+# Each records provenance so the Verifier can audit the execution path.
 
 
 def tests_pass_grader(artifact: Artifact) -> GraderResult:
     """Did the unit test suite pass after applying the patch?"""
-    scenarios = (artifact.extra if hasattr(artifact, "extra") else {})
+    scenarios = getattr(artifact, "extra", {}) or {}
     if isinstance(getattr(artifact, "extra", None), dict):
         scenarios = artifact.extra
     else:
         scenarios = {}
     passed = bool(scenarios.get("tests_pass", True))
-    return GraderResult(grader="tests_pass", passed=passed, detail="mock")
+    return GraderResult(
+        grader="tests_pass",
+        passed=passed,
+        detail="mock",
+        provenance={
+            "command": "pytest",
+            "args": [".", "-q", "--tb=short"],
+            "scenario_key": "tests_pass",
+            "artifact_hash": artifact.body_hash,
+            "mode": "mock",
+        },
+    )
 
 
 def lint_grader(artifact: Artifact) -> GraderResult:
     scenarios = getattr(artifact, "extra", {}) or {}
     passed = bool(scenarios.get("lint_clean", True))
-    return GraderResult(grader="lint", passed=passed, detail="mock")
+    return GraderResult(
+        grader="lint",
+        passed=passed,
+        detail="mock",
+        provenance={
+            "command": "ruff",
+            "args": ["check", "."],
+            "scenario_key": "lint_clean",
+            "artifact_hash": artifact.body_hash,
+            "mode": "mock",
+        },
+    )
 
 
 def typecheck_grader(artifact: Artifact) -> GraderResult:
     scenarios = getattr(artifact, "extra", {}) or {}
     passed = bool(scenarios.get("type_clean", True))
-    return GraderResult(grader="typecheck", passed=passed, detail="mock")
+    return GraderResult(
+        grader="typecheck",
+        passed=passed,
+        detail="mock",
+        provenance={
+            "command": "mypy",
+            "args": ["csis/", "--strict"],
+            "scenario_key": "type_clean",
+            "artifact_hash": artifact.body_hash,
+            "mode": "mock",
+        },
+    )
 
 
 def coverage_delta_grader(artifact: Artifact) -> GraderResult:
@@ -103,6 +143,13 @@ def coverage_delta_grader(artifact: Artifact) -> GraderResult:
         passed=passed,
         detail=f"delta={delta:+.4f}",
         metrics={"coverage_delta": delta},
+        provenance={
+            "command": "pytest",
+            "args": ["--cov=csis", "--cov-report=term-missing"],
+            "scenario_key": "coverage_delta",
+            "artifact_hash": artifact.body_hash,
+            "mode": "mock",
+        },
     )
 
 
@@ -115,18 +162,31 @@ def diff_scope_grader(artifact: Artifact) -> GraderResult:
         grader="diff_scope",
         passed=not touched,
         detail=(f"forbidden paths touched: {touched}" if touched else "scope ok"),
+        provenance={
+            "command": "diff-scope-check",
+            "forbidden_paths": list(forbidden_paths),
+            "artifact_hash": artifact.body_hash,
+            "mode": "mock",
+        },
     )
 
 
 def perf_regression_grader(artifact: Artifact) -> GraderResult:
     scenarios = getattr(artifact, "extra", {}) or {}
     ratio = float(scenarios.get("perf_ratio", 1.0))  # 1.0 = same as base
-    passed = ratio <= 1.20  # ≤20% slowdown
+    passed = ratio <= 1.20  # ≤ 20% slowdown
     return GraderResult(
         grader="perf_regression",
         passed=passed,
         detail=f"p95_ratio={ratio:.3f}",
         metrics={"perf_ratio": ratio},
+        provenance={
+            "command": "pytest-benchmark",
+            "args": ["--benchmark-compare", "--benchmark-max-time=5.0"],
+            "scenario_key": "perf_ratio",
+            "artifact_hash": artifact.body_hash,
+            "mode": "mock",
+        },
     )
 
 

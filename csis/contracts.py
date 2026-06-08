@@ -67,15 +67,26 @@ class GraderResult(BaseModel):
     passed: bool
     detail: str = ""
     metrics: dict[str, float] = Field(default_factory=dict)
+    provenance: dict[str, Any] = Field(
+        default_factory=dict,
+        description=(
+            "Execution trace: command, args, artifact_hash, mode. "
+            "Follows the deterministic-execution-layer pattern "
+            "(anthropic.com/research/agents-in-biology, 2026-06-08): "
+            "callers can verify *how* a result was produced, not just "
+            "what it was. mode='mock' in Phase-0; mode='subprocess' "
+            "in Phase-1 (P1.7) when graders shell out for real."
+        ),
+    )
 
 
 class GraderSlice(BaseModel):
     """Per-subset breakdown of a distributional metric.
 
     A slice is a named subset of the evaluation samples, e.g., per-organ
-    in medical segmentation ("liver", "pancreas"), per-modality
-    ("CT", "MRI"), per-cohort ("pediatric", "geriatric"), per-difficulty
-    ("hard cases only"). Tracked separately from the global point
+    in medical segmentation (\"liver\", \"pancreas\"), per-modality
+    (\"CT\", \"MRI\"), per-cohort (\"pediatric\", \"geriatric\"), per-difficulty
+    (\"hard cases only\"). Tracked separately from the global point
     estimate so the Verifier can see whether a high overall Dice is
     being carried by easy slices while a critical slice fails.
     """
@@ -95,15 +106,15 @@ class DistributionalGraderResult(BaseModel):
     continuous point estimate, bootstrap confidence interval, sample
     size, optional per-slice breakdown, and a threshold-vs-CI-bound
     pass rule. Designed for outcomes-based evaluation where the
-    "good" criterion is a distributional quantity (Dice, IoU,
+    \"good\" criterion is a distributional quantity (Dice, IoU,
     Hausdorff, ASSD, landmark error, calibration error) rather than
     a rubric-style pass/fail.
 
     Pass semantics:
-      - direction = "higher_is_better" (Dice, IoU, accuracy):
+      - direction = \"higher_is_better\" (Dice, IoU, accuracy):
         passed iff ci_lower >= threshold (conservative — accept only
         when the lower end of the 95% CI clears the bar)
-      - direction = "lower_is_better" (Hausdorff, ASSD, error in mm):
+      - direction = \"lower_is_better\" (Hausdorff, ASSD, error in mm):
         passed iff ci_upper <= threshold (conservative — reject if
         the upper end of the 95% CI might exceed the bar)
       - threshold = None: report only; no pass/fail
