@@ -202,3 +202,35 @@ def test_seeded_flaw_evaluator_tracks_catch_rate() -> None:
     caught_2 = evaluator.submit_seeded(backend=backend, checkpoint_id="beta", flaw=flaw)
     assert caught_1 and not caught_2
     assert evaluator.catch_rate() == 0.5
+
+
+# ---- provenance field (deterministic-execution-layer pattern) ---------------
+
+
+def test_graders_populate_provenance() -> None:
+    """All V1 graders emit execution provenance (Theme 2: trust + verification).
+
+    Regression gate for the deterministic-execution-layer pattern: each grader
+    must record command, artifact_hash, and mode so the Verifier can audit
+    how a result was produced, not just what it was.
+    See: anthropic.com/research/agents-in-biology (2026-06-08).
+    """
+    reg = make_default_pr_registry()
+    a = _artifact({
+        "tests_pass": True,
+        "lint_clean": True,
+        "type_clean": True,
+        "coverage_delta": 0.0,
+        "perf_ratio": 1.0,
+    })
+    for r in reg.evaluate(a):
+        assert r.provenance, f"{r.grader}: provenance dict is empty"
+        assert "command" in r.provenance, f"{r.grader}: missing 'command' key"
+        assert "artifact_hash" in r.provenance, f"{r.grader}: missing 'artifact_hash' key"
+        assert r.provenance["artifact_hash"] == a.body_hash, (
+            f"{r.grader}: artifact_hash mismatch: "
+            f"{r.provenance['artifact_hash']!r} != {a.body_hash!r}"
+        )
+        assert r.provenance.get("mode") == "mock", (
+            f"{r.grader}: expected mode='mock', got {r.provenance.get('mode')!r}"
+        )
