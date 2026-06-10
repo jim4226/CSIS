@@ -12,3 +12,10 @@ Status values:
 | URL | First seen | Status | Notes |
 |---|---|---|---|
 | (none) | (initial) | quiet-day-empty | Ledger initialized; first real entries land on the routine's first scheduled run. |
+| https://www.anthropic.com/news/claude-fable-5-mythos-5 | 2026-06-10 | opened-PR | PR #46 (tripwire-disposition) — reconsidered from 2026-06-09 deferred sketch; PR #44 covered distillation guard on 2026-06-09 |
+| https://www.anthropic.com/research/agents-in-biology | 2026-06-10 | opened-PR | PR #42 (grader-provenance-layer) opened 2026-06-08 |
+| https://www.anthropic.com/news/AI-enabled-cyber-threats-mitre-attack | 2026-06-10 | opened-PR | PR #31 (agentic-chain-tripwire) opened 2026-06-03 |
+| https://www.anthropic.com/news/expanding-project-glasswing | 2026-06-10 | out-of-scope | Policy/access program; CSIS tier enforcement already implemented |
+| https://www.anthropic.com/news/services-track-partner-hub | 2026-06-10 | out-of-scope | Business/partner program; no CSIS theme match |
+| https://www.anthropic.com/news/confidential-draft-s1-sec | 2026-06-10 | out-of-scope | Financial/SEC filing; no CSIS theme match |
+| https://www.anthropic.com/research/making-claude-a-chemist | 2026-06-10 | out-of-scope | Chemistry NMR benchmark; no CSIS theme match (confirmed by 2026-06-05 run) |
