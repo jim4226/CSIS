@@ -24,6 +24,7 @@ from __future__ import annotations
 import hashlib
 import json
 import os
+import sys
 import threading
 import time
 from pathlib import Path
@@ -332,89 +333,153 @@ class EventLog:
         valid event. A malformed NON-final line is still a hard error — it
         cannot be a torn append.
 
-        S4 (cycle-10): forged-tail rejection. The adopted tail
+        S4 (cycle-10): non-chaining-tail handling. The adopted tail
         (``seq+1``/``event_hash`` that future emits extend) used to be trusted
         with zero validation, so a single appended forged line made every
-        future emit extend the forged fork. Before adopting the last line as
-        the new chain head we recompute its hash; a well-formed line whose
-        ``event_hash`` does not match ``compute_hash(event, prev_hash)`` is a
-        forgery and raises (it is NOT torn — it parses fine — so truncation is
-        not the right remedy).
+        future emit extend the forged fork. Before adopting the last line we
+        recompute its hash. A well-formed line whose ``event_hash`` does not
+        match ``compute_hash(event, prev_hash)`` is a forged append OR a
+        legacy log written before the S5 hash-format change. The first cut of
+        S4 hard-raised here — but that BRICKS every existing deployment's log
+        on upgrade (every pre-S5 line fails to recompute) and lets any appended
+        garbage DoS the system. Instead we QUARANTINE the full log and recover
+        the longest valid prefix (see ``_recover_to_valid_prefix_unlocked``):
+        the forged/legacy suffix is isolated and never extended — S4's security
+        property holds — while the system stays usable.
         """
         if not self.path.exists():
             return
 
         raw = self.path.read_bytes()
-        # Physical lines, preserving byte offsets so we can truncate a torn
-        # tail precisely. A trailing newline yields no empty final element.
         text = raw.decode("utf-8", errors="replace")
         physical = text.split("\n")
-        # If the file ends with "\n", split() leaves a trailing "" — that's a
-        # clean end, not a torn line. Otherwise the last element is the bytes
-        # written after the last newline (possibly a torn fragment).
+        # If the file ends with "\n", split() leaves a trailing "" — a clean
+        # end. Otherwise the last element is the bytes after the last newline
+        # (possibly a torn fragment).
         ends_with_newline = text.endswith("\n")
 
         last_signed: SignedEvent | None = None
-        truncated = False
         n_lines = len(physical)
         for idx, rawline in enumerate(physical):
             is_last_element = idx == n_lines - 1
             line = rawline.strip()
             if not line:
-                # Empty trailing element after a final newline, or an
-                # interior blank line. Interior blanks are tolerated here
-                # (verify_chain is the strict auditor); a trailing empty
-                # element is just the clean end-of-file.
                 continue
             try:
                 signed = SignedEvent.model_validate_json(line)
             except ValidationError:
                 if is_last_element and not ends_with_newline:
-                    # S3: torn final line. Truncate back to the byte after the
-                    # last newline and recover from the last valid event.
-                    self._truncate_torn_tail_unlocked(raw)
-                    truncated = True
-                    break
-                # Malformed non-final (or newline-terminated) line: real
-                # corruption, not a torn append.
-                raise
+                    # S3: torn final line (crash mid-append). Benign — drop it
+                    # and recover the prior valid tail; no quarantine needed.
+                    self._recover_to_valid_prefix_unlocked(
+                        raw, reason="torn final line", quarantine=False
+                    )
+                    return
+                # Malformed non-final (or newline-terminated) line: corruption.
+                self._recover_to_valid_prefix_unlocked(
+                    raw,
+                    reason=f"unparseable line at physical index {idx}",
+                    quarantine=True,
+                )
+                return
             last_signed = signed
 
         if last_signed is None:
             self._seq = 0
             self._prev_hash = GENESIS_PREV_HASH
-        else:
-            # S4: do not trust the adopted tail blindly — prove it chains.
-            recomputed = SignedEvent.compute_hash(
-                last_signed.event, last_signed.prev_hash
+            return
+
+        # S4: prove the adopted tail chains before trusting it.
+        recomputed = SignedEvent.compute_hash(
+            last_signed.event, last_signed.prev_hash
+        )
+        if recomputed != last_signed.event_hash:
+            self._recover_to_valid_prefix_unlocked(
+                raw,
+                reason=(
+                    f"non-chaining tail at seq {last_signed.event.seq} "
+                    f"(forged append or pre-cycle-10 hash format)"
+                ),
+                quarantine=True,
             )
-            if recomputed != last_signed.event_hash:
-                raise ChainForgeryError(
-                    f"refusing to extend a non-chaining tail at seq "
-                    f"{last_signed.event.seq}: stored event_hash does not "
-                    f"match recomputed hash (forged/corrupt last line). "
-                    f"emit() would otherwise extend this forged fork."
-                )
-            self._seq = last_signed.event.seq + 1
-            self._prev_hash = last_signed.event_hash
+            return
+        self._seq = last_signed.event.seq + 1
+        self._prev_hash = last_signed.event_hash
 
-        if truncated:
-            # S3 + S2: after dropping a torn tail, realign the head anchor to
-            # the recovered state so a subsequent verify_chain doesn't read a
-            # stale (longer) anchor as a mismatch.
-            self._write_anchor_unlocked(self._seq, self._prev_hash)
+    def _recover_to_valid_prefix_unlocked(
+        self, raw: bytes, *, reason: str, quarantine: bool
+    ) -> None:
+        """Walk from genesis, keep the LONGEST VALID PREFIX, drop the rest.
 
-    def _truncate_torn_tail_unlocked(self, raw: bytes) -> None:
-        """S3 (cycle-10): drop a torn final line back to the last newline.
-
-        Caller MUST hold ``self._lock`` and the inter-process file lock.
+        Caller MUST hold ``self._lock`` and the inter-process file lock. The
+        full chain (parse + contiguous seq + prev_hash linkage + event_hash
+        recompute) is validated from genesis; the first line that breaks the
+        chain ends the valid prefix. When ``quarantine`` is set (a forged /
+        legacy / corrupt suffix, as opposed to a benign torn crash tail) the
+        full pre-recovery log is copied to a ``.broken-<ts>.jsonl`` sidecar for
+        forensics. The live log is then rewritten to the valid prefix, the
+        in-memory head is set to that prefix's tail, and the anchor is realigned
+        so a later verify_chain() doesn't read a stale (longer) anchor as a
+        truncation. The dropped suffix is never adopted as the chain head, so a
+        forged append can never be extended (S4's security intent).
         """
-        nl = raw.rfind(b"\n")
-        keep = raw[: nl + 1] if nl != -1 else b""
+        parts = raw.split(b"\n")
+        ends_with_newline = raw.endswith(b"\n")
+        prev = GENESIS_PREV_HASH
+        expected_seq = 0
+        valid_bytes = 0
+        for idx, part in enumerate(parts):
+            is_last = idx == len(parts) - 1
+            if is_last and ends_with_newline and part == b"":
+                break
+            if not part.strip():
+                break
+            try:
+                signed = SignedEvent.model_validate_json(part.decode("utf-8"))
+            except (ValidationError, UnicodeDecodeError):
+                break
+            if (
+                signed.event.seq != expected_seq
+                or signed.prev_hash != prev
+                or SignedEvent.compute_hash(signed.event, signed.prev_hash)
+                != signed.event_hash
+            ):
+                break
+            prev = signed.event_hash
+            expected_seq += 1
+            valid_bytes += len(part) + 1  # +1: a complete line always has "\n"
+
+        self._seq = expected_seq
+        self._prev_hash = prev
+        if quarantine:
+            self._quarantine_unlocked(raw, reason)
         with self.path.open("wb") as f:
-            f.write(keep)
+            f.write(raw[:valid_bytes])
             f.flush()
             os.fsync(f.fileno())
+        self._write_anchor_unlocked(self._seq, self._prev_hash)
+
+    def _quarantine_unlocked(self, raw: bytes, reason: str) -> None:
+        """Copy a corrupt/legacy log aside for forensics before truncation.
+
+        Caller MUST hold ``self._lock`` and the inter-process file lock. This
+        is the documented pre-snapshot-12 'quarantine the broken chain and
+        start fresh' discipline, applied automatically on recovery.
+        """
+        stamp = time.strftime("%Y%m%d-%H%M%S", time.gmtime())
+        stamp = f"{stamp}-{int(time.time() * 1000) % 1000:03d}"
+        qpath = self.path.with_suffix(self.path.suffix + f".broken-{stamp}.jsonl")
+        try:
+            qpath.write_bytes(raw)
+        except OSError:
+            pass
+        print(
+            f"[event_log] WARNING: {reason}; quarantined {len(raw)} bytes to "
+            f"{qpath.name} and recovered the longest valid prefix "
+            f"({self._seq} events). The forged/legacy suffix was isolated, not "
+            f"extended (cycle-10 S4).",
+            file=sys.stderr,
+        )
 
     # ---- head anchor (S2) ----------------------------------------------
 

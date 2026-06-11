@@ -39,7 +39,6 @@ from pathlib import Path
 import pytest
 
 from csis.substrate.event_log import (
-    ChainForgeryError,
     Event,
     EventLog,
     GENESIS_PREV_HASH,
@@ -291,10 +290,12 @@ def test_s3_torn_last_line_recovers_to_last_valid_event(tmp_path: Path) -> None:
     assert ok, f"chain not intact after torn-line recovery: {reason}"
 
 
-def test_s3_malformed_non_last_line_is_still_a_hard_error(tmp_path: Path) -> None:
-    """S3 (cycle-10): torn-tolerance applies to the FINAL physical line only.
-    A malformed line followed by a well-formed one cannot be a torn append, so
-    it must remain a hard error (we don't silently swallow mid-file corruption).
+def test_s3_malformed_non_last_line_triggers_quarantine_recovery(tmp_path: Path) -> None:
+    """S4 (cycle-10, integration): a malformed NON-final line is corruption, not
+    a torn append. The first cut hard-raised here, but that bricks the log;
+    instead the longest valid prefix is recovered and the full pre-recovery log
+    is quarantined for forensics — the corruption is SURFACED (quarantine file +
+    stderr), never silently swallowed, and the system stays usable.
     """
     path = tmp_path / "events.jsonl"
     log = EventLog(path)
@@ -306,8 +307,11 @@ def test_s3_malformed_non_last_line_is_still_a_hard_error(tmp_path: Path) -> Non
     lines[1] = '{"event": {"seq": 1, "timestamp": 1.0, "actor": "coord'  # malformed, mid-file
     path.write_text("\n".join(lines) + "\n", encoding="utf-8")
 
-    with pytest.raises(Exception):
-        EventLog(path)
+    recovered = EventLog(path)  # must NOT raise
+    assert recovered.seq() == 1, "should recover the valid prefix (event 0 only)"
+    assert recovered.verify_chain()[0], "recovered chain must be intact"
+    quarantines = list(tmp_path.glob("events.jsonl.broken-*.jsonl"))
+    assert len(quarantines) == 1, "corrupt log must be quarantined, not silently dropped"
 
 
 def test_s3_emit_write_is_durable_fsync(tmp_path: Path, monkeypatch) -> None:
@@ -335,19 +339,21 @@ def test_s3_emit_write_is_durable_fsync(tmp_path: Path, monkeypatch) -> None:
 # ---------------------------------------------------------------------------
 
 
-def test_s4_forged_tail_is_rejected_not_extended(tmp_path: Path) -> None:
+def test_s4_forged_tail_is_isolated_not_extended(tmp_path: Path) -> None:
     """S4 (cycle-10): append a well-formed line whose event_hash does NOT chain.
 
     Pre-fix the re-sync adopts its seq+1/event_hash blindly, so the NEXT emit
     extends the forged fork (and verify keeps passing on the forged head).
-    Post-fix, constructing/emitting over a non-chaining tail raises rather than
-    silently extending it.
+    Post-fix the forged tail is QUARANTINED and the longest valid prefix
+    recovered: the next emit chains onto the valid tail, never the forgery —
+    S4's security property (don't extend a forged fork) holds, without bricking
+    the log on a single appended garbage line.
     """
     path = tmp_path / "events.jsonl"
     log = EventLog(path)
     log.emit("coordinator", "boot", {})
     log.emit("coordinator", "tick", {"i": 1})
-    last = list(EventLog(path).iter_events())[-1]
+    valid_tail = list(EventLog(path).iter_events())[-1]
 
     # Forge a well-formed seq-2 line with a BOGUS event_hash (does not equal
     # compute_hash(event, prev_hash)). It parses fine — so it is NOT a torn
@@ -355,16 +361,21 @@ def test_s4_forged_tail_is_rejected_not_extended(tmp_path: Path) -> None:
     forged_event = Event(seq=2, timestamp=time.time(), actor="coordinator", kind="forged", payload={"evil": True})
     forged = SignedEvent(
         event=forged_event,
-        prev_hash=last.event_hash,
+        prev_hash=valid_tail.event_hash,
         event_hash="f" * 64,  # bogus — will not match the recomputed hash
     )
     with path.open("a", encoding="utf-8") as f:
         f.write(forged.model_dump_json() + "\n")
 
-    # Either constructing or emitting over the forged tail must raise; it must
-    # NOT silently adopt the forged head and chain onto it.
-    with pytest.raises(ChainForgeryError):
-        EventLog(path).emit("coordinator", "should-not-extend", {})
+    # Constructing over the forged tail must NOT raise and must NOT adopt the
+    # forged head: it recovers the 2 valid events and quarantines the rest.
+    recovered = EventLog(path)
+    assert recovered.seq() == 2, "forged tail must be dropped, valid prefix kept"
+    nxt = recovered.emit("coordinator", "after", {})
+    assert nxt.event.seq == 2, "next emit chains onto the valid prefix, not the forgery"
+    assert nxt.prev_hash == valid_tail.event_hash, "must extend the valid tail, not the forged head"
+    assert recovered.verify_chain()[0]
+    assert len(list(tmp_path.glob("events.jsonl.broken-*.jsonl"))) == 1
 
 
 def test_s4_well_formed_chaining_tail_is_accepted(tmp_path: Path) -> None:
