@@ -141,6 +141,26 @@ documentation pass (SF5).
 
 ## Re-attack (cycle 11)
 
-Per the loop's discipline, a focused re-attack was dispatched against the
-cycle-10 fixes themselves — the close-relative escapes the repo's history
-predicts. Results are recorded in the snapshot for this cycle.
+Per the loop's discipline, two focused re-attack passes were dispatched against
+the cycle-10 fixes themselves. They found **6 close-relative escapes** — and,
+true to form, several were a cycle-10 fix opening a hole against its *sibling*
+cycle-10 fix. All passed the 352-test suite, because the cycle-10 regression
+tests exercised only the empty-state / clean-recovery cases. All six are now
+closed with regression tests on the non-trivial cases (`tests/test_cycle11_reattack.py`;
+19 of 31 fail on the cycle-10 source, all pass after). Suite **352 → 383**.
+
+| # | Sev | Title | Fix |
+|---|---|---|---|
+| Finding-1 | **critical** | SF2 WAL drain silently discarded — `_drain` then `_load` overwrote it, losing the spend and reopening the H5 cap bypass on any non-empty budget file (the cycle-10 test used a fresh $0 tracker, so the drain "survived" by luck) | load before drain |
+| Finding-2 | high | S4 quarantine-recovery realigned the S2 head-anchor *down*, laundering a tail-rollback that S2 was built to catch — the S4 fix defeating the S2 fix | recovery never shrinks the anchor below a previously-attested length |
+| F1 | high | M5 cleanup only caught `writer_iteration_id is None`; a *forged non-null* stamp on a hidden cross-tier write evaded rollback (the stamp is a field the untrusted Librarian controls) | identify this-iteration writes by the forge-proof pre-consolidate snapshot, not the self-reported stamp |
+| F2 | medium | M2's commit pass still did the per-entry archive *disk write* inside the mutation loop, so an `OSError` mid-commit left a P1 ghost | archive after the in-memory transition + flush; atomic temp+replace flush |
+| Finding-3 | medium | SF5's acquisition-verb gate still missed authorize/permit/requesting/seeking/require/"t2 execution please"/>2-word gaps (the cycle-6 E2 enumerate-the-verb trap) | invert the gate — fire on the t2-capability noun phrase, exempt a small stable documentation-verb set |
+| F3 | low | Vf1's model_id "different model" check was a raw `==`; case/whitespace/zero-width deltas made the same model read as two | normalize (NFKC + strip-format + casefold) before comparing |
+
+The cycle-10 fixes that **held up** under attack: C1's post-image CAS (content-hash
+field selection is correct), the SF1 canonicalizer (fullwidth, mathematical
+alphanumerics, BOM/word-joiner/bidi, ligatures all folded), and the S5 canonical
+hash (no nondeterminism found). The throughline of the six that didn't: **a fix
+must assert its effect on the adversarial and degenerate inputs, and on a
+non-empty starting state — not just the clean path.** Cycle 11's tests do.
