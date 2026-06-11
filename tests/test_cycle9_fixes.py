@@ -166,9 +166,19 @@ def test_H4_sibling_write_during_consolidate_not_over_discarded(tmp_path: Path) 
         cm.consolidate_to_candidates = original
 
     assert res.outcome.startswith("rolled-back:tier-mismatch"), res.outcome
-    # The sibling write must survive because its stamp doesn't match.
-    assert coord.hierarchy.causal.has_candidate(SHARED), (
-        "H4 regression: sibling iteration's stamped candidate was over-discarded"
+    # cycle-11 F1 (revises cycle-9 H4): in Phase 0 the Coordinator runs ONE
+    # iteration at a time (the H6 note — no concurrent siblings), so an
+    # untracked/forged `writer_iteration_id` on a candidate absent from the
+    # pre-consolidate snapshot cannot be distinguished from this iteration's
+    # own hidden write. The cycle-10 re-attack showed that letting a
+    # non-matching stamp buy survival reopens the "wrote to a tier and lied"
+    # hole (a forged stamp evades the cleanup). So an untracked-stamp
+    # cross-tier write absent from the pre-snapshot is now correctly
+    # DISCARDED on rollback. Preserving a genuine concurrent sibling is a
+    # Phase-1 concern that needs a trusted (non-data-controlled) stamp source.
+    assert not coord.hierarchy.causal.has_candidate(SHARED), (
+        "cycle-11 F1: an untracked/forged-stamp cross-tier write absent from "
+        "the pre-consolidate snapshot must be discarded, not preserved"
     )
 
 

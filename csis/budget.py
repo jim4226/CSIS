@@ -468,10 +468,17 @@ class BudgetTracker:
         reservation_token: str | None,
     ) -> float:
         with self._lock, self._maybe_locked():
+            # cycle-11 Finding-1: _load() MUST come before the WAL drain.
+            # The old order drained the WAL into self._state in memory and
+            # then _load() replaced self._state from disk (which does not yet
+            # contain the drained amount) — silently discarding the WAL spend
+            # and reopening the H5/SF2 cap bypass on any non-empty budget file.
+            # Load disk state first, then apply the WAL on top, then _save()
+            # persists disk + WAL + this call.
+            self._load()  # pick up sibling-daemon writes FIRST
             # H5: drain any WAL entries deposited by previous contended
-            # records before applying this one.
+            # records, applied on top of the freshly-loaded state.
             self._drain_wal_into_state()
-            self._load()  # pick up sibling-daemon writes
             self._state.prune_stale_pending(self.prune_stale_pending_s)
             today = self._state.current()
             today.calls += 1

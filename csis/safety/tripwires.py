@@ -220,30 +220,47 @@ _TRIP_PATTERNS: list[tuple[str, re.Pattern[str]]] = [
         "escalate_to_t2",
         re.compile(
             r"\b("
-            # SF5 (cycle-10): the cycle-8 version required a verb from a fixed
-            # allowlist (use|invoke|grant|...); 'provide', 'want', 'acquire',
-            # 'obtain', 'escalate' slipped it. The first cut of SF5 went purely
-            # STRUCTURAL (any 't2 + capability noun' mention fires) — but that
-            # re-opened the cycle-5 D1 false-positive class: benign
-            # documentation like 'document the tier-2 sandbox configuration'
-            # has the same noun phrase as an attack and fired. The distinction
-            # between attack and benign here IS the verb intent (acquire vs
-            # document), so we gate on a BROADENED acquisition/request verb set
-            # — closing the SF5 gap without re-opening D1. A documentation verb
-            # ('document', 'describe', 'review', 'configure') is deliberately
-            # NOT in the set, so it does not fire.
-            r"(use|invoke|grant|enable|elevate|escalate|switch|run|give|"
-            r"request|need|provide|want|acquire|obtain|gimme)"
-            r"(?:\s+\w+){0,2}?\s+(t2|tier\s?2)\s+"
-            r"(execution|exec(?:\s?mode)?|sandbox|access|network|tool|tools)"
+            # SF5 (cycle-11): INVERTED gate. The cycle-8 version gated on a
+            # fixed acquisition-verb allowlist; cycle-10 broadened it; the
+            # cycle-11 re-attack still found escapes (authorize/permit/
+            # requesting/seeking/'t2 execution please'/>2-word gaps) because
+            # enumerating acquisition verbs is the cycle-6 E2 trap. The durable
+            # discriminator is the NOUN PHRASE: 't2|tier2' immediately adjacent
+            # to a capability noun (execution|exec|sandbox|access|network|tool)
+            # has no benign reading EXCEPT documentation — and documentation is
+            # exempted structurally in _scan_dual_form (a doc verb appearing
+            # before the phrase suppresses the firing), which preserves the
+            # cycle-5 D1 'document the tier-2 sandbox' pass. Benign 't2'-as-a-
+            # token mentions (highway exit, weather, room, tank, dataset) have
+            # no capability noun after the label, so they never match.
+            r"(t2|tier\s?2)\s+(execution|exec(?:\s?mode)?|sandbox|access|network|tool|tools)"
             r"|"
-            # 'unrestricted network access' is an escalation request on its own
-            # — it names the capability with no benign reading.
+            # 'unrestricted network access' is an escalation request on its own.
             r"unrestricted\s+network\s+access"
             r")\b"
         ),
     ),
 ]
+
+
+# SF5 (cycle-11): per-label benign-context exemptions. A label listed here
+# fires only if its exemption regex does NOT match the canonical text BEFORE
+# the trip match. For escalate_to_t2 the exemption is a documentation verb —
+# 'document the tier-2 sandbox' names the capability noun phrase but with
+# documentation intent, so it must pass (cycle-5 D1). Acquisition phrasings
+# ('authorize t2 execution', 't2 execution please') have no documentation
+# verb before the phrase and fire. This is the inverse of enumerating
+# acquisition verbs: the doc-verb set is small and stable, where the
+# acquisition-verb set is open-ended (the cycle-6 E2 trap).
+_T2_DOC_EXEMPT_RE = re.compile(
+    r"\b(document(?:ing|ed|ation)?|describ(?:e|ing|ed)|review(?:ing|ed)?|"
+    r"configur(?:e|ing|ed|ation)|explain(?:ing|ed)?|note|noting|list(?:ing|ed)?|"
+    r"show(?:ing|n)?|see|read(?:ing)?|inspect(?:ing|ed)?|audit(?:ing|ed)?|"
+    r"summar(?:y|ize|izing|ised|ized))\b"
+)
+_BENIGN_EXEMPTIONS: dict[str, re.Pattern[str]] = {
+    "escalate_to_t2": _T2_DOC_EXEMPT_RE,
+}
 
 
 @dataclass
@@ -287,11 +304,20 @@ class Tripwires:
         strip_form, space_form = canonical_variants(text)
         firings: list[TripwireFiring] = []
         for label, pat in self._patterns:
+            exempt = _BENIGN_EXEMPTIONS.get(label)
             for canon in (strip_form, space_form):
                 m = pat.search(canon)
-                if m:
-                    firings.append(TripwireFiring(label, canon[max(0, m.start()-40):m.end()+40]))
-                    break  # one firing per label
+                if not m:
+                    continue
+                # SF5 (cycle-11): suppress if a benign-context cue (e.g. a
+                # documentation verb) precedes the match — 'document the
+                # tier-2 sandbox' must not fire while 'authorize t2 execution'
+                # must. Checked against the text BEFORE the match so an attack
+                # that merely mentions documentation afterward still fires.
+                if exempt is not None and exempt.search(canon[: m.start()]):
+                    continue
+                firings.append(TripwireFiring(label, canon[max(0, m.start()-40):m.end()+40]))
+                break  # one firing per label
         return firings
 
     def scan_text(self, text: str) -> TripwireResult:

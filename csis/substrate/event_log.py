@@ -457,7 +457,20 @@ class EventLog:
             f.write(raw[:valid_bytes])
             f.flush()
             os.fsync(f.fileno())
-        self._write_anchor_unlocked(self._seq, self._prev_hash)
+        # cycle-11 Finding-2: recovery may SHRINK the live file to drop a
+        # forged/corrupt suffix, but it must never SHRINK the head anchor below
+        # a previously-attested length. If the existing anchor attests MORE
+        # events than we recovered, the dropped suffix was valid signed history
+        # — a tail rollback the attacker paired with one corrupt byte to
+        # trigger recovery — so leaving the anchor intact keeps verify_chain()
+        # reporting the truncation instead of laundering it (the S4 fix must not
+        # defeat the S2 fix). Only (re)write the anchor when recovery did NOT
+        # drop attested history: a pre-cycle-10 legacy log has no anchor, and a
+        # genuine forged-append-past-the-attested-end recovers a prefix at
+        # least as long as the anchor claims.
+        existing = self._read_anchor()
+        if existing is None or self._seq >= existing[0]:
+            self._write_anchor_unlocked(self._seq, self._prev_hash)
 
     def _quarantine_unlocked(self, raw: bytes, reason: str) -> None:
         """Copy a corrupt/legacy log aside for forensics before truncation.

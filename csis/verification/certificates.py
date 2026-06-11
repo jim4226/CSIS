@@ -11,6 +11,7 @@ event is emitted with the reason.
 from __future__ import annotations
 
 import time
+import unicodedata
 import uuid
 from typing import Iterable
 
@@ -68,6 +69,21 @@ REQUIRED_IDENTITY_KEYS: frozenset[str] = frozenset(
 SUBSTANTIVE_IDENTITY_KEYS: frozenset[str] = REQUIRED_IDENTITY_KEYS - {"checkpoint_id"}
 
 
+def _norm_model_id(value: str | None) -> str:
+    """F3 (cycle-11): canonicalize a model_id for the cross-checkpoint equality
+    checks. Vf1's binding rule is "builder.model_id != verifier.model_id", but a
+    raw `==` let cosmetic deltas — case, surrounding whitespace, a trailing
+    newline, a zero-width char — make the SAME model read as two different ones
+    and silently defeat the F1 self-confirmation guard (e.g. an operator's YAML
+    map with `"claude-opus-4-7"` vs `"claude-opus-4-7 "`). NFKC-fold, strip
+    format/zero-width chars, strip surrounding whitespace, casefold."""
+    if value is None:
+        return ""
+    s = unicodedata.normalize("NFKC", value)
+    s = "".join(c for c in s if unicodedata.category(c) != "Cf")
+    return s.strip().casefold()
+
+
 def _validate_identity_shape(name: str, identity: dict[str, str]) -> None:
     missing = REQUIRED_IDENTITY_KEYS - set(identity)
     if missing:
@@ -86,7 +102,14 @@ def _assert_model_declared(name: str, identity: dict[str, str]) -> None:
     rename would flip BOTH fields in lockstep and spoof distinctness. Force
     backends to declare a structurally-meaningful model id.
     """
-    if identity.get("model_id") == identity.get("checkpoint_id"):
+    norm_model = _norm_model_id(identity.get("model_id"))
+    if not norm_model:
+        raise CrossCheckpointViolation(
+            f"{name} model identity is empty after normalization "
+            f"(model_id={identity.get('model_id')!r}); a backend must declare a "
+            f"real model id. See cycle-10 Vf1 / cycle-11 F3."
+        )
+    if norm_model == _norm_model_id(identity.get("checkpoint_id")):
         raise CrossCheckpointViolation(
             f"{name} model identity not declared: model_id == checkpoint_id "
             f"({identity.get('checkpoint_id')!r}). A backend must assert a real "
@@ -137,12 +160,16 @@ def assert_cross_checkpoint(
     # `_assert_model_declared` above already kills the spoof this finding was
     # about (model_id mirroring a renamed checkpoint_id); here we require the
     # two declared models to actually differ.
-    if builder_identity.get("model_id") == verifier_identity.get("model_id"):
+    if _norm_model_id(builder_identity.get("model_id")) == _norm_model_id(
+        verifier_identity.get("model_id")
+    ):
         raise CrossCheckpointViolation(
-            f"same model on both checkpoints: builder and verifier both report "
-            f"model_id={builder_identity.get('model_id')!r}. The verifier must "
+            f"same model on both checkpoints: builder and verifier report the "
+            f"same model_id after normalization "
+            f"(builder={builder_identity.get('model_id')!r}, "
+            f"verifier={verifier_identity.get('model_id')!r}). The verifier must "
             f"run a different model so the builder cannot rubber-stamp its own "
-            f"artifact (F1 / cycle-10 Vf1). "
+            f"artifact (F1 / cycle-10 Vf1 / cycle-11 F3). "
             f"builder={builder_identity} verifier={verifier_identity}"
         )
     # `min_distinct_components` is retained for signature compatibility; the

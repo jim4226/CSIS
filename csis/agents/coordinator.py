@@ -639,27 +639,29 @@ class Coordinator:
             tier_pre_ids = pre_consolidate_ids.get(tier_name, set())
             for stored in tier_store.candidates_snapshot():
                 stamp_matches = stored.writer_iteration_id == iteration_id
-                # M5 (cycle-10): the legacy (unstamped) branch must NOT trust
-                # the Librarian's self-reported `candidates` manifest. A
-                # buggy/malicious Librarian that writes an unstamped candidate
-                # to a tier and DOESN'T advertise it in its return value would
-                # otherwise survive cleanup — the exact "wrote to a tier and
-                # lied about it" threat H4 was built to close. Identify
-                # introduced-this-iteration purely structurally: unstamped AND
-                # absent from this tier's pre-consolidate snapshot. (Phase-0
-                # runs one iteration per Coordinator, so any unstamped
-                # candidate not present before consolidate is necessarily this
-                # iteration's; legitimate prior-iteration entries are stamped
-                # or already in the pre-snapshot.)
-                legacy_match = (
-                    stored.writer_iteration_id is None
-                    and stored.entry_id not in tier_pre_ids
-                )
-                if not (stamp_matches or legacy_match):
+                # F1 (cycle-11): the cycle-10 M5 structural branch only fired
+                # for `writer_iteration_id is None`, so a buggy/malicious
+                # Librarian that wrote a hidden cross-tier candidate stamped
+                # with a FORGED non-null id evaded BOTH branches and survived
+                # the rollback — the exact "wrote to a tier and lied about it"
+                # threat, reopened, because the stamp is a field the untrusted
+                # writer controls. The forge-proof signal is the
+                # pre-consolidate snapshot: per the H6 note the Coordinator
+                # runs ONE iteration at a time in Phase 0 (no concurrent
+                # siblings), so ANY candidate absent from this tier's
+                # pre-snapshot was introduced by THIS iteration whatever its
+                # self-reported stamp claims — discard it. (Preserving a
+                # non-matching stamp as a "legitimate concurrent sibling" is a
+                # Phase-1 concern that needs a TRUSTED stamp source, not a data
+                # field the Librarian writes; until then a forged stamp must
+                # not buy survival.)
+                introduced_this_iteration = stored.entry_id not in tier_pre_ids
+                if not (stamp_matches or introduced_this_iteration):
                     continue
                 tier_store.discard_candidate(stored.entry_id, reason=f"tier-mismatch:{exc}")
                 discarded.append(
-                    (tier_name, stored.entry_id, "stamp" if stamp_matches else "legacy")
+                    (tier_name, stored.entry_id,
+                     "stamp" if stamp_matches else "introduced")
                 )
         self.event_log.emit("coordinator", "tier.mismatch", {
             "reason": str(exc),

@@ -309,9 +309,18 @@ def test_s3_malformed_non_last_line_triggers_quarantine_recovery(tmp_path: Path)
 
     recovered = EventLog(path)  # must NOT raise
     assert recovered.seq() == 1, "should recover the valid prefix (event 0 only)"
-    assert recovered.verify_chain()[0], "recovered chain must be intact"
     quarantines = list(tmp_path.glob("events.jsonl.broken-*.jsonl"))
     assert len(quarantines) == 1, "corrupt log must be quarantined, not silently dropped"
+    # cycle-11 Finding-2: events 1+2 were attested by the head anchor, so the
+    # recovery honestly FLAGS the shortfall via verify_chain rather than
+    # laundering it (the S4 recovery must not defeat the S2 anchor). The log
+    # stays usable: a new emit chains onto the recovered prefix and
+    # re-establishes a consistent anchor.
+    ok, reason = recovered.verify_chain()
+    assert not ok and "truncation" in (reason or "").lower(), (reason,)
+    nxt = recovered.emit("coordinator", "after-recovery", {})
+    assert nxt.event.seq == 1
+    assert EventLog(path).verify_chain()[0], "usable + consistent after an emit"
 
 
 def test_s3_emit_write_is_durable_fsync(tmp_path: Path, monkeypatch) -> None:

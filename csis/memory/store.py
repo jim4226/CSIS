@@ -13,6 +13,7 @@ read-only-by-default attachment rule.
 from __future__ import annotations
 
 import json
+import os
 import re
 import threading
 import time
@@ -327,15 +328,27 @@ class MemoryStore:
                 staged.append((entry_id, promoted_cand, cand))
 
             # --- commit pass: batch fully validated; no logical raise here ---
+            # F2 (cycle-11): keep the live<-candidate transition transactional.
+            # _archive_candidate is a per-entry DISK write that can raise
+            # OSError (disk full / EACCES / quota); if it ran inside this loop a
+            # fault on entry k would leave _live mutated for 1..k with _flush
+            # never reached — the cycle-2 P1 ghost M2 set out to kill. Mutate
+            # memory and _flush() FIRST (the durable, atomic state change), THEN
+            # archive as best-effort audit, so an archive failure can no longer
+            # corrupt or half-apply live state.
             promoted: list[MemoryEntry] = []
             for entry_id, promoted_cand, cand in staged:
                 self._live[entry_id] = promoted_cand
-                promoted.append(promoted_cand)
-                # Move out of active candidates into the archive for audit.
-                self._archive_candidate(cand, why_id)
                 self._candidate.pop(entry_id, None)
-
+                promoted.append(promoted_cand)
             self._flush()
+            for _entry_id, _promoted_cand, cand in staged:
+                try:
+                    self._archive_candidate(cand, why_id)
+                except OSError:
+                    # Audit archival is best-effort; its failure must not roll
+                    # back or corrupt the already-persisted promotion.
+                    pass
             return promoted
 
     def mark_verified(self, entry_ids: list[str]) -> list[MemoryEntry]:
@@ -430,24 +443,28 @@ class MemoryStore:
     # ---- persistence ----------------------------------------------------
 
     def _flush(self) -> None:
-        self._candidate_path.write_text(
+        # F2 (cycle-11): persist each side via a temp file + os.replace so a
+        # crash mid-write can never leave a torn JSON store. The candidate side
+        # (which records the REMOVAL of a promoted entry) is written BEFORE the
+        # live side (the ADDITION), so a crash between the two leaves an entry
+        # "neither candidate nor live" — a lost, re-derivable promotion —
+        # rather than "both live and candidate" (a P1 ghost / double-spend).
+        self._atomic_write_json(self._candidate_path, self._candidate)
+        self._atomic_write_json(self._live_path, self._live)
+
+    @staticmethod
+    def _atomic_write_json(path: Path, store: dict[str, MemoryEntry]) -> None:
+        tmp = path.with_suffix(path.suffix + ".tmp")
+        tmp.write_text(
             json.dumps(
-                {eid: e.model_dump(mode="json") for eid, e in self._candidate.items()},
+                {eid: e.model_dump(mode="json") for eid, e in store.items()},
                 indent=2,
                 sort_keys=True,
                 default=str,
             ),
             encoding="utf-8",
         )
-        self._live_path.write_text(
-            json.dumps(
-                {eid: e.model_dump(mode="json") for eid, e in self._live.items()},
-                indent=2,
-                sort_keys=True,
-                default=str,
-            ),
-            encoding="utf-8",
-        )
+        os.replace(tmp, path)
 
     def _load(self) -> None:
         if self._candidate_path.exists():
