@@ -106,6 +106,12 @@ class MockBackend(LLMBackend):
         # F1 mitigation: include model_id + tools as part of identity so the
         # certificate records distinct values even when the prompt-level
         # behavior happens to be the same.
+        #
+        # Vf1 (cycle 10): when set_model_id was NOT called, model_id falls back
+        # to checkpoint_id. assert_cross_checkpoint now rejects that
+        # (model_id == checkpoint_id) so a mock can't be used un-declared on a
+        # cross-checkpoint cert. Tests / the loop / the daemon call
+        # set_model_id with distinct real ids for both checkpoints.
         return {
             "checkpoint_id": checkpoint_id,
             "backend": self.name,

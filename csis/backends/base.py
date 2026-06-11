@@ -54,10 +54,19 @@ class LLMBackend(ABC):
         the model id family so same-model certs are detectable downstream.
 
         P3 (cycle 2): must return all REQUIRED_IDENTITY_KEYS — checkpoint_id,
-        model_id, tool_set, backend. The base implementation defaults
-        model_id and tool_set to checkpoint_id so a subclass that forgets
-        to override doesn't silently produce decorative diffs. Subclasses
-        SHOULD override with real values."""
+        model_id, tool_set, backend.
+
+        Vf1 (cycle 10): the base implementation deliberately leaves
+        ``model_id == checkpoint_id`` (the un-declared default). Cross-checkpoint
+        enforcement (`assert_cross_checkpoint`) now REJECTS that as "model
+        identity not declared", and excludes ``checkpoint_id`` from the
+        distinctness count. So a subclass/backend that forgets to assert a real
+        model id cannot pass the gate by merely renaming the checkpoint label —
+        it MUST declare a structurally-meaningful ``model_id`` (e.g. the
+        AnthropicBackend reports the real model; MockBackend.set_model_id sets
+        one; csis/loop.py and csis/daemon.py set distinct ids for both
+        checkpoints). Subclasses MUST override with real values to be usable on
+        either side of a cross-checkpoint cert."""
         return {
             "checkpoint_id": checkpoint_id,
             "backend": self.name,

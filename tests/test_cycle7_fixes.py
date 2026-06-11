@@ -78,6 +78,12 @@ def test_F2_tier_mismatch_does_not_over_discard_legitimate_candidates(tmp_path: 
     backend = MockBackend()
     backend.set_model_id(cfg.builder_checkpoint, "mock-opus")
     backend.set_model_id(cfg.auditor_checkpoint, "mock-sonnet")
+    # Vf1 (cycle 10): cross-checkpoint now requires >=2 distinct SUBSTANTIVE
+    # identity keys (checkpoint_id no longer pads the count). Give the two
+    # checkpoints distinct tool sets too so this iteration reaches the
+    # tier-mismatch path under test rather than rolling back on cross-checkpoint.
+    backend.set_tools(cfg.builder_checkpoint, ["sandbox.execute", "web_search"])
+    backend.set_tools(cfg.auditor_checkpoint, ["pinned_graders"])
     backend.script("researcher", cfg.builder_checkpoint,
         '{"plan_id":"p","frontier_item":"x","hypothesis":"benign",'
         '"falsification_condition":"y","budget":{"time_s":1,"tokens":10},'

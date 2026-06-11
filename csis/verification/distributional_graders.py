@@ -41,6 +41,7 @@ Background reading:
 """
 from __future__ import annotations
 
+import hashlib
 import math
 import random
 import statistics
@@ -49,6 +50,21 @@ from dataclasses import dataclass, field
 from typing import Callable, Iterable, Sequence
 
 from csis.contracts import DistributionalGraderResult, GraderSlice
+
+
+def _derive_seed(base_seed: int, *parts: object) -> int:
+    """Deterministically derive a 32-bit RNG seed from a base seed + parts.
+
+    Vf2 (cycle 10): used to give the main estimate and each slice an
+    INDEPENDENT, reproducible RNG. We deliberately avoid the builtin
+    ``hash()`` here — it is salted by ``PYTHONHASHSEED`` for str/bytes, so
+    ``hash((seed, slice_name))`` would differ across processes and the cert
+    hash would NOT stay stable across reruns. ``hashlib.sha256`` over a
+    canonical string is process-independent.
+    """
+    key = "|".join([str(base_seed)] + [str(p) for p in parts])
+    digest = hashlib.sha256(key.encode("utf-8")).digest()
+    return int.from_bytes(digest[:4], "big")
 
 
 # ---------------------------------------------------------------------------
@@ -125,9 +141,20 @@ def hausdorff_1d(pred: Sequence[float], truth: Sequence[float]) -> float:
     version takes a distance function; we keep this scalar variant
     for the prototype because most CSIS demos work on extracted
     point clouds at this level of fidelity.
+
+    Vf4 (cycle 10): the distance is UNDEFINED when either point set is
+    empty — there is no nearest point to measure to. The previous
+    behaviour returned ``float("inf")``, which (a) silently corrupts to
+    JSON ``null`` on a signed cert and (b) launders into the aggregate as
+    a non-finite metric (Vf3). We now RAISE so the degenerate sample is
+    quarantined by the caller rather than emitting a non-finite value.
     """
     if not pred or not truth:
-        return float("inf")
+        raise ValueError(
+            "hausdorff_1d is undefined for an empty point set "
+            f"(pred={len(pred)} pts, truth={len(truth)} pts); the sample must "
+            f"be quarantined rather than scored as inf. See cycle-10 Vf4/Vf3."
+        )
     def directed(a: Sequence[float], b: Sequence[float]) -> float:
         return max(min(abs(x - y) for y in b) for x in a)
     return max(directed(pred, truth), directed(truth, pred))
@@ -164,6 +191,21 @@ def bootstrap_ci(
         return 0.0, 0.0, 0.0
     if n_bootstrap < 1:
         raise ValueError(f"n_bootstrap must be >= 1, got {n_bootstrap}")
+    # Vf3 (cycle 10): a single non-finite per-sample metric used to launder
+    # into passed=True. Python's sort is undefined in the presence of NaN, so
+    # the percentile slot could return a finite value while the point estimate
+    # (mean incl. NaN) was NaN — and _passed did NaN/finite comparisons with no
+    # guard. Reject any non-finite sample HERE, before aggregation, as a hard
+    # verification failure. (Callers that want drop-and-record semantics should
+    # filter + count before calling; this chokepoint refuses to produce a CI
+    # from poisoned input.)
+    bad = [x for x in sample_metrics if not math.isfinite(x)]
+    if bad:
+        raise ValueError(
+            f"bootstrap_ci received {len(bad)} non-finite sample metric(s) "
+            f"(e.g. {bad[0]!r}) out of {len(sample_metrics)}; a NaN/inf sample "
+            f"must never be aggregated into a passable CI. See cycle-10 Vf3."
+        )
     rng = rng or random.Random(42)
     point = statistic(sample_metrics)
     resampled_stats: list[float] = []
@@ -223,16 +265,46 @@ class DistributionalGrader(ABC):
         ci_level: float = 0.95,
         slice_min_n: int = 5,
         rng_seed: int = 42,
+        min_nonempty_truth_fraction: float = 0.0,
     ) -> None:
         self.threshold = threshold if threshold is not None else self.threshold
         self.n_bootstrap = n_bootstrap
         self.ci_level = ci_level
         self.slice_min_n = slice_min_n
+        # Vf6 (cycle 10): optional guard. Both-empty masks score 1.0 by
+        # convention (Dice/IoU agree the structure is absent). An all-empty-
+        # ground-truth eval set therefore scores a perfect pass for ANY
+        # prediction. When this fraction is > 0, evaluate() refuses to pass a
+        # batch unless at least this fraction of cases have NON-EMPTY ground
+        # truth. Default 0.0 preserves the legacy convention but the degenerate
+        # counts are ALWAYS surfaced in detail so the pass is never silent.
+        self.min_nonempty_truth_fraction = min_nonempty_truth_fraction
+        # Vf2 (cycle 10): store the SEED, not a long-lived Random. A shared,
+        # never-reset Random made the verdict depend on call count and slice
+        # ordering — same grader + same data gave different CIs across
+        # consecutive evaluate() calls, with a demonstrated PASS<->FAIL flip.
+        # evaluate() now derives a fresh, independently-seeded Random for the
+        # main estimate and for EACH slice from this fixed seed.
+        self._rng_seed = rng_seed
+        # Back-compat: keep an attribute named _rng so any external reference
+        # still resolves; it is NOT used by evaluate() anymore.
         self._rng = random.Random(rng_seed)
 
     @abstractmethod
     def per_sample_metric(self, sample: Sample) -> float:
         """Compute the per-sample metric. Subclass-specific."""
+
+    def _degeneracy(self, sample: Sample) -> str | None:
+        """Vf6 (cycle 10): classify a sample as degenerate, or None.
+
+        Subclasses whose metric auto-scores a perfect value on empty inputs
+        (Dice/IoU return 1.0 when both masks are empty) override this to
+        report ``"both_empty"`` / ``"empty_truth"`` etc. The base
+        ``evaluate`` counts these and surfaces them in ``detail`` so a batch
+        that passes only because the ground truth is empty is never silent.
+        Default: no degeneracy notion.
+        """
+        return None
 
     # ------------------------------------------------------------------
 
@@ -246,7 +318,14 @@ class DistributionalGrader(ABC):
         For "lower is better": upper bound must stay under the
         threshold (don't accept a model whose true error might exceed
         the bar).
+
+        Vf3 (cycle 10): a non-finite CI bound must NEVER read as a pass. A
+        NaN comparison (`nan >= t`) is always False, but `inf <= t` /
+        `-inf >= t` can read True and a NaN bound that slipped through must
+        not be trusted either. Hard-gate on finiteness of BOTH bounds first.
         """
+        if not (math.isfinite(ci_lower) and math.isfinite(ci_upper)):
+            return False
         if self.threshold is None:
             return True
         if self.direction == "higher_is_better":
@@ -272,11 +351,30 @@ class DistributionalGrader(ABC):
             )
 
         per_sample = [self.per_sample_metric(s) for s in samples]
+
+        # Vf6 (cycle 10): tally degenerate cases (e.g. Dice/IoU both-empty,
+        # which auto-score 1.0) so a batch that "passes" only because the
+        # ground truth is empty is never silent.
+        degeneracy_counts: dict[str, int] = {}
+        for s in samples:
+            kind = self._degeneracy(s)
+            if kind is not None:
+                degeneracy_counts[kind] = degeneracy_counts.get(kind, 0) + 1
+        n_empty_truth = degeneracy_counts.get("both_empty", 0) + degeneracy_counts.get(
+            "empty_truth", 0
+        )
+        n_nonempty_truth = len(samples) - n_empty_truth
+        nonempty_truth_fraction = n_nonempty_truth / len(samples)
+
+        # Vf2 (cycle 10): fresh, independently-seeded RNG for the MAIN estimate
+        # derived from the fixed seed. Re-seeding here makes evaluate()
+        # byte-reproducible across consecutive calls (no shared mutable state).
+        main_rng = random.Random(_derive_seed(self._rng_seed, "__main__"))
         point, lo, hi = bootstrap_ci(
             per_sample,
             n_bootstrap=self.n_bootstrap,
             ci_level=self.ci_level,
-            rng=self._rng,
+            rng=main_rng,
         )
 
         # Per-slice breakdown — group by every slice key any sample
@@ -291,24 +389,56 @@ class DistributionalGrader(ABC):
                 slice_buckets.setdefault(key, []).append(m)
                 slice_buckets_ids.setdefault(key, []).append(s.case_id)
 
+        # Vf5 (cycle 10): record the resample count ACTUALLY used per slice.
+        slice_n_bootstrap = min(self.n_bootstrap, 200)
         slice_results: list[GraderSlice] = []
         for (k, v), bucket in sorted(slice_buckets.items()):
             if len(bucket) < self.slice_min_n:
                 continue  # too few samples for meaningful CI
+            slice_name = f"{k}={v}"
+            # Vf2: each slice gets its OWN RNG, seeded only from the fixed seed
+            # and the slice name — so a slice CI depends only on its own data
+            # plus the seed, never on sibling slices or call order.
+            slice_rng = random.Random(_derive_seed(self._rng_seed, slice_name))
             s_point, s_lo, s_hi = bootstrap_ci(
                 bucket,
-                n_bootstrap=min(self.n_bootstrap, 200),
+                n_bootstrap=slice_n_bootstrap,
                 ci_level=self.ci_level,
-                rng=self._rng,
+                rng=slice_rng,
             )
             slice_results.append(GraderSlice(
-                name=f"{k}={v}",
+                name=slice_name,
                 n_samples=len(bucket),
                 point_estimate=round(s_point, 6),
                 ci_lower=round(s_lo, 6),
                 ci_upper=round(s_hi, 6),
                 passed=self._passed(s_lo, s_hi),
+                n_bootstrap=slice_n_bootstrap,
             ))
+
+        passed = self._passed(lo, hi)
+
+        # Vf6: degeneracy report + optional guard.
+        detail_parts: list[str] = []
+        if degeneracy_counts:
+            detail_parts.append(
+                "degenerate_cases="
+                + ",".join(f"{k}:{degeneracy_counts[k]}" for k in sorted(degeneracy_counts))
+            )
+            detail_parts.append(
+                f"nonempty_truth={n_nonempty_truth}/{len(samples)} "
+                f"({nonempty_truth_fraction:.3f})"
+            )
+        if (
+            self.min_nonempty_truth_fraction > 0.0
+            and nonempty_truth_fraction < self.min_nonempty_truth_fraction
+        ):
+            passed = False
+            detail_parts.append(
+                f"GUARD_FAILED: nonempty-truth fraction {nonempty_truth_fraction:.3f} "
+                f"< required {self.min_nonempty_truth_fraction:.3f}; an all/mostly-"
+                f"empty-ground-truth batch cannot pass (cycle-10 Vf6)"
+            )
 
         return DistributionalGraderResult(
             grader=self.name,
@@ -321,8 +451,9 @@ class DistributionalGrader(ABC):
             n_samples=len(samples),
             n_bootstrap=self.n_bootstrap,
             threshold=self.threshold,
-            passed=self._passed(lo, hi),
+            passed=passed,
             slices=slice_results,
+            detail="; ".join(detail_parts),
         )
 
     def worst_slices(
@@ -346,6 +477,23 @@ class DistributionalGrader(ABC):
 # ---------------------------------------------------------------------------
 
 
+def _mask_degeneracy(pred: Sequence[int], truth: Sequence[int]) -> str | None:
+    """Vf6 (cycle 10): classify a (pred, truth) mask pair for Dice/IoU.
+
+    Returns ``"both_empty"`` when neither mask has any foreground (the case
+    that auto-scores 1.0), ``"empty_truth"`` when only the ground truth is
+    empty (a non-empty prediction is unverifiable against an absent
+    structure), else None.
+    """
+    truth_empty = not any(truth)
+    pred_empty = not any(pred)
+    if truth_empty and pred_empty:
+        return "both_empty"
+    if truth_empty:
+        return "empty_truth"
+    return None
+
+
 class DiceGrader(DistributionalGrader):
     """Per-case Dice score over a segmentation evaluation set."""
 
@@ -356,6 +504,10 @@ class DiceGrader(DistributionalGrader):
 
     def per_sample_metric(self, sample: Sample) -> float:
         return dice_score(sample.payload["pred_mask"], sample.payload["true_mask"])
+
+    def _degeneracy(self, sample: Sample) -> str | None:
+        # Vf6: surface both-empty / empty-truth cases that auto-score 1.0.
+        return _mask_degeneracy(sample.payload["pred_mask"], sample.payload["true_mask"])
 
 
 class IoUGrader(DistributionalGrader):
@@ -368,6 +520,10 @@ class IoUGrader(DistributionalGrader):
 
     def per_sample_metric(self, sample: Sample) -> float:
         return iou_score(sample.payload["pred_mask"], sample.payload["true_mask"])
+
+    def _degeneracy(self, sample: Sample) -> str | None:
+        # Vf6: surface both-empty / empty-truth cases that auto-score 1.0.
+        return _mask_degeneracy(sample.payload["pred_mask"], sample.payload["true_mask"])
 
 
 class LandmarkErrorGrader(DistributionalGrader):

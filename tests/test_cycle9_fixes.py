@@ -35,6 +35,12 @@ def _wire_backend(cfg: CSISConfig) -> MockBackend:
     backend = MockBackend()
     backend.set_model_id(cfg.builder_checkpoint, "mock-opus")
     backend.set_model_id(cfg.auditor_checkpoint, "mock-sonnet")
+    # Vf1 (cycle 10): cross-checkpoint now requires >=2 distinct SUBSTANTIVE
+    # identity keys (checkpoint_id no longer pads the count), so the two
+    # checkpoints must differ in tool_set as well as model_id to be a valid
+    # cross-checkpoint pair (mirrors the production loop/daemon wiring).
+    backend.set_tools(cfg.builder_checkpoint, ["sandbox.execute", "web_search"])
+    backend.set_tools(cfg.auditor_checkpoint, ["pinned_graders"])
     backend.script("researcher", cfg.builder_checkpoint,
         '{"plan_id":"p","frontier_item":"x","hypothesis":"benign",'
         '"falsification_condition":"y","budget":{"time_s":1,"tokens":10},'

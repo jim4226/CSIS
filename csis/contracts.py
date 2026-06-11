@@ -5,12 +5,33 @@ role-specific types live with the role.
 """
 from __future__ import annotations
 
+import math
 from typing import Any, Literal, Optional
 
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, Field, field_validator
 
 from csis.memory.trust import TrustLevel
 from csis.substrate.capability import CapabilityTier
+
+
+def _reject_non_finite(value: Optional[float], field_name: str) -> Optional[float]:
+    """Vf4 (cycle 10): a distributional result/slice must never carry a
+    non-finite float.
+
+    pydantic v2 ``model_dump_json()`` serialises ``inf`` / ``nan`` as JSON
+    ``null``; ``model_validate_json()`` then rejects ``null`` for a required
+    float field — so a cert built with a non-finite value is UNLOADABLE, and
+    on a signed object ``inf -> null`` is silent value corruption. Reject at
+    construction so such a cert can never be built in the first place. Ties to
+    Vf3 (NaN-laundering) and the ``hausdorff_1d`` inf-on-empty source.
+    """
+    if value is not None and not math.isfinite(value):
+        raise ValueError(
+            f"{field_name} must be finite, got {value!r}. A non-finite metric "
+            f"cannot round-trip through cert JSON (inf/nan -> null) and would "
+            f"corrupt a signed certificate. See cycle-10 finding Vf4."
+        )
+    return value
 
 
 # ---- planning / acting ----------------------------------------------------
@@ -86,6 +107,23 @@ class GraderSlice(BaseModel):
     ci_lower: Optional[float] = None
     ci_upper: Optional[float] = None
     passed: Optional[bool] = None
+    n_bootstrap: int = Field(
+        default=0,
+        ge=0,
+        description=(
+            "Vf5 (cycle 10): the bootstrap resample count actually used for "
+            "THIS slice's CI. Recorded per slice because the slice path may use "
+            "a different resolution than the main estimate; a slice CI must not "
+            "be labelled with the main n_bootstrap it was not computed at."
+        ),
+    )
+
+    @field_validator("point_estimate", "ci_lower", "ci_upper")
+    @classmethod
+    def _slice_metrics_finite(cls, v: Optional[float], info: Any) -> Optional[float]:
+        # Vf4: same non-finite guard as the parent result (slices serialise
+        # into the same cert JSON).
+        return _reject_non_finite(v, info.field_name)
 
 
 class DistributionalGraderResult(BaseModel):
@@ -122,6 +160,13 @@ class DistributionalGraderResult(BaseModel):
     passed: bool = False
     slices: list[GraderSlice] = Field(default_factory=list)
     detail: str = ""
+
+    @field_validator("point_estimate", "ci_lower", "ci_upper")
+    @classmethod
+    def _result_metrics_finite(cls, v: float, info: Any) -> float:
+        # Vf4: reject inf/nan at construction so the cert is always loadable
+        # and the signed value is never silently corrupted to null.
+        return _reject_non_finite(v, info.field_name)
 
 
 class CriticFinding(BaseModel):
