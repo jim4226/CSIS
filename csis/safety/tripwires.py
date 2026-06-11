@@ -258,6 +258,17 @@ _T2_DOC_EXEMPT_RE = re.compile(
     r"show(?:ing|n)?|see|read(?:ing)?|inspect(?:ing|ed)?|audit(?:ing|ed)?|"
     r"summar(?:y|ize|izing|ised|ized))\b"
 )
+# cycle-12 self-review: the exemption must not be a free evasion. A doc verb
+# anywhere before the phrase would let an attacker prefix "document: acquire t2
+# execution" to suppress the firing. So the exemption holds only when a doc
+# verb governs the phrase with NO acquisition cue between it and the match —
+# 'document the tier-2 sandbox' is exempt, 'document: acquire t2 execution' is
+# not (the acquisition verb between breaks the exemption).
+_T2_ACQUIRE_RE = re.compile(
+    r"\b(use|invoke|grant|enable|elevate|escalate|switch|run|give|request(?:ing)?|"
+    r"need|provide|want|acquire|obtain|authoriz(?:e|ing)|permit(?:ting)?|"
+    r"seek(?:ing)?|gain|unlock|allow|gimme|elevat(?:e|ing))\b"
+)
 _BENIGN_EXEMPTIONS: dict[str, re.Pattern[str]] = {
     "escalate_to_t2": _T2_DOC_EXEMPT_RE,
 }
@@ -309,13 +320,23 @@ class Tripwires:
                 m = pat.search(canon)
                 if not m:
                     continue
-                # SF5 (cycle-11): suppress if a benign-context cue (e.g. a
-                # documentation verb) precedes the match — 'document the
-                # tier-2 sandbox' must not fire while 'authorize t2 execution'
-                # must. Checked against the text BEFORE the match so an attack
-                # that merely mentions documentation afterward still fires.
-                if exempt is not None and exempt.search(canon[: m.start()]):
-                    continue
+                # SF5 (cycle-11/12): suppress only if a documentation verb
+                # GOVERNS the phrase — i.e. a doc verb appears before the match
+                # AND no acquisition verb sits between it and the match. This
+                # exempts 'document the tier-2 sandbox' (benign, cycle-5 D1)
+                # while still firing on 'document: acquire t2 execution' (the
+                # doc-prefix evasion the cycle-12 self-review found). NOTE: a
+                # text tripwire is a leaky BEHAVIORAL belt, not the gate — the
+                # authoritative escalation control is the TYPED capability-tier
+                # check (`enforce(tag, ceiling)` in coordinator.run_iteration),
+                # which an attacker's plan text cannot bypass. # TODO(phase-1):
+                # retire the text rule once every escalation path carries a
+                # typed tier and the tripwire is pure redundancy.
+                if exempt is not None:
+                    pre = canon[: m.start()]
+                    doc_hits = list(exempt.finditer(pre))
+                    if doc_hits and not _T2_ACQUIRE_RE.search(pre[doc_hits[-1].end():]):
+                        continue
                 firings.append(TripwireFiring(label, canon[max(0, m.start()-40):m.end()+40]))
                 break  # one firing per label
         return firings
