@@ -121,6 +121,26 @@ _TRIP_PATTERNS: list[tuple[str, re.Pattern[str]]] = [
             r")\b"
         ),
     ),
+    # Fable 5 (2026-06-09) introduced a classifier-based "distillation" guard
+    # that Anthropic enforces at the API level. We mirror it here so CSIS's
+    # own tripwire layer catches capability-extraction prompts before they
+    # reach the backend, providing defence-in-depth on the self-improve loop.
+    # Patterns cover: direct weight/capability extraction, system-prompt
+    # revelation, and training a downstream model on CSIS outputs.
+    (
+        "distillation_attempt",
+        re.compile(
+            r"\b("
+            r"distill\s+.{0,30}\b(capabilit|weight|model|knowledge)"
+            r"|"
+            r"(extract|steal|reproduce)\s+.{0,20}\b(training\s+data|model\s+weight|internal\s+state)"
+            r"|"
+            r"(reveal|dump|expose|output)\s+.{0,30}\b(system\s+prompt|training\s+(data|example))"
+            r"|"
+            r"(train|fine\s*tun[ei])\s+.{0,40}\b(on|from|using)\s+.{0,20}\b(csis|your|its)\s+(output|response|generation)"
+            r")\b"
+        ),
+    ),
 ]
 
 

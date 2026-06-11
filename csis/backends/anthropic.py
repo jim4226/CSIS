@@ -5,8 +5,9 @@ is set, instantiation raises immediately — the prototype falls back to
 MockBackend in that case (handled at config-load time).
 
 Mapping from CSIS checkpoint labels to Anthropic models:
-    "alpha"  ->  claude-opus-4-7
-    "beta"   ->  claude-sonnet-4-6
+    "alpha"  ->  claude-opus-4-7   (Builder / Researcher; production default)
+    "beta"   ->  claude-sonnet-4-6 (Verifier / Auditor; cross-checkpoint)
+    "fable5" ->  claude-fable-5    (opt-in builder; 3× memory gain, extended autonomy)
 Custom labels can override via the constructor mapping.
 
 Monitoring instrumentation (added for the live-dashboard work):
@@ -30,6 +31,9 @@ _DEFAULT_MODEL_MAP = {
     "mock-beta": "claude-sonnet-4-6",
     "alpha": "claude-opus-4-7",
     "beta": "claude-sonnet-4-6",
+    # Fable 5 (2026-06-09): extended-autonomy model with 3× file-memory gain.
+    # Opt-in: set CSISConfig.builder_checkpoint = "fable5" to activate.
+    "fable5": "claude-fable-5",
 }
 
 
