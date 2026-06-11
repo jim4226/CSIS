@@ -1,12 +1,12 @@
 # CSIS · Continuous Self-Improving System
 
-> A coordinator-led multi-agent system designed to run 24/7, maintain persistent memory, and slowly improve itself — **built in public alongside 9 cycles of red-team → fix → regression-test against itself.**
+> A coordinator-led multi-agent system designed to run 24/7, maintain persistent memory, and slowly improve itself — **built in public alongside 10 cycles of red-team → fix → regression-test against itself.**
 
 <p align="center">
   <img alt="phase" src="https://img.shields.io/badge/phase-0%20%E2%80%94%20runnable-d97757">
-  <img alt="tests" src="https://img.shields.io/badge/tests-246%20passing-788c5d">
-  <img alt="cycles" src="https://img.shields.io/badge/critique%E2%86%92fix%20cycles-9-6a9bcc">
-  <img alt="findings" src="https://img.shields.io/badge/findings-99%20%C2%B7%200%20open-788c5d">
+  <img alt="tests" src="https://img.shields.io/badge/tests-352%20passing-788c5d">
+  <img alt="cycles" src="https://img.shields.io/badge/critique%E2%86%92fix%20cycles-10-6a9bcc">
+  <img alt="findings" src="https://img.shields.io/badge/findings-122%20%C2%B7%200%20open-788c5d">
   <img alt="python" src="https://img.shields.io/badge/python-3.10%2B-6a9bcc">
   <img alt="license" src="https://img.shields.io/badge/license-MIT-c89b3c">
 </p>
@@ -15,10 +15,11 @@
 
 Most agent-framework repos sell a vision. This one ships a **paper trail of its own failures.**
 
-Across 9 cycles, parallel red-team agents attacked the system, the fixes landed in code with regression tests, and the cycles often found that the *previous* cycle had fixed the bug at the wrong abstraction layer. Two of the bigger lessons:
+Across 10 cycles, parallel red-team agents attacked the system, the fixes landed in code with regression tests, and the cycles often found that the *previous* cycle had fixed the bug at the wrong abstraction layer. Three of the bigger lessons:
 
 - **Identity beats timing.** Cycle 8 tried to detect "which iteration wrote this candidate?" with a pre-consolidate snapshot diff. Cycle 9 found the snapshot had a race window. The fix wasn't a wider snapshot — it was a `writer_iteration_id` stamp on each candidate at write time.
 - **Chokepoints beat perimeters.** Cycle 8 added a `type(...) is _BackendTracker` check at `Daemon.__init__` to defeat subclass-shaped bypasses of LLM metering. Cycle 9 found three production scripts (`burst.py`, `loop.py`, `demo_pr_scenario.py`) bypassed the Daemon entirely. The fix moved the check into `Coordinator.__init__` — the actual single chokepoint every LLM call passes through.
+- **A subsystem that skips a cycle doesn't get the cycle's adversary.** Cycle 10 finally red-teamed the two pieces shipped as feature work — the distributional graders and the cross-process event log — and found nine criticals hiding there: a verifier verdict that wasn't a deterministic function of its inputs (a shared RNG flipped PASS/FAIL), the *core* cross-checkpoint defense spoofable by a label rename, and a promotion that re-checked the live hash but never the candidate bytes the Auditor signed (the unclosed half of a cycle-1 finding).
 
 Full cycle table, finding counts, and architectural-pivot post-mortems live in **[CYCLES.md](CYCLES.md)**.
 
@@ -57,7 +58,7 @@ flowchart LR
 - Constitution + tripwires + shutdown token + tier guard, all enforced as code
 - 24/7 daemon: curiosity-driven frontier-item generation, budget caps, watchdog, stop file, auto-snapshots
 - 3 domain adapters: PR maintenance (any git repo), self-improvement (this repo), Lean formal math (graceful fallback if Lean isn't installed)
-- 246 tests passing (4 skipped); every cycle's findings have regression tests, plus the distributional grader stack added after the nine cycles (Dice / IoU / landmark-error / ASSD with bootstrap CIs + per-slice breakdown)
+- 352 tests passing; every cycle's findings have a regression test that asserts the *effect*, including the distributional grader stack (Dice / IoU / landmark-error / ASSD with bootstrap CIs + per-slice breakdown) — which cycle 10 hardened to a deterministic, finite-valued verdict after red-teaming it for the first time
 
 ## Evals as a first-class primitive
 
@@ -128,7 +129,7 @@ Concrete graders shipped: `DiceGrader`, `IoUGrader`, `LandmarkErrorGrader`, `Ass
 ```bash
 pip install pydantic pytest
 
-# Run the test suite (246 passing).
+# Run the test suite (352 passing).
 python -m pytest tests/ -v
 
 # Run one full iteration end-to-end (mock backend, no API key).
@@ -242,17 +243,17 @@ To resume cold: read `brain/BRAIN.html`, then the highest-numbered snapshot, the
 | Distributional cert is bound to evidence, not point estimates | `DistributionalGraderResult` carries bootstrap CI + sample size; conservative `passed` rule requires lower-CI-bound clearing the threshold (higher-is-better) or upper bound staying under (lower-is-better) | `test_dice_grader_fails_when_ci_lower_below_threshold`, `test_landmark_grader_fails_when_ci_upper_exceeds_threshold` |
 | Event-log hash chain holds across processes | `EventLog.emit()` takes an inter-process file lock and re-reads the file tail under it, so two daemons sharing one `session.jsonl` can't tear the seq chain | `test_event_log_cross_process_serialization` |
 
-246 tests total. Each cycle's findings have a regression test that proves the mitigation works. Full cycle history → **[CYCLES.md](CYCLES.md)**.
+352 tests total. Each cycle's findings have a regression test that proves the mitigation works. Full cycle history → **[CYCLES.md](CYCLES.md)**.
 
 ## How this was built
 
-Nine cycles, all LLM-driven — red-team reports under [`brain/critiques/`](brain/critiques/), shipped-state snapshots under [`brain/snapshots/`](brain/snapshots/). Cycle-by-cycle breakdown in **[CYCLES.md](CYCLES.md)** — or the visual walkthrough at **[cycles.html](https://jim4226.github.io/CSIS/cycles.html)**.
+Ten cycles, all LLM-driven — red-team reports under [`brain/critiques/`](brain/critiques/), shipped-state snapshots under [`brain/snapshots/`](brain/snapshots/). Cycle-by-cycle breakdown in **[CYCLES.md](CYCLES.md)** — or the visual walkthrough at **[cycles.html](https://jim4226.github.io/CSIS/cycles.html)**.
 
-The pattern that emerged: each cycle, parallel red-team agents attack the prior cycle's fixes; findings are triaged into a critique doc with reproducible attacks and `file:line` evidence; fixes land in code with regression tests; results are snapshotted. Cycles 4-9 each found that the previous cycle's pivot was at the right concept but the wrong abstraction layer, and the next cycle moved it.
+The pattern that emerged: each cycle, parallel red-team agents attack the prior cycle's fixes; findings are triaged into a critique doc with reproducible attacks and `file:line` evidence; fixes land in code with regression tests; results are snapshotted. Cycles 4-9 each found that the previous cycle's pivot was at the right concept but the wrong abstraction layer, and the next cycle moved it. Cycle 10 turned the same adversary on the two subsystems that had shipped without a cycle — the distributional graders and the cross-process event log — and found nine criticals waiting there.
 
 ## Status
 
-Phase 0. Runnable end-to-end on mock or real Anthropic backend. Architecture-document, critique trail, and 246 passing tests are the proof that's the right framing for "Phase-0 is done."
+Phase 0. Runnable end-to-end on mock or real Anthropic backend. Architecture-document, critique trail, and 352 passing tests are the proof that's the right framing for "Phase-0 is done."
 
 The system runs 24/7 in mock mode as a structural watchdog. Real-backend learning happens via `scripts/burst.py` on demand. Both paths are documented in [RUN.md](RUN.md).
 
