@@ -472,6 +472,21 @@ class EventLog:
         if existing is None or self._seq >= existing[0]:
             self._write_anchor_unlocked(self._seq, self._prev_hash)
 
+    # cycle-12 Finding-2 (inherent-limit note, # TODO(phase-1)): this recovery
+    # path no longer launders a rollback by realigning the anchor down. But a
+    # lightweight (count, latest_hash) sidecar is tamper-EVIDENT for the common
+    # cases (truncation, corruption) — it is not tamper-PROOF against an on-disk
+    # attacker who can (a) delete the .head sidecar (a missing anchor reads as
+    # "unverifiable length" and verify_chain passes), or (b) truncate the tail
+    # and let the daemon re-emit PAST the attested length, at which point the
+    # high-water advances onto the new chain. Closing these fully needs Phase-1
+    # signed-checkpoint attestation (an anchor signed on a different checkpoint,
+    # rebuilt-from-checkpoint on a missing sidecar, with per-emit verification
+    # against it) — beyond the in-process / honest-crash threat model this
+    # sidecar serves. verify_chain() is advisory (recorded into snapshots, not a
+    # halt gate); the authoritative durability story is the chain itself plus
+    # the cross-checkpoint why-doc that gates each promotion.
+
     def _quarantine_unlocked(self, raw: bytes, reason: str) -> None:
         """Copy a corrupt/legacy log aside for forensics before truncation.
 

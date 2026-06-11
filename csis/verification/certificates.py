@@ -76,7 +76,16 @@ def _norm_model_id(value: str | None) -> str:
     newline, a zero-width char — make the SAME model read as two different ones
     and silently defeat the F1 self-confirmation guard (e.g. an operator's YAML
     map with `"claude-opus-4-7"` vs `"claude-opus-4-7 "`). NFKC-fold, strip
-    format/zero-width chars, strip surrounding whitespace, casefold."""
+    format/zero-width chars, strip surrounding whitespace, casefold.
+
+    cycle-12 Finding-3 (deliberate fail-safe): casefold + NFKC also collide a
+    few genuinely-distinct ids (case-only, ß↔ss, Kelvin-K↔k, µ↔μ, ligatures).
+    The error direction is intentional and SAFE — it over-REJECTS a
+    cross-checkpoint pair (over-enforcing "builder != verifier"); it never lets
+    two real same-models read as distinct and self-confirm. For real model ids
+    a casefold/NFKC collision between two intended-distinct names essentially
+    never happens; the realistic case (case-only, `Claude-Opus` vs
+    `claude-opus`) is a config typo we WANT treated as the same model."""
     if value is None:
         return ""
     s = unicodedata.normalize("NFKC", value)

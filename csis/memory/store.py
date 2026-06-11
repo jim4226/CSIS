@@ -454,7 +454,17 @@ class MemoryStore:
 
     @staticmethod
     def _atomic_write_json(path: Path, store: dict[str, MemoryEntry]) -> None:
-        tmp = path.with_suffix(path.suffix + ".tmp")
+        # cycle-12 Finding-4: the temp name is unique per writer (pid + uuid).
+        # The cycle-11 F2 fix introduced a temp+os.replace, but a FIXED
+        # `.tmp` name with no inter-process lock (MemoryStore uses only an
+        # in-process RLock) let two concurrent processes sharing a store file
+        # (e.g. burst.py + the daemon under the default brain_root) race on the
+        # same temp — one process's os.replace would hit FileNotFoundError or
+        # a torn store. A unique temp keeps os.replace atomic and last-writer-
+        # wins without any shared-temp collision. (Full cross-process store
+        # sharing would add a file_lock around _flush, matching EventLog /
+        # BudgetTracker — a Phase-1 item; the in-process contract is safe today.)
+        tmp = path.with_suffix(path.suffix + f".{os.getpid()}.{uuid.uuid4().hex}.tmp")
         tmp.write_text(
             json.dumps(
                 {eid: e.model_dump(mode="json") for eid, e in store.items()},

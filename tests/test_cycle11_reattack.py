@@ -304,3 +304,53 @@ def test_sf5_doc_framed_evasion_is_belt_miss_but_typed_gate_holds() -> None:
                         rollback_plan="candidate-discard")
     with pytest.raises(TierViolation):
         enforce(tag, CapabilityTier.T4)  # even a T4 authorized ceiling can't lift Phase-0 T1
+
+
+# ---- cycle-12 hardenings (re-attack of the cycle-11 fixes) -----------------
+
+
+def test_finding1_wal_survives_a_save_crash(tmp_path: Path) -> None:
+    """Finding-1: the WAL must be unlinked only AFTER _save persists the drain.
+    If _save crashes, the WAL must still exist so its spend isn't lost (the old
+    order unlinked first → a crash erased the spend → cap under-count)."""
+    path = tmp_path / "b.json"
+    tracker = BudgetTracker(path, max_cost_per_day_usd=1000.0)
+    tracker.record("claude-opus-4-7", 400, 50)
+    baseline = tracker.today_cost_usd()
+    tracker._append_wal({"tokens_in": 0, "tokens_out": 0, "delta_cost": 4.0,
+                         "reservation_token": None, "ts": time.time()})
+
+    orig_save = tracker._save
+
+    def boom():
+        raise OSError("simulated crash at _save (after drain, before unlink)")
+
+    tracker._save = boom  # type: ignore[assignment]
+    try:
+        tracker.record("claude-opus-4-7", 10, 5)
+    except OSError:
+        pass
+    tracker._save = orig_save  # type: ignore[assignment]
+
+    # The $4 WAL spend must survive the crash (WAL not unlinked before save).
+    reopened = BudgetTracker(path, max_cost_per_day_usd=1000.0)
+    assert reopened.today_cost_usd() >= baseline + 4.0, (
+        "Finding-1: WAL spend lost on a save-crash (unlinked before save)"
+    )
+
+
+def test_finding4_no_shared_fixed_temp_file(tmp_path: Path) -> None:
+    """Finding-4: _atomic_write_json must not leave a fixed `<file>.tmp` (which
+    a sibling process would collide on). The unique per-writer temp is consumed
+    by os.replace, leaving no stray temp, and two stores on the same path both
+    write successfully."""
+    a = MemoryStore("episodic", tmp_path)
+    b = MemoryStore("episodic", tmp_path)
+    a.write_candidate(_mk("ea"))
+    b.write_candidate(_mk("eb"))
+    # No fixed-name temp left behind, and no stray *.tmp at all.
+    assert not (tmp_path / "episodic.candidate.json.tmp").exists()
+    assert not list(tmp_path.glob("*.tmp")), "unique temp must be consumed by os.replace"
+    # The store file is valid JSON (last-writer-wins, not torn).
+    reopened = MemoryStore("episodic", tmp_path)
+    assert reopened.candidate_ids() >= {"eb"}

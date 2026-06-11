@@ -235,19 +235,19 @@ class BudgetTracker:
             except (OSError, AttributeError):
                 pass  # best-effort durability
 
-    def _drain_wal_into_state(self) -> None:
-        """Called inside the locked record() path. Read every WAL entry,
-        apply it to _state, then atomically replace the WAL with empty.
-        Idempotent w.r.t. duplicate drain attempts because the file is
-        truncated after a successful drain."""
+    def _drain_wal_into_state(self) -> bool:
+        """Called inside the locked record() path. Read every WAL entry and
+        apply it to ``_state`` in memory. Returns True if any record was
+        applied (the caller unlinks the WAL only AFTER ``_save`` commits — see
+        cycle-12 Finding-1). Does NOT unlink the WAL itself."""
         if not self._wal_path.exists():
-            return
+            return False
         try:
             raw = self._wal_path.read_text(encoding="utf-8")
         except Exception:
-            return
+            return False
         if not raw.strip():
-            return
+            return False
         applied_any = False
         for line in raw.splitlines():
             line = line.strip()
@@ -269,20 +269,20 @@ class BudgetTracker:
                         del self._state.pending[i]
                         break
             applied_any = True
-        if applied_any:
-            # Truncate the WAL only after _save (atomic) commits the
-            # applied records. _save runs after we return.
+        return applied_any
+
+    def _unlink_wal(self) -> None:
+        """Remove the WAL after its records have been drained AND persisted.
+        Falls back to truncating to empty if the unlink fails."""
+        try:
+            self._wal_path.unlink()
+        except FileNotFoundError:
+            return
+        except Exception:
             try:
-                self._wal_path.unlink()
+                self._wal_path.write_text("", encoding="utf-8")
             except Exception:
-                # If we can't unlink, the next drain will redundantly
-                # re-apply — but the data file _save below will then
-                # double-count. To be safe, truncate to empty instead
-                # of unlink so concurrent appenders aren't surprised.
-                try:
-                    self._wal_path.write_text("", encoding="utf-8")
-                except Exception:
-                    pass
+                pass
 
     # ---- read ----------------------------------------------------------
 
@@ -478,7 +478,7 @@ class BudgetTracker:
             self._load()  # pick up sibling-daemon writes FIRST
             # H5: drain any WAL entries deposited by previous contended
             # records, applied on top of the freshly-loaded state.
-            self._drain_wal_into_state()
+            drained = self._drain_wal_into_state()
             self._state.prune_stale_pending(self.prune_stale_pending_s)
             today = self._state.current()
             today.calls += 1
@@ -492,6 +492,15 @@ class BudgetTracker:
                         del self._state.pending[i]
                         break
             self._save()
+            # cycle-12 Finding-1: unlink the WAL only AFTER _save persists the
+            # drained spend. The old code unlinked inside _drain (before _save),
+            # so a crash in the drain->save window erased WAL spend and
+            # UNDER-counted the cap (the H5/SF2 bypass class). Unlinking after
+            # save means a crash after save but before unlink re-drains on the
+            # next start — a harmless OVER-count, the conservative cap-safe
+            # direction.
+            if drained:
+                self._unlink_wal()
             return today.cost_usd
 
     def cancel_reservation(self, reservation_token: str) -> None:
