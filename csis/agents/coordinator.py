@@ -453,6 +453,14 @@ class Coordinator:
                     precondition_hash=why.hash_precondition,
                     why_id=why.why_id,
                     producer_role="librarian",
+                    # C1 (cycle-10): post-image CAS. The Auditor signed a
+                    # content_hash per delta; re-check it under the promotion
+                    # lock so a tamper in the sign->promote window (a sibling
+                    # write_candidate, or the mark_verified() above) cannot
+                    # promote unsigned bytes with a valid why-doc.
+                    candidate_postimage={
+                        d.entry_id: d.candidate_hash for d in why.diff.deltas
+                    },
                 )
             except (
                 PromotionPreconditionFailure,
@@ -522,6 +530,75 @@ class Coordinator:
                 self._write_auto_snapshot(len(out))
         return out
 
+    def promote_skill(
+        self,
+        *,
+        plan: Plan,
+        artifact: Artifact,
+        cert: VerifierCertificate,
+        skill_entries: list[MemoryEntry],
+    ) -> list[MemoryEntry]:
+        """C2 (cycle-10): promote skill entries into the `procedural` tier
+        through the SAME Auditor + locked-promote chokepoint every other
+        promotion uses.
+
+        The daemon previously promoted skills with a direct
+        `mark_verified` + `promote` (daemon.py): no Auditor why-doc covering
+        the skill, outside `self._promotion_lock`, with a self-satisfying
+        `precondition_hash=store.live_hash()` read one line earlier, and a
+        mis-attributed `why_id` borrowed from the unrelated episodic
+        iteration. `procedural` is the ONE tier that changes what the Builder
+        can do next iteration, so it is the last place that should skip the
+        Auditor. Routes through write_why_doc (its own signed why-doc, correct
+        attribution) and the locked, post-image-checked promote.
+
+        Returns the promoted entries (empty list if the Auditor escalated).
+        """
+        target_tier = "procedural"
+        store = self.hierarchy.tier(target_tier)
+        try:
+            why = write_why_doc(
+                ctx=self._ctx(Role.AUDITOR, side="auditor"),
+                hierarchy=self.hierarchy,
+                target_tier=target_tier,
+                plan=plan,
+                artifact=artifact,
+                cert=cert,
+                candidate_entries=skill_entries,
+                log=self.event_log,
+            )
+        except TierMismatch as exc:
+            self.event_log.emit("coordinator", "skill.tier_mismatch", {"reason": str(exc)})
+            return []
+        self.event_log.emit("auditor", "auditor.signed", why.model_dump(mode="json"))
+        if why.escalations:
+            self.event_log.emit("coordinator", "skill.escalated", {
+                "escalations": why.escalations,
+            })
+            return []
+
+        # Scan the why-doc summary like the main loop does (P8).
+        why_trip = self.tripwires.scan_text(why.summary)
+        if why_trip.fired:
+            self.event_log.emit("coordinator", "tripwire.fired", {
+                "labels": [f.label for f in why_trip.firings],
+                "where": "skill_why_doc",
+            })
+            return []
+
+        store.mark_verified([e.entry_id for e in skill_entries])
+        with self._promotion_lock:
+            promoted = store.promote(
+                [e.entry_id for e in skill_entries],
+                precondition_hash=why.hash_precondition,
+                why_id=why.why_id,
+                producer_role="builder",
+                candidate_postimage={
+                    d.entry_id: d.candidate_hash for d in why.diff.deltas
+                },
+            )
+        return promoted
+
     # ---- internals ------------------------------------------------------
 
     def _rollback(self, result: IterationResult, reason: str) -> None:
@@ -557,15 +634,25 @@ class Coordinator:
         """
         tier_names = self.hierarchy.__class__.tier_names()  # H12 (cycle-9)
         discarded: list[tuple[str, str, str]] = []
-        candidate_ids = {e.entry_id for e in candidates}
         for tier_name in tier_names:
             tier_store = self.hierarchy.tier(tier_name)
             tier_pre_ids = pre_consolidate_ids.get(tier_name, set())
             for stored in tier_store.candidates_snapshot():
                 stamp_matches = stored.writer_iteration_id == iteration_id
+                # M5 (cycle-10): the legacy (unstamped) branch must NOT trust
+                # the Librarian's self-reported `candidates` manifest. A
+                # buggy/malicious Librarian that writes an unstamped candidate
+                # to a tier and DOESN'T advertise it in its return value would
+                # otherwise survive cleanup — the exact "wrote to a tier and
+                # lied about it" threat H4 was built to close. Identify
+                # introduced-this-iteration purely structurally: unstamped AND
+                # absent from this tier's pre-consolidate snapshot. (Phase-0
+                # runs one iteration per Coordinator, so any unstamped
+                # candidate not present before consolidate is necessarily this
+                # iteration's; legitimate prior-iteration entries are stamped
+                # or already in the pre-snapshot.)
                 legacy_match = (
                     stored.writer_iteration_id is None
-                    and stored.entry_id in candidate_ids
                     and stored.entry_id not in tier_pre_ids
                 )
                 if not (stamp_matches or legacy_match):

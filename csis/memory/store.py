@@ -27,6 +27,38 @@ from csis.memory.trust import TrustLevel, role_may_read, valid_promotion
 from csis.substrate.hashing import canonical_json_hash
 
 
+# C1 (cycle-10): the trust-lattice ceremony legitimately mutates these
+# bookkeeping fields as a candidate moves CANDIDATE -> VERIFIED -> PROMOTED
+# (mark_verified bumps `trust`; promote stamps `promoted_at`). The
+# candidate post-image CAS must be INVARIANT under these so the legitimate
+# mark_verified() trust bump between auditor-sign and promote is not a
+# false mismatch — while remaining sensitive to any change in the
+# SUBSTANTIVE content the Auditor actually signed off on (content, tier,
+# why_tag, extra, ...). Hashing the full model_dump() would make every
+# promotion fail the post-image check, because mark_verified always runs
+# in the sign->promote window.
+_LATTICE_BOOKKEEPING_FIELDS: frozenset[str] = frozenset(
+    {"trust", "promoted_at", "deprecated_reason", "writer_iteration_id"}
+)
+
+
+def content_hash(entry: MemoryEntry) -> str:
+    """Hash of an entry's substantive content, excluding the trust-lattice
+    bookkeeping fields (C1 cycle-10).
+
+    This is what the Auditor signs in each ``WhyDocDiff`` delta and what
+    ``promote()`` re-checks under lock as a true post-image compare-and-swap.
+    A tamper to the promoted bytes (content/extra/tier) is caught; the
+    legitimate trust transition is not a false positive.
+    """
+    body = {
+        k: v
+        for k, v in entry.model_dump(mode="json").items()
+        if k not in _LATTICE_BOOKKEEPING_FIELDS
+    }
+    return canonical_json_hash(body)
+
+
 class PromotionPreconditionFailure(Exception):
     """Raised when a hash precondition no longer matches the live store."""
 
@@ -149,6 +181,22 @@ class MemoryStore:
 
     # ---- live-side reads ------------------------------------------------
 
+    @staticmethod
+    def _view(entry: MemoryEntry) -> MemoryEntry:
+        """M4 (cycle-10): every read path hands back a deep copy, never the
+        stored object.
+
+        Pydantic v2 models (and their nested ``extra: dict``) are mutable, so
+        returning the stored instance let any caller write straight through
+        into ``self._live`` / ``self._candidate`` — a mutation *outside*
+        ``promote()``, which is supposed to be the only mutation primitive
+        (module docstring; cycle-5 D2). cycle-5 fixed this for the bulk
+        ``live_snapshot`` reader but never propagated the deep copy to the
+        per-entry readers, and cycle-9 H4 added a fourth leaking reader
+        (``candidates_snapshot``). This single chokepoint closes all of them.
+        """
+        return entry.model_copy(deep=True)
+
     def read_live(self, entry_id: str, *, role: str) -> MemoryEntry | None:
         with self._lock:
             entry = self._live.get(entry_id)
@@ -158,7 +206,7 @@ class MemoryStore:
                 raise TrustViolation(
                     f"role={role} not permitted to read trust={entry.trust.name} in tier={self.tier}"
                 )
-            return entry
+            return self._view(entry)
 
     def read_candidate(self, entry_id: str, *, role: str) -> MemoryEntry | None:
         with self._lock:
@@ -169,13 +217,13 @@ class MemoryStore:
                 raise TrustViolation(
                     f"role={role} not permitted to read trust={entry.trust.name} in tier={self.tier}"
                 )
-            return entry
+            return self._view(entry)
 
     def iter_live(self, *, role: str) -> Iterable[MemoryEntry]:
         with self._lock:
             for entry in list(self._live.values()):
                 if role_may_read(role, entry.trust):
-                    yield entry
+                    yield self._view(entry)
 
     # ---- promotion ------------------------------------------------------
 
@@ -186,14 +234,33 @@ class MemoryStore:
         precondition_hash: str,
         why_id: str,
         producer_role: str | None = None,
+        candidate_postimage: dict[str, str] | None = None,
     ) -> list[MemoryEntry]:
         """Atomically move named candidate entries into live.
 
         Raises:
-          PromotionPreconditionFailure — precondition_hash != current live_hash().
+          PromotionPreconditionFailure — precondition_hash != current live_hash(),
+                                        OR a candidate's content no longer matches
+                                        the Auditor-signed post-image (C1),
+                                        OR an entry has no signed post-image when
+                                        one is required.
           TrustViolation              — promotion goes the wrong way through the lattice.
           TierConsumerViolation       — producer_role lacks authority to write to
                                         this tier's consumer tier (P4 invariant).
+          KeyError                    — a named entry_id has no candidate.
+
+        ``candidate_postimage`` maps entry_id -> the ``content_hash`` the
+        Auditor signed in the why-doc. When provided (the Coordinator always
+        provides it), each candidate's current content is re-checked against
+        it under the same lock as the live-hash precondition — a true
+        post-image CAS (C1 cycle-10). Direct callers (tests/primitives) may
+        omit it for the legacy live-hash-only behavior.
+
+        M2 (cycle-10): the batch is **all-or-nothing**. Every entry_id is
+        fully validated (existence + lattice legality + post-image) BEFORE
+        any mutation to ``self._live`` / ``self._candidate``. A mid-batch
+        raise can no longer leave a half-applied PROMOTED ghost in live with
+        the candidate stranded on disk (the cycle-2 P1 class).
 
         On success: bumps each candidate's trust atomically to PROMOTED,
         moves it to live, archives the candidate side. The Coordinator never
@@ -213,8 +280,9 @@ class MemoryStore:
                     f"current={current_live_hash[:24]}..."
                 )
 
-            promoted: list[MemoryEntry] = []
+            # --- validate pass: NO mutation may happen in this loop (M2) ---
             now = time.time()
+            staged: list[tuple[str, MemoryEntry, MemoryEntry]] = []  # (id, promoted_cand, cand)
             for entry_id in entry_ids:
                 cand = self._candidate.get(entry_id)
                 if cand is None:
@@ -226,6 +294,26 @@ class MemoryStore:
                         f"cannot promote candidate at trust={cand.trust.name} "
                         f"in tier={self.tier} for entry={entry_id}"
                     )
+                # C1 (cycle-10): post-image CAS. The live-hash precondition
+                # above only proves the LIVE store didn't move; it says nothing
+                # about whether the candidate still holds the bytes the Auditor
+                # signed. Re-check the candidate CONTENT here so a tamper in the
+                # sign->promote window (incl. the mark_verified() step the loop
+                # itself runs) cannot launder unsigned content into live.
+                if candidate_postimage is not None:
+                    signed = candidate_postimage.get(entry_id)
+                    if signed is None:
+                        raise PromotionPreconditionFailure(
+                            f"no auditor-signed post-image for candidate "
+                            f"{entry_id}; refusing to promote an unsigned entry"
+                        )
+                    actual = content_hash(cand)
+                    if actual != signed:
+                        raise PromotionPreconditionFailure(
+                            f"candidate {entry_id} content changed since the "
+                            f"auditor signed: signed={signed[:24]}... "
+                            f"now={actual[:24]}... (cycle-10 C1 post-image CAS)"
+                        )
                 # P1/P10: bump trust to PROMOTED inside the store under lock.
                 promoted_cand = cand.model_copy(
                     update={"trust": TrustLevel.PROMOTED, "promoted_at": now}
@@ -236,11 +324,16 @@ class MemoryStore:
                         f"invalid promotion in tier={self.tier} for entry={entry_id}: "
                         f"{existing.trust.name} -> {promoted_cand.trust.name}"
                     )
+                staged.append((entry_id, promoted_cand, cand))
+
+            # --- commit pass: batch fully validated; no logical raise here ---
+            promoted: list[MemoryEntry] = []
+            for entry_id, promoted_cand, cand in staged:
                 self._live[entry_id] = promoted_cand
                 promoted.append(promoted_cand)
                 # Move out of active candidates into the archive for audit.
                 self._archive_candidate(cand, why_id)
-                del self._candidate[entry_id]
+                self._candidate.pop(entry_id, None)
 
             self._flush()
             return promoted
@@ -261,6 +354,21 @@ class MemoryStore:
                 if cand.trust >= TrustLevel.VERIFIED:
                     out.append(cand)
                     continue
+                # M1 (cycle-10): gate the CANDIDATE->VERIFIED bump on the SAME
+                # lattice-legality predicate promote() uses. Without this,
+                # mark_verified was a second trust-mutating door that ignored
+                # valid_promotion: a DEPRECATED candidate (trust=-1, so the
+                # `>= VERIFIED` short-circuit above does NOT fire) was bumped
+                # unconditionally to VERIFIED and then accepted by promote() —
+                # laundering a terminal-DEPRECATED entry back up to PROMOTED.
+                # DEPRECATED is terminal everywhere or it is terminal nowhere.
+                if not valid_promotion(cand.trust, TrustLevel.VERIFIED):
+                    raise TrustViolation(
+                        f"cannot verify candidate at trust={cand.trust.name} "
+                        f"in tier={self.tier} for entry={eid} "
+                        f"(DEPRECATED is terminal; mark_verified honors the "
+                        f"lattice exactly as promote() does — cycle-10 M1)"
+                    )
                 upgraded = cand.model_copy(update={"trust": TrustLevel.VERIFIED})
                 self._candidate[eid] = upgraded
                 out.append(upgraded)
@@ -299,9 +407,14 @@ class MemoryStore:
         entry under lock. The Coordinator's TierMismatch cleanup uses this
         to filter by writer_iteration_id (race-free vs. cycle-8's
         snapshot-diff approach). Returns a new list so callers can iterate
-        safely after the lock releases."""
+        safely after the lock releases.
+
+        M4 (cycle-10): hands back deep copies, not live handles — the
+        TierMismatch cleanup that consumes this only needs entry_id +
+        writer_iteration_id, and a live handle let a caller mutate the store
+        outside promote()."""
         with self._lock:
-            return list(self._candidate.values())
+            return [self._view(e) for e in self._candidate.values()]
 
     def deprecate_live(self, entry_id: str, *, reason: str) -> None:
         """Mark a live entry deprecated. Terminal; cannot be undone here."""

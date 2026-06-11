@@ -22,7 +22,7 @@ from csis.contracts import (
     WhyDoc,
     WhyDocDiff,
 )
-from csis.memory.store import MemoryHierarchy, MemoryStore
+from csis.memory.store import MemoryHierarchy, MemoryStore, content_hash
 from csis.substrate.event_log import EventLog, SignedEvent
 from csis.substrate.hashing import canonical_json_hash
 
@@ -98,7 +98,10 @@ def _build_diff(
                 claimed_tier=entry.tier,
                 target_tier=target_tier,
             )
-        cand_hash = canonical_json_hash(entry.model_dump())
+        # C1 (cycle-10): sign the CONTENT hash (lattice-bookkeeping-invariant)
+        # so the post-image CAS in store.promote() can re-check it after the
+        # legitimate mark_verified() trust bump without a false mismatch.
+        cand_hash = content_hash(entry)
         if live_snapshot is not None:
             existing = live_snapshot.get(entry.entry_id)
         else:

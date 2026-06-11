@@ -251,19 +251,22 @@ class Daemon:
                         artifact=res.artifact,
                         cert=res.cert,
                     )
-                    # Promote skill entries through the substrate (P4-safe).
-                    store = self.coord.hierarchy.tier("procedural")
-                    store.mark_verified([e.entry_id for e in skill_entries])
-                    promoted = store.promote(
-                        [e.entry_id for e in skill_entries],
-                        precondition_hash=store.live_hash(),
-                        why_id=res.why.why_id if res.why else "no-why",
-                        producer_role="builder",
+                    # C2 (cycle-10): route skill promotion through the
+                    # Coordinator's Auditor + locked-promote chokepoint, so the
+                    # capability-changing `procedural` tier gets its own signed
+                    # why-doc (correct attribution, hash precondition, post-image
+                    # CAS) instead of a weaker auditor-less copy here.
+                    promoted = self.coord.promote_skill(
+                        plan=res.plan,  # type: ignore[arg-type]
+                        artifact=res.artifact,
+                        cert=res.cert,
+                        skill_entries=skill_entries,
                     )
                     self.stats.skills_promoted += len(promoted)
-                    self.coord.event_log.emit("coordinator", "skill.promoted", {
-                        "skill_ids": [e.entry_id for e in promoted],
-                    })
+                    if promoted:
+                        self.coord.event_log.emit("coordinator", "skill.promoted", {
+                            "skill_ids": [e.entry_id for e in promoted],
+                        })
                 except Exception as exc:  # noqa: BLE001
                     self.coord.event_log.emit("coordinator", "skill.failed", {"error": repr(exc)})
         else:

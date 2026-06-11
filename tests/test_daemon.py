@@ -128,7 +128,11 @@ def test_daemon_skill_promotion_path_direct(tmp_path: Path) -> None:
     assert res.outcome == "promoted", res.outcome
     assert res.artifact and res.artifact.kind == "skill"
 
-    # Now exercise the skill consolidation path.
+    # C2 (cycle-10): exercise the AUDITED skill-promotion chokepoint
+    # (coord.promote_skill), not a hand-rolled auditor-less promote. The
+    # previous version of this test manually replicated the daemon's
+    # auditor-less mark_verified+promote with a fabricated why_id, baking
+    # the C2 defect into the regression suite.
     skill_entries = consolidate_skill(
         hierarchy=coord.hierarchy,
         tier_guard=coord.tier_guard,
@@ -136,17 +140,24 @@ def test_daemon_skill_promotion_path_direct(tmp_path: Path) -> None:
         artifact=res.artifact,
         cert=res.cert,  # type: ignore[arg-type]
     )
-    store = coord.hierarchy.procedural
-    store.mark_verified([e.entry_id for e in skill_entries])
-    promoted = store.promote(
-        [e.entry_id for e in skill_entries],
-        precondition_hash=store.live_hash(),
-        why_id="why-skill",
-        producer_role="builder",
+    promoted = coord.promote_skill(
+        plan=res.plan,  # type: ignore[arg-type]
+        artifact=res.artifact,
+        cert=res.cert,  # type: ignore[arg-type]
+        skill_entries=skill_entries,
     )
     assert len(promoted) == 1
     s = sstats(coord.hierarchy)
     assert s.total_promoted == 1
+    # The skill must carry its OWN auditor why-doc covering the procedural
+    # tier — not borrow the episodic iteration's (C2).
+    procedural_why = [
+        e for e in coord.event_log
+        if e.event.actor == "auditor"
+        and e.event.kind == "auditor.signed"
+        and "procedural" in (e.event.payload.get("tier_decisions") or {})
+    ]
+    assert procedural_why, "skill promotion must produce its own procedural why-doc"
 
 
 def test_daemon_exception_does_not_kill(tmp_path: Path) -> None:
