@@ -57,8 +57,27 @@ class TierGuard:
         ceiling T_Y requires Y >= X. If a T0 Researcher tries to write
         directly into procedural (consumed at T1), the write is rejected
         and must go via the Librarian, which has its own audit trail.
+
+        SF3 (cycle-10): the old `_CONSUMER_TIER.get(name, T0)` FAILED OPEN
+        — an unknown/misspelled target ('Procedural', 'procedural ' with a
+        trailing space, a future 6th store) silently defaulted to T0, the
+        lowest consumer tier, so `role_tier < consumer_tier` could never
+        fire and the transitive-tier guard no-op'd. We now fail CLOSED:
+          1. normalize the name (strip + casefold) so trivial spelling
+             variants still map to their real consumer tier, then
+          2. if the normalized name is STILL unknown, treat the target as
+             the HIGHEST consumer tier on record (maximally restrictive),
+             so only a role cleared to that ceiling may write there.
         """
-        consumer_tier = _CONSUMER_TIER.get(target_tier_name, CapabilityTier.T0)
+        normalized = target_tier_name.strip().casefold()
+        if normalized in _CONSUMER_TIER:
+            consumer_tier = _CONSUMER_TIER[normalized]
+        else:
+            # Unknown target → most-restrictive consumer tier. An empty map
+            # would fall back to the Phase-0 ceiling (T1) rather than T0.
+            consumer_tier = (
+                max(_CONSUMER_TIER.values()) if _CONSUMER_TIER else CapabilityTier.T1
+            )
         role_tier = self.ceiling(role)
         if int(role_tier) < int(consumer_tier):
             return (

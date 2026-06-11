@@ -363,9 +363,19 @@ class BudgetTracker:
         with self._lock, self._maybe_locked():
             self._load()
             today = self._state.current()
-            if today.cost_usd >= self.max_cost_per_day_usd:
+            # SF2 (cycle-10): include un-drained WAL spend in the cap check.
+            # `today_cost_usd` already adds `_wal_sum_cost()`, but THIS gate
+            # (the enforcer) read only `today.cost_usd`, so a contended-lock
+            # record() that wrote to the WAL and returned NaN without
+            # draining left the cap seeing $0 and the daemon spending past
+            # it (the cycle-9 H5 path). We hold both locks here, so reading
+            # the WAL is consistent with the loaded state.
+            wal_cost = self._wal_sum_cost()
+            if today.cost_usd + wal_cost >= self.max_cost_per_day_usd:
                 raise BudgetCapExceeded(
-                    f"day {today.day} cumulative cost ${today.cost_usd:.4f} "
+                    f"day {today.day} cumulative cost "
+                    f"${today.cost_usd + wal_cost:.4f} "
+                    f"(state ${today.cost_usd:.4f} + wal ${wal_cost:.4f}) "
                     f">= cap ${self.max_cost_per_day_usd:.4f}"
                 )
 
@@ -388,10 +398,16 @@ class BudgetTracker:
             self._state.prune_stale_pending(self.prune_stale_pending_s)
             today = self._state.current()
             pending = self._state.pending_total()
+            # SF2 (cycle-10): include un-drained WAL spend (see check_or_raise).
+            # Without this, a WAL-deferred record (LockUnavailable → NaN, no
+            # drain) is invisible here and reserve_or_raise keeps granting
+            # calls well past the cap (verified granting at 5× cap).
+            wal_cost = self._wal_sum_cost()
             if self.max_cost_per_day_usd is not None:
-                if today.cost_usd + pending + estimated_cost_usd > self.max_cost_per_day_usd:
+                if today.cost_usd + wal_cost + pending + estimated_cost_usd > self.max_cost_per_day_usd:
                     raise BudgetCapExceeded(
                         f"day {today.day} cumulative ${today.cost_usd:.4f} + "
+                        f"wal ${wal_cost:.4f} + "
                         f"pending ${pending:.4f} + reservation ${estimated_cost_usd:.4f} "
                         f"> cap ${self.max_cost_per_day_usd:.4f}"
                     )

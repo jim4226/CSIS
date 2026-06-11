@@ -17,6 +17,88 @@ import unicodedata
 from dataclasses import dataclass, field
 
 
+# SF1 (cycle-10): a small confusable map for the homoglyph classes the red
+# team exercised. NFKD→ASCII folding handles most Latin-accent and width
+# variants, but Cyrillic/Greek look-alikes are DISTINCT code points that
+# NFKD leaves intact (they aren't compatibility-decomposable to ASCII). This
+# map closes that gap deterministically without pulling in a heavy
+# confusables table. Extend as the red team finds new look-alikes.
+_CONFUSABLE_MAP = {
+    # Cyrillic look-alikes → Latin
+    "а": "a", "о": "o", "е": "e", "р": "p", "с": "c", "х": "x", "у": "y",
+    "ѕ": "s", "і": "i", "ј": "j", "к": "k", "м": "m", "т": "t", "н": "h",
+    "в": "b",
+    # Greek look-alikes → Latin
+    "ο": "o", "α": "a", "ν": "v", "ρ": "p", "ε": "e", "τ": "t", "ι": "i",
+    "κ": "k", "η": "n",
+    # Dotless i / turned forms occasionally produced by NFKD
+    "ı": "i",
+}
+
+
+def _strip_invisible(text: str, *, format_as_space: bool) -> str:
+    """SF1 (cycle-10): neutralise evasion code points NFKC leaves intact.
+
+    NFKC normalization does NOT remove zero-width / format characters
+    (U+200B ZWSP, U+200C ZWNJ, U+200D ZWJ, U+2060 word-joiner, U+00AD
+    soft hyphen, U+FEFF BOM) or combining marks (combining acute, etc.).
+    Two independent red-team agents bypassed BOTH the Constitution and the
+    Tripwires by inserting these into keywords:
+      - WITHIN a word: 'dis<soft-hyphen>able' must canonicalize to
+        'disable' → the offending char is DELETED.
+      - BETWEEN words: 'disable<ZWSP>the auditor' must canonicalize so the
+        multi-word pattern 'disable the auditor' still matches → the
+        offending char must become a SPACE.
+    One delete-form can't satisfy both (deleting ZWSP yields
+    'disablethe'); one space-form can't either (a space inside 'dis able'
+    breaks the single-keyword match). So, mirroring the existing
+    strip/space duality:
+      - `format_as_space=False` (strip form): DELETE format chars
+        (categories Cf) so intra-word splits collapse.
+      - `format_as_space=True`  (space form): replace format chars with a
+        space so inter-word splits become real word boundaries.
+    Combining marks (categories Mn/Me) are ALWAYS deleted in both forms —
+    they decorate the preceding base char and never act as a word break.
+    """
+    out: list[str] = []
+    for ch in text:
+        cat = unicodedata.category(ch)
+        if cat in ("Mn", "Me"):
+            continue  # combining mark — always drop, it decorates a base char
+        if cat == "Cf":
+            if format_as_space:
+                out.append(" ")
+            # else: delete
+            continue
+        out.append(ch)
+    return "".join(out)
+
+
+def _confusable_fold(text: str) -> str:
+    """SF1 (cycle-10): fold homoglyphs to their ASCII look-alike.
+
+    First map the known Cyrillic/Greek/dotless confusables (NFKD does NOT
+    decompose these to ASCII because they are distinct scripts), then
+    NFKD→ASCII-fold to collapse accented Latin / width variants. The
+    result is a lossy ASCII shadow used as an EXTRA predicate input so
+    'disаble' (Cyrillic а) and 'disáble' (combining/accent) both fold to
+    'disable'.
+    """
+    folded = "".join(_CONFUSABLE_MAP.get(ch, ch) for ch in text)
+    return unicodedata.normalize("NFKD", folded).encode("ascii", "ignore").decode("ascii")
+
+
+# SF1 (cycle-10): one separator-stripping regex shared by both
+# canonicalizers. The class is the ASCII '_' and '.' plus every Unicode
+# dash the red team reached for — U+2010..U+2015 (hyphen … horizontal bar),
+# U+2043 (hyphen bullet), U+2212 (minus sign), U+00AD (soft hyphen — also a
+# Cf format char, so _strip_invisible already removes it, but we keep it
+# here for defence in depth), U+FE58/U+FE63 (small/fullwidth-context
+# hyphens) and U+FF0D (fullwidth hyphen-minus). The ASCII '-' is the leading
+# member of the range escape below.
+_SEP_RE = re.compile("[_.\\-‐-―⁃−­﹘﹣－]+")
+
+
 def canonicalize(text: str) -> str:
     """Strip-form canonicalization: separators removed entirely.
 
@@ -29,11 +111,22 @@ def canonicalize(text: str) -> str:
     auditor' patterns will NOT match. For multi-word forms, use
     `canonicalize_space()`; for safety predicates use `canonical_variants()`
     and check both.
+
+    SF1 (cycle-10): after NFKC we (1) strip zero-width/format/combining
+    marks (categories Cf/Mn/Me — NFKC leaves these intact), (2) fold
+    Cyrillic/Greek homoglyphs and NFKD→ASCII-fold so 'disаble' (Cyrillic
+    а) and 'disáble' collapse to 'disable', and (3) remove ALL Unicode
+    dash punctuation, not just ASCII '-'. So 'disable<ZWSP>the auditor',
+    'dis<soft-hyphen>able', 'dis‐able' (U+2010) and homoglyph swaps no
+    longer survive canonicalization.
     """
     text = unicodedata.normalize("NFKC", text).lower()
-    text = re.sub(r"[\-_.]+", "", text)
+    # strip form: delete zero-width/format chars so intra-word splits join.
+    text = _strip_invisible(text, format_as_space=False)
+    text = _confusable_fold(text)
+    text = _SEP_RE.sub("", text)
     text = re.sub(r"\s+", " ", text)
-    return text
+    return text.strip()
 
 
 def canonicalize_space(text: str) -> str:
@@ -46,11 +139,19 @@ def canonicalize_space(text: str) -> str:
     Limitation: leaves 'dis-able' as 'dis able' which doesn't match
     'disable'. The pair (strip + space) covers both cases; safety
     predicates should check both via `canonical_variants()`.
+
+    SF1 (cycle-10): same Unicode-aware cleanup as `canonicalize` — strip
+    zero-width/format/combining marks, fold homoglyphs to ASCII, then
+    convert every Unicode dash (plus '_' and '.') to a space.
     """
     text = unicodedata.normalize("NFKC", text).lower()
-    text = re.sub(r"[\-_.]+", " ", text)
+    # space form: zero-width/format chars become spaces so inter-word
+    # splits ('disable<ZWSP>the') turn into real word boundaries.
+    text = _strip_invisible(text, format_as_space=True)
+    text = _confusable_fold(text)
+    text = _SEP_RE.sub(" ", text)
     text = re.sub(r"\s+", " ", text)
-    return text
+    return text.strip()
 
 
 def canonical_variants(text: str) -> tuple[str, str]:
@@ -60,6 +161,13 @@ def canonical_variants(text: str) -> tuple[str, str]:
     catches intra-word splits ('dis-able'); space-form catches inter-word
     separators ('disable-the-auditor'). Safety predicates check whether
     either form matches their patterns; either match fires.
+
+    SF1 (cycle-10): the homoglyph fold + invisible-char strip now live
+    INSIDE both canonicalizers (the single chokepoint), so the returned
+    forms are already folded. The public 2-tuple contract is unchanged —
+    `Constitution.allows` (read-only) and `_scan_dual_form` both unpack
+    exactly two values, and the cycle-4 ASCII fixtures are folding
+    no-ops, so they remain byte-for-byte identical.
     """
     return canonicalize(text), canonicalize_space(text)
 
@@ -112,11 +220,25 @@ _TRIP_PATTERNS: list[tuple[str, re.Pattern[str]]] = [
         "escalate_to_t2",
         re.compile(
             r"\b("
-            # Tier escalation requires an action verb of intent. This is
-            # NOT a noun-suffix lookahead (which was bypassable); the verb
-            # requirement is structurally different and harder to bypass.
-            r"(use|invoke|grant|enable|switch\s+to|elevate(?:\s+to)?|run\s+with|give|request|need|i\s+need|need\s+access\s+to|gimme)(?:\s+\w+){0,3}\s+(t2|tier\s?2)\s+(execution|exec|exec\s?mode|sandbox|access|tool|tools)"
+            # SF5 (cycle-10): the cycle-8 version required a verb from a fixed
+            # allowlist (use|invoke|grant|...); 'provide', 'want', 'acquire',
+            # 'obtain', 'escalate' slipped it. The first cut of SF5 went purely
+            # STRUCTURAL (any 't2 + capability noun' mention fires) — but that
+            # re-opened the cycle-5 D1 false-positive class: benign
+            # documentation like 'document the tier-2 sandbox configuration'
+            # has the same noun phrase as an attack and fired. The distinction
+            # between attack and benign here IS the verb intent (acquire vs
+            # document), so we gate on a BROADENED acquisition/request verb set
+            # — closing the SF5 gap without re-opening D1. A documentation verb
+            # ('document', 'describe', 'review', 'configure') is deliberately
+            # NOT in the set, so it does not fire.
+            r"(use|invoke|grant|enable|elevate|escalate|switch|run|give|"
+            r"request|need|provide|want|acquire|obtain|gimme)"
+            r"(?:\s+\w+){0,2}?\s+(t2|tier\s?2)\s+"
+            r"(execution|exec(?:\s?mode)?|sandbox|access|network|tool|tools)"
             r"|"
+            # 'unrestricted network access' is an escalation request on its own
+            # — it names the capability with no benign reading.
             r"unrestricted\s+network\s+access"
             r")\b"
         ),
