@@ -171,3 +171,27 @@ def test_daemon_exception_does_not_kill(tmp_path: Path) -> None:
     assert calls["n"] == 4, f"expected 4 attempts (1 failure + 3 successes); got {calls['n']}"
     kinds = [s.event.kind for s in daemon.coord.event_log]
     assert "daemon.exception" in kinds
+
+
+# ---- on_iteration_complete hook (changelog June 8, v2.1.169) ------------
+
+
+def test_on_iteration_complete_called_each_tick(tmp_path: Path) -> None:
+    """on_iteration_complete callback fires once per completed iteration.
+
+    Mirrors the Claude Code v2.1.169 post-session lifecycle hook that lets
+    operators snapshot uncommitted work, export logs, or trigger downstream
+    actions after each session ends. For CSIS the hook fires per iteration
+    rather than per session, making it usable for metric collection,
+    external progress notifications, and replay-log export.
+    """
+    collected: list = []
+    daemon = _make_daemon(tmp_path, max_iter=3)
+    daemon.on_iteration_complete = lambda res: collected.append(res.outcome)
+    daemon.run_forever()
+    assert len(collected) == 3, f"expected 3 hook calls, got {len(collected)}"
+    assert all(o in ("promoted", "rolled-back:constitution", "rolled-back:graders",
+                     "rolled-back:cross-checkpoint", "rolled-back:critic",
+                     "rolled-back:no-cert", "rolled-back:whydoc",
+                     "rolled-back:promotion-precondition") or o.startswith("rolled-back")
+               for o in collected), f"unexpected outcome in hook results: {collected}"
