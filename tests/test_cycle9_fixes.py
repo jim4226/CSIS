@@ -373,3 +373,51 @@ def test_H12_tier_names_class_method_matches_hierarchy_fields() -> None:
     assert "tier_names()" in cur_src, (
         "H12 regression: curiosity._gap_driven does not call MemoryHierarchy.tier_names()"
     )
+
+
+# ---- depth guard (changelog June 10, v2.1.172) ---------------------------
+
+
+def test_depth_limit_exceeded_before_llm_call(tmp_path: Path) -> None:
+    """Calling run_iteration at depth > config.max_delegation_depth must raise
+    DepthLimitExceeded before any LLM call is made.
+
+    config.max_delegation_depth defaults to 1; passing depth=2 must fire the
+    guard. The test uses an un-scripted MockBackend to confirm no LLM call
+    was attempted — if it were, MockBackend would raise on an empty queue.
+    """
+    from csis.agents.coordinator import DepthLimitExceeded
+    cfg = CSISConfig(
+        event_log_path=tmp_path / "e.jsonl",
+        memory_root=tmp_path / "mem",
+        brain_root=tmp_path / "brain",
+        backend="mock",
+        builder_checkpoint="mock-alpha",
+        auditor_checkpoint="mock-beta",
+    )
+    backend = wrap_for_test(MockBackend(), tmp_path)
+    coord = Coordinator(config=cfg, backend=backend)
+    with pytest.raises(DepthLimitExceeded, match="depth=2"):
+        coord.run_iteration(frontier_item="nested-task", depth=2)
+
+
+def test_depth_zero_does_not_raise_depth_limit(tmp_path: Path) -> None:
+    """depth=0 (Phase-0 default) must not trigger DepthLimitExceeded even
+    though the iteration may fail for unrelated reasons (no scripted LLM)."""
+    from csis.agents.coordinator import DepthLimitExceeded
+    cfg = CSISConfig(
+        event_log_path=tmp_path / "e.jsonl",
+        memory_root=tmp_path / "mem",
+        brain_root=tmp_path / "brain",
+        backend="mock",
+        builder_checkpoint="mock-alpha",
+        auditor_checkpoint="mock-beta",
+    )
+    backend = wrap_for_test(MockBackend(), tmp_path)
+    coord = Coordinator(config=cfg, backend=backend)
+    try:
+        coord.run_iteration(frontier_item="root-task", depth=0)
+    except DepthLimitExceeded:
+        pytest.fail("depth=0 must not raise DepthLimitExceeded")
+    except Exception:
+        pass  # other failures (no scripted responses) are expected and fine

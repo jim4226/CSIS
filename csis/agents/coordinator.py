@@ -51,6 +51,17 @@ from csis.verification.certificates import (
 from csis.verification.graders import GraderRegistry, make_default_pr_registry
 
 
+class DepthLimitExceeded(RuntimeError):
+    """Raised when run_iteration() is called at a depth > config.max_delegation_depth.
+
+    Phase-0 always runs at depth=0 (the Coordinator is the root; its worker
+    agents do not re-enter run_iteration). Phase-1 will allow one level of
+    nested coordination (depth=1). The ceiling in CSISConfig.max_delegation_depth
+    mirrors the platform's supported nesting depth; this exception makes the
+    limit observable and testable rather than an unenforceable comment.
+    """
+
+
 @dataclass
 class IterationResult:
     iteration_id: str
@@ -161,12 +172,23 @@ class Coordinator:
         frontier_item: str,
         target_tier: str = "episodic",
         salt: int | None = None,
+        depth: int = 0,
     ) -> IterationResult:
         """Execute one full 8-step loop. Returns IterationResult.
 
         All escalation/rollback paths emit a structured event so the Auditor
         and operator can replay what happened.
+
+        `depth` tracks nesting in multi-coordinator setups (Phase-1+). Phase-0
+        always passes the default 0. Exceeding config.max_delegation_depth raises
+        DepthLimitExceeded before any LLM call is made.
         """
+        if depth > self.config.max_delegation_depth:
+            raise DepthLimitExceeded(
+                f"run_iteration called at depth={depth} which exceeds "
+                f"config.max_delegation_depth={self.config.max_delegation_depth}. "
+                f"Increase the ceiling or reduce nesting."
+            )
         # 0. Shutdown check (substrate-enforced).
         self.shutdown.check()
 
