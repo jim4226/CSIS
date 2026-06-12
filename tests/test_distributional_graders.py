@@ -384,3 +384,32 @@ def test_distributional_result_serializes_round_trip() -> None:
     j = original.model_dump_json()
     revived = DistributionalGraderResult.model_validate_json(j)
     assert revived == original
+
+
+# ---- determinism regression (agents-in-biology finding) ------------------
+
+
+def test_distributional_grader_evaluate_is_deterministic() -> None:
+    """evaluate() must return identical CIs for identical inputs across calls.
+
+    Without resetting _rng at the start of evaluate(), the stateful RNG
+    advances after the first call and subsequent calls return different CI
+    bounds — violating the deterministic-execution-layer guarantee that
+    all agents reached >90% accuracy only after the retrieval layer became
+    fully reproducible (Anthropic 'agents-in-biology' research, 2026-06-08).
+    """
+    grader = DiceGrader(threshold=0.80, n_bootstrap=200)
+    samples = [
+        Sample("c1", {"pred_mask": [1, 1, 0, 0], "true_mask": [1, 0, 1, 0]}),
+        Sample("c2", {"pred_mask": [1, 1, 1, 0], "true_mask": [1, 1, 1, 0]}),
+        Sample("c3", {"pred_mask": [0, 1, 1, 1], "true_mask": [0, 1, 1, 0]}),
+        Sample("c4", {"pred_mask": [1, 0, 0, 1], "true_mask": [1, 0, 0, 1]}),
+        Sample("c5", {"pred_mask": [0, 0, 1, 1], "true_mask": [1, 0, 1, 1]}),
+        Sample("c6", {"pred_mask": [1, 1, 0, 1], "true_mask": [0, 1, 0, 1]}),
+    ]
+    result_a = grader.evaluate(samples)
+    result_b = grader.evaluate(samples)
+    assert result_a.point_estimate == result_b.point_estimate
+    assert result_a.ci_lower == result_b.ci_lower
+    assert result_a.ci_upper == result_b.ci_upper
+    assert result_a.passed == result_b.passed
