@@ -39,6 +39,9 @@ from csis.substrate.file_lock import LockUnavailable, file_lock as _file_lock  #
 # Same default price table as scripts/burst.py. Keep in sync.
 _PRICE_PER_1K = {
     "claude-opus-4-7": {"in": 0.015, "out": 0.075},
+    # 4-8 confirmed as the safety-fallback model for the now-suspended Fable 5.
+    # Estimated at Opus-tier pricing pending Anthropic's published rate card.
+    "claude-opus-4-8": {"in": 0.015, "out": 0.075},
     "claude-sonnet-4-6": {"in": 0.003, "out": 0.015},
     "mock-opus-like": {"in": 0.0, "out": 0.0},
     "mock-sonnet-like": {"in": 0.0, "out": 0.0},
