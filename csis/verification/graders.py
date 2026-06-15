@@ -78,31 +78,53 @@ def tests_pass_grader(artifact: Artifact) -> GraderResult:
         scenarios = artifact.extra
     else:
         scenarios = {}
-    passed = bool(scenarios.get("tests_pass", True))
-    return GraderResult(grader="tests_pass", passed=passed, detail="mock")
+    raw = scenarios.get("tests_pass", None)
+    passed = bool(raw) if raw is not None else True
+    trace = [
+        f"looked up extra['tests_pass']: found {raw!r} (default True when absent)",
+        f"verdict: {'PASS' if passed else 'FAIL'}",
+    ]
+    return GraderResult(grader="tests_pass", passed=passed, detail="mock", trace=trace)
 
 
 def lint_grader(artifact: Artifact) -> GraderResult:
     scenarios = getattr(artifact, "extra", {}) or {}
-    passed = bool(scenarios.get("lint_clean", True))
-    return GraderResult(grader="lint", passed=passed, detail="mock")
+    raw = scenarios.get("lint_clean", None)
+    passed = bool(raw) if raw is not None else True
+    trace = [
+        f"looked up extra['lint_clean']: found {raw!r} (default True when absent)",
+        f"verdict: {'PASS' if passed else 'FAIL'}",
+    ]
+    return GraderResult(grader="lint", passed=passed, detail="mock", trace=trace)
 
 
 def typecheck_grader(artifact: Artifact) -> GraderResult:
     scenarios = getattr(artifact, "extra", {}) or {}
-    passed = bool(scenarios.get("type_clean", True))
-    return GraderResult(grader="typecheck", passed=passed, detail="mock")
+    raw = scenarios.get("type_clean", None)
+    passed = bool(raw) if raw is not None else True
+    trace = [
+        f"looked up extra['type_clean']: found {raw!r} (default True when absent)",
+        f"verdict: {'PASS' if passed else 'FAIL'}",
+    ]
+    return GraderResult(grader="typecheck", passed=passed, detail="mock", trace=trace)
 
 
 def coverage_delta_grader(artifact: Artifact) -> GraderResult:
     scenarios = getattr(artifact, "extra", {}) or {}
     delta = float(scenarios.get("coverage_delta", 0.0))
-    passed = delta >= -0.005  # ≤ 0.5% regression tolerated
+    threshold = -0.005  # ≤ 0.5% regression tolerated
+    passed = delta >= threshold
+    trace = [
+        f"looked up extra['coverage_delta']: found {scenarios.get('coverage_delta', 0.0)!r}",
+        f"threshold: delta >= {threshold} ({threshold*100:.1f}%)",
+        f"verdict: {'PASS' if passed else 'FAIL'} (delta={delta:+.4f})",
+    ]
     return GraderResult(
         grader="coverage_delta",
         passed=passed,
         detail=f"delta={delta:+.4f}",
         metrics={"coverage_delta": delta},
+        trace=trace,
     )
 
 
@@ -111,22 +133,36 @@ def diff_scope_grader(artifact: Artifact) -> GraderResult:
     body = artifact.body
     forbidden_paths = ("tests/", "csis/verification/graders.py", ".github/", "pyproject.toml")
     touched = [p for p in forbidden_paths if p in body]
+    trace = [
+        f"scanned artifact body ({len(body)} chars) for {len(forbidden_paths)} forbidden paths",
+        f"forbidden paths checked: {list(forbidden_paths)}",
+        f"matched: {touched if touched else '(none)'}",
+        f"verdict: {'FAIL' if touched else 'PASS'}",
+    ]
     return GraderResult(
         grader="diff_scope",
         passed=not touched,
         detail=(f"forbidden paths touched: {touched}" if touched else "scope ok"),
+        trace=trace,
     )
 
 
 def perf_regression_grader(artifact: Artifact) -> GraderResult:
     scenarios = getattr(artifact, "extra", {}) or {}
     ratio = float(scenarios.get("perf_ratio", 1.0))  # 1.0 = same as base
-    passed = ratio <= 1.20  # ≤20% slowdown
+    threshold = 1.20  # ≤20% slowdown
+    passed = ratio <= threshold
+    trace = [
+        f"looked up extra['perf_ratio']: found {scenarios.get('perf_ratio', 1.0)!r}",
+        f"threshold: ratio <= {threshold} (≤20% slowdown)",
+        f"verdict: {'PASS' if passed else 'FAIL'} (p95_ratio={ratio:.3f})",
+    ]
     return GraderResult(
         grader="perf_regression",
         passed=passed,
         detail=f"p95_ratio={ratio:.3f}",
         metrics={"perf_ratio": ratio},
+        trace=trace,
     )
 
 

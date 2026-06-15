@@ -189,6 +189,32 @@ def test_cert_rejects_too_few_critic_attempts() -> None:
     assert "minimum" in cert.notes
 
 
+# ---- grader execution traces (grader-execution-trace PR) -----------------
+
+
+def test_grader_results_include_trace_on_pass() -> None:
+    """Passing graders must populate trace so auditors know HOW they passed."""
+    reg = make_default_pr_registry()
+    artifact = _artifact({"tests_pass": True, "lint_clean": True, "type_clean": True, "coverage_delta": 0.0, "perf_ratio": 1.0})
+    results = reg.evaluate(artifact)
+    for r in results:
+        assert r.trace, f"grader '{r.grader}' returned empty trace on passing artifact"
+
+
+def test_grader_results_include_trace_on_fail() -> None:
+    """Failing graders must populate trace so auditors can diagnose the failure."""
+    reg = make_default_pr_registry()
+    artifact = _artifact({"tests_pass": False, "coverage_delta": -0.02, "perf_ratio": 1.5})
+    results = reg.evaluate(artifact)
+    failing = [r for r in results if not r.passed]
+    assert failing, "expected at least one failing grader"
+    for r in failing:
+        assert r.trace, f"failing grader '{r.grader}' returned empty trace"
+        assert any("FAIL" in step for step in r.trace), (
+            f"grader '{r.grader}' trace does not mention FAIL: {r.trace}"
+        )
+
+
 def test_seeded_flaw_evaluator_tracks_catch_rate() -> None:
     backend = MockBackend()
     # Critic correctly identifies flaw 1 (falsified=true) and misses flaw 2.
