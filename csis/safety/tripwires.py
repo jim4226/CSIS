@@ -13,6 +13,7 @@ collapse whitespace). Phase-1 plugs in real classifiers as tools.
 from __future__ import annotations
 
 import re
+import time
 import unicodedata
 from dataclasses import dataclass, field
 
@@ -128,6 +129,7 @@ _TRIP_PATTERNS: list[tuple[str, re.Pattern[str]]] = [
 class TripwireFiring:
     label: str
     snippet: str
+    fired_at: float = field(default_factory=time.time)
 
 
 @dataclass
@@ -140,7 +142,11 @@ _DEFAULT_HISTORY_MAX = 10_000
 
 
 class Tripwires:
-    def __init__(self, history_max: int = _DEFAULT_HISTORY_MAX) -> None:
+    def __init__(
+        self,
+        history_max: int = _DEFAULT_HISTORY_MAX,
+        retention_seconds: float | None = None,
+    ) -> None:
         self._patterns = list(_TRIP_PATTERNS)
         # F5 (cycle-7) fix: bounded history via deque(maxlen) + OrderedDict.
         # G4 (cycle-8) fix: added _history_lock so concurrent scan_text
@@ -149,6 +155,11 @@ class Tripwires:
         from collections import OrderedDict, deque
         import threading as _threading
         self._history_max = history_max
+        # Optional time-window: firings older than this are excluded from
+        # history() / history_size() / fired() but kept in the deque until
+        # evicted by maxlen. Analogous to Fable 5's 30-day retention window
+        # for cross-request attack-pattern detection (Theme 3).
+        self._retention_seconds = retention_seconds
         self._fired_history: deque[TripwireFiring] = deque(maxlen=history_max)
         self._history_keys: "OrderedDict[tuple[str, str], None]" = OrderedDict()
         self._history_lock = _threading.Lock()
@@ -200,17 +211,27 @@ class Tripwires:
         return TripwireResult(fired=bool(firings), firings=firings)
 
     def fired(self) -> bool:
-        return bool(self._fired_history)
+        if self._retention_seconds is None:
+            return bool(self._fired_history)
+        with self._history_lock:
+            cutoff = time.time() - self._retention_seconds
+            return any(f.fired_at >= cutoff for f in self._fired_history)
 
     def history(self) -> list[TripwireFiring]:
         # G4: snapshot under the lock so callers don't iterate a
         # concurrently-mutating deque.
         with self._history_lock:
-            return list(self._fired_history)
+            if self._retention_seconds is None:
+                return list(self._fired_history)
+            cutoff = time.time() - self._retention_seconds
+            return [f for f in self._fired_history if f.fired_at >= cutoff]
 
     def history_size(self) -> int:
         with self._history_lock:
-            return len(self._fired_history)
+            if self._retention_seconds is None:
+                return len(self._fired_history)
+            cutoff = time.time() - self._retention_seconds
+            return sum(1 for f in self._fired_history if f.fired_at >= cutoff)
 
     def clear(self) -> None:
         with self._history_lock:
