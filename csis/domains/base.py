@@ -11,6 +11,7 @@ from __future__ import annotations
 
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
+from typing import Callable
 
 from csis.curiosity import Curiosity
 from csis.verification.graders import GraderRegistry
@@ -20,6 +21,20 @@ from csis.verification.graders import GraderRegistry
 class DomainReadiness:
     ready: bool
     reason: str = ""
+
+
+@dataclass
+class ContextEngine:
+    """Deterministic retrieval layer for a domain's data corpus.
+
+    Separates agent creative work from data access so retrieval variance
+    does not contaminate grader results. When a domain supplies one, the
+    Coordinator injects fetch() output as structured context instead of
+    letting agents discover data via free-form tool calls.
+    """
+
+    label: str
+    fetch: Callable[[], str]
 
 
 class Domain(ABC):
@@ -49,3 +64,14 @@ class Domain(ABC):
     def describe(self) -> str:
         """One-line description shown by the daemon on startup."""
         ...
+
+    def context_engine(self) -> ContextEngine | None:
+        """Deterministic retrieval layer for this domain's data, or None.
+
+        Not abstract — existing domains that use agent-driven retrieval
+        return None and need no change. Override when the domain can
+        supply a pinned, auditable corpus (theorem databases, test-case
+        fixtures, reference implementations) that should bypass the
+        agent's free-form tool calls.
+        """
+        return None
