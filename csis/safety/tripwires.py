@@ -121,6 +121,38 @@ _TRIP_PATTERNS: list[tuple[str, re.Pattern[str]]] = [
             r")\b"
         ),
     ),
+    (
+        "irreversible_state_mutation",
+        re.compile(
+            # Mirrors Claude Code v2.1.183 auto-mode safety (Jun 19 2026):
+            # destructive operations on persistent state are blocked at the
+            # call site unless the operator explicitly requested them.
+            # CSIS analogue: a Builder plan that intends to destroy any
+            # named memory tier, trust-level store, or the append-only
+            # substrate (event log) must never reach execute_plan().
+            r"\b"
+            r"(?:delete|wipe|drop|truncate|overwrite|clear|erase|purge|destroy|nuke|flush|clobber)"
+            r"\s+(?:all\s+)?(?:the\s+)?"
+            r"(?:"
+            # Named memory tiers
+            r"(?:episodic|semantic|procedural|causal|working)\s+(?:memory|store|entry|entries|tier)"
+            r"|"
+            # Trust-level named stores
+            r"(?:candidate|verified|promoted)\s+(?:entry|entries|store|memory)"
+            r"|"
+            # Append-only substrate
+            r"event\s?log"
+            r"|"
+            r"audit\s?log"
+            r"|"
+            # Aggregate objects
+            r"memory\s+hierarchy"
+            r"|"
+            r"(?:whole|entire)\s+store"
+            r")"
+            r"\b"
+        ),
+    ),
 ]
 
 
