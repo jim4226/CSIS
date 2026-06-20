@@ -12,3 +12,13 @@ Status values:
 | URL | First seen | Status | Notes |
 |---|---|---|---|
 | (none) | (initial) | quiet-day-empty | Ledger initialized; first real entries land on the routine's first scheduled run. |
+| https://code.claude.com/docs/en/changelog | 2026-06-20 | opened-PR | v2.1.183 auto-mode destructive-command blocking → irreversible_state_mutation tripwire (PR #67) |
+| https://www.anthropic.com/news/seoul-office-partnerships-korean-ai-ecosystem | 2026-06-20 | out-of-scope | Business/partnership announcement |
+| https://www.anthropic.com/news/fable-mythos-access | 2026-06-20 | out-of-scope | Policy document; adjacent concerns covered by PR #49 and PR #57 |
+| https://www.anthropic.com/news/anthropic-public-record | 2026-06-20 | out-of-scope | Public opinion survey; no technical content |
+| https://www.anthropic.com/news/tcs-anthropic-partnership | 2026-06-20 | out-of-scope | Business announcement |
+| https://www.anthropic.com/news/dxc-anthropic-alliance | 2026-06-20 | out-of-scope | Business announcement |
+| https://www.anthropic.com/news/claude-corps | 2026-06-20 | out-of-scope | Workforce development program; no technical content |
+| https://www.anthropic.com/research/project-fetch-phase-two | 2026-06-20 | out-of-scope | Robotics/physical agent control; no CSIS module covers this |
+| https://www.anthropic.com/research/claude-code-expertise | 2026-06-20 | out-of-scope | Economic study of human-AI collaboration; no CSIS code change implied |
+| https://www.anthropic.com/engineering/multi-agent-research-system | 2026-06-20 | out-of-scope | Published Jun 2025; outside 9-day window |
