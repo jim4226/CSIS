@@ -12,3 +12,4 @@ Status values:
 | URL | First seen | Status | Notes |
 |---|---|---|---|
 | (none) | (initial) | quiet-day-empty | Ledger initialized; first real entries land on the routine's first scheduled run. |
+| https://www.anthropic.com/news/introducing-claude-tag | 2026-06-23 | deferred | Claude Tag scoped-memory-per-domain concept → design sketch in 2026-06-23.md; needs regression test before opening PR |
