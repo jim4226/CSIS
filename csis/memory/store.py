@@ -61,6 +61,7 @@ class MemoryStore:
         root: Path | str,
         *,
         tier_guard: "object | None" = None,
+        domain: str | None = None,
     ) -> None:
         self.tier = tier
         self.root = Path(root)
@@ -75,6 +76,8 @@ class MemoryStore:
         # TierGuard is optional to keep the existing call sites working;
         # the Coordinator wires one in, see coordinator.py.
         self._tier_guard = tier_guard
+        # Domain scope for cross-domain promotion guard. None = unscoped.
+        self.domain = domain
         self._load()
 
     # ---- hashing --------------------------------------------------------
@@ -200,6 +203,24 @@ class MemoryStore:
         pre-writes PROMOTED candidates — that's now this store's job (P1).
         """
         with self._lock:
+            # Cross-domain guard: reject promotion of entries whose
+            # memory_domain differs from this store's domain. None on either
+            # side means unscoped (backward-compatible with all existing callers).
+            if self.domain is not None:
+                for eid in entry_ids:
+                    cand = self._candidate.get(eid)
+                    if (
+                        cand is not None
+                        and cand.memory_domain is not None
+                        and self.domain != cand.memory_domain
+                    ):
+                        raise TrustViolation(
+                            f"cross-domain promotion rejected: "
+                            f"store.domain={self.domain!r} != "
+                            f"entry.memory_domain={cand.memory_domain!r} "
+                            f"for entry_id={eid}"
+                        )
+
             # P4 invariant: tier consumer ceiling enforced at the substrate.
             if self._tier_guard is not None and producer_role is not None:
                 ok, reason = self._tier_guard.write_tier(producer_role, self.tier)
