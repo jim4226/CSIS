@@ -24,6 +24,7 @@ from csis.verification.certificates import (
 from csis.verification.critic_stack import (
     CriticEvaluator,
     SeededFlaw,
+    multi_critic_vote,
     parse_critic_output,
     run_critic,
 )
@@ -187,6 +188,85 @@ def test_cert_rejects_too_few_critic_attempts() -> None:
     )
     assert not cert.passed
     assert "minimum" in cert.notes
+
+
+# ---- adversarial multi-critic vote (multi_critic_vote) ------------------
+
+
+def test_multi_critic_vote_single_is_identical_to_run_critic() -> None:
+    """n_critics=1 is a transparent pass-through to run_critic."""
+    backend = MockBackend()
+    backend.script(
+        "critic", "beta",
+        '[{"attempt":"a","falsified":true,"detail":"d"},'
+        '{"attempt":"b","falsified":false,"detail":"e"},'
+        '{"attempt":"c","falsified":false,"detail":"f"}]',
+    )
+    findings = multi_critic_vote(
+        backend=backend,
+        checkpoint_id="beta",
+        plan=_plan(),
+        artifact=_artifact(),
+        grader_results=[],
+        min_attempts=3,
+        n_critics=1,
+    )
+    assert len(findings) == 3
+    assert any(f.falsified for f in findings)
+
+
+def test_multi_critic_vote_majority_preserves_falsification() -> None:
+    """2/3 critics vote yes → merged findings retain falsified=True (artifact rejected)."""
+    backend = MockBackend()
+    # Critics 1 and 3 falsify; critic 2 does not.
+    backend.script("critic", "beta", [
+        '[{"attempt":"a","falsified":true,"detail":"bad"},'
+        '{"attempt":"b","falsified":false,"detail":"ok"},'
+        '{"attempt":"c","falsified":false,"detail":"ok"}]',
+        '[{"attempt":"d","falsified":false,"detail":"ok"},'
+        '{"attempt":"e","falsified":false,"detail":"ok"},'
+        '{"attempt":"f","falsified":false,"detail":"ok"}]',
+        '[{"attempt":"g","falsified":true,"detail":"bad"},'
+        '{"attempt":"h","falsified":false,"detail":"ok"},'
+        '{"attempt":"i","falsified":false,"detail":"ok"}]',
+    ])
+    findings = multi_critic_vote(
+        backend=backend,
+        checkpoint_id="beta",
+        plan=_plan(),
+        artifact=_artifact(),
+        grader_results=[],
+        n_critics=3,
+    )
+    assert len(findings) == 9
+    assert any(f.falsified for f in findings), "majority vote should preserve falsification"
+
+
+def test_multi_critic_vote_minority_suppresses_falsification() -> None:
+    """1/3 critics vote yes → all falsified flags suppressed (artifact passes)."""
+    backend = MockBackend()
+    # Only critic 1 falsifies.
+    backend.script("critic", "beta", [
+        '[{"attempt":"a","falsified":true,"detail":"bad"},'
+        '{"attempt":"b","falsified":false,"detail":"ok"},'
+        '{"attempt":"c","falsified":false,"detail":"ok"}]',
+        '[{"attempt":"d","falsified":false,"detail":"ok"},'
+        '{"attempt":"e","falsified":false,"detail":"ok"},'
+        '{"attempt":"f","falsified":false,"detail":"ok"}]',
+        '[{"attempt":"g","falsified":false,"detail":"ok"},'
+        '{"attempt":"h","falsified":false,"detail":"ok"},'
+        '{"attempt":"i","falsified":false,"detail":"ok"}]',
+    ])
+    findings = multi_critic_vote(
+        backend=backend,
+        checkpoint_id="beta",
+        plan=_plan(),
+        artifact=_artifact(),
+        grader_results=[],
+        n_critics=3,
+    )
+    assert not any(f.falsified for f in findings), "minority vote should suppress falsification"
+    assert all("vote-suppressed" in f.detail for f in findings)
 
 
 def test_seeded_flaw_evaluator_tracks_catch_rate() -> None:
