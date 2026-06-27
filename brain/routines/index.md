@@ -12,3 +12,7 @@ Status values:
 | URL | First seen | Status | Notes |
 |---|---|---|---|
 | (none) | (initial) | quiet-day-empty | Ledger initialized; first real entries land on the routine's first scheduled run. |
+| https://code.claude.com/docs/en/workflows.md | 2026-06-27 | opened-PR | PR #76: multi_critic_vote() adversarial-verify pattern; Theme 2 |
+| https://www.anthropic.com/news/introducing-claude-tag | 2026-06-27 | out-of-scope | Consumer Slack product; no CSIS code path |
+| https://www.anthropic.com/research/project-fetch-phase-two | 2026-06-27 | out-of-scope | Robotics experiment; physical substrate, not CSIS |
+| https://www.anthropic.com/research/economic-index-june-2026-report | 2026-06-27 | out-of-scope | Economic usage analysis; no CSIS theme |
