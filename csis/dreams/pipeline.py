@@ -24,6 +24,14 @@ from csis.substrate.hashing import canonical_json_hash
 # per-template) per red-team F10 mitigation.
 ALLOWED_INSTRUCTION_HASHES: set[str] = set()
 
+# Models supported by the Dreams API (dreaming-2026-04-21 beta).
+# Per platform.claude.com/docs/en/managed-agents/dreams §Limits.
+# claude-opus-4-8 was added after the May-2026 research pass; it is now listed
+# first in the docs and is the correct default for new Dreams pipelines.
+DREAMS_ALLOWED_MODELS: frozenset[str] = frozenset(
+    {"claude-opus-4-8", "claude-opus-4-7", "claude-sonnet-4-6"}
+)
+
 
 def register_instruction_template(template_text: str) -> str:
     h = canonical_json_hash({"instructions": template_text})
@@ -69,8 +77,14 @@ class DreamPipeline:
         self,
         *,
         cadence: dict[str, CadenceBudget] | None = None,
-        model: str = "claude-opus-4-7",
+        model: str = "claude-opus-4-8",
     ) -> None:
+        if model not in DREAMS_ALLOWED_MODELS:
+            raise ValueError(
+                f"model {model!r} not in Dreams allowed models "
+                f"{sorted(DREAMS_ALLOWED_MODELS)}; "
+                "see platform.claude.com/docs/en/managed-agents/dreams §Limits"
+            )
         self._cadence = cadence or {k: CadenceBudget(v.min_interval_s) for k, v in DEFAULT_CADENCE.items()}
         self._model = model
 
