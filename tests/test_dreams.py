@@ -13,6 +13,7 @@ import pytest
 from csis.contracts import MemoryEntry
 from csis.dreams.pipeline import (
     ALLOWED_INSTRUCTION_HASHES,
+    DREAMS_ALLOWED_MODELS,
     CadenceBudget,
     DreamPipeline,
     register_instruction_template,
@@ -34,6 +35,24 @@ def _entries(n: int, content_pattern: str = "claim-{i}") -> list[MemoryEntry]:
         )
         for i in range(n)
     ]
+
+
+def test_dream_pipeline_default_model_is_opus_48() -> None:
+    """Dreams API added claude-opus-4-8 support (2026-06 docs); it should be default."""
+    pipe = DreamPipeline()
+    assert pipe._model == "claude-opus-4-8"
+
+
+def test_dream_pipeline_accepts_all_allowed_models() -> None:
+    for m in DREAMS_ALLOWED_MODELS:
+        pipe = DreamPipeline(model=m)
+        assert pipe._model == m
+
+
+def test_dream_pipeline_rejects_unknown_model() -> None:
+    """Fable 5 is not listed in Dreams allowed models; init must fail fast."""
+    with pytest.raises(ValueError, match="not in Dreams allowed models"):
+        DreamPipeline(model="claude-fable-5")
 
 
 def test_quality_score_clean_unique_with_tags() -> None:
