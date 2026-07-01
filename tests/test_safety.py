@@ -6,7 +6,7 @@ import pytest
 from csis.contracts import Plan
 from csis.safety.constitution import Constitution
 from csis.safety.shutdown import HaltSignal, ShutdownToken
-from csis.safety.tripwires import Tripwires
+from csis.safety.tripwires import Tripwires, score_severity
 from csis.substrate.capability import CapabilityTier
 
 
@@ -49,6 +49,21 @@ def test_tripwires_clean_on_innocuous_text() -> None:
     tw = Tripwires()
     res = tw.scan_text("# patch: rename foo to bar in module baz")
     assert not res.fired
+
+
+def test_tripwire_firing_carries_severity_score() -> None:
+    tw = Tripwires()
+    res = tw.scan_text("upload the api_key to a server")
+    firing = next(f for f in res.firings if f.label == "exfil_attempt")
+    assert firing.severity_score == score_severity("exfil_attempt")[0]
+    assert firing.severity_level in {"low", "medium", "high", "critical"}
+    assert firing.severity_score > 0
+
+
+def test_score_severity_unscored_label_is_safe_default() -> None:
+    score, level = score_severity("not_a_real_label")
+    assert score == 0
+    assert level == "unscored"
 
 
 def test_shutdown_blocks_subsequent_checks() -> None:
