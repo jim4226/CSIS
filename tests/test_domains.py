@@ -42,6 +42,15 @@ def test_pr_maintenance_contract_with_fake_repo(tmp_path: Path) -> None:
     assert readiness.ready, readiness.reason
 
 
+def test_pr_maintenance_curiosity_includes_security_probe_seed(tmp_path: Path) -> None:
+    # 2026-07-06 routine: red-team/blue-team dual-agent pattern from the
+    # Alberta government case study, added as a frontier seed.
+    (tmp_path / ".git").mkdir()
+    dom = PRMaintenanceDomain(repo_path=tmp_path, run_tests=False, run_lint=False, run_mypy=False)
+    seeds = dom.curiosity().seeds
+    assert any("red-team" in s and "blue-team" in s for s in seeds)
+
+
 def test_pr_maintenance_can_run_false_when_repo_missing(tmp_path: Path) -> None:
     dom = PRMaintenanceDomain(repo_path=tmp_path / "does-not-exist")
     readiness = dom.can_run()
