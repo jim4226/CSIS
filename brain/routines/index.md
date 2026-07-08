@@ -12,3 +12,6 @@ Status values:
 | URL | First seen | Status | Notes |
 |---|---|---|---|
 | (none) | (initial) | quiet-day-empty | Ledger initialized; first real entries land on the routine's first scheduled run. |
+| https://www.anthropic.com/research/off-switch-dual-use | 2026-07-08 | opened-PR | GRAM dual-use knowledge compartmentalization; theme 3. Doc-only note at `brain/research/03-dual-use-knowledge-compartments.md`. |
+| (operational) | 2026-07-08 | flagged | `claude/daily-*` PR backlog is **87 open PRs**, oldest from 2026-05-20 — none ever merged/closed. Corrects prior runs' "40+" estimate (full `list_pull_requests` scan, not default first page). See 2026-07-08 log for the full breakdown and recommended merge order. Escalating since 2026-06-30 (PR #82); unresolved. |
+| (note) | 2026-07-08 | — | This row and the one above are the only rows this run added. `main`'s copy of this ledger predates every `claude/daily-*` PR (none have merged), so it does not carry forward the dozens of rows already triaged by unmerged branches through 2026-07-07 (see `claude/daily-2026-07-07-log`, PR #93, for that reconstructed ledger). Do not treat this file's brevity as "little has been triaged" — see the operational note. |
