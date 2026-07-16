@@ -341,6 +341,7 @@
   <span class="str">"rollback_plan"</span>:  <span class="str">"noop"</span>          <span class="com">// noop | candidate-discard | checkpoint-restore | airgap</span>
 }</code></pre>
 <p>Tier escalation is observable: the substrate rejects any <code>execute()</code> whose <code>tier</code> exceeds the actor's authorized ceiling. The Auditor reads this tag stream during the why-audit and a tier mismatch is itself a tripwire. For T1/T2, the concrete substrate is Anthropic's environment-scoped tools and <code>allowed_hosts</code> networking — not a notional sandbox.</p>
+<p><strong>Related work at the model layer:</strong> CSIS's tier ceiling is enforced at the call site — it gates what an actor is <em>allowed to invoke</em>, not what the underlying model <em>knows</em>. Anthropic's GRAM research (compartmentalizing dual-use knowledge into removable, gradient-routed modules so a single trained model can be reconfigured per-category) is a complementary approach at the weights layer: call-site tiering and weight-level compartmentalization are two independent layers that could someday stack, not substitutes for each other. See reference 28.</p>
 </section>
 
 <section id="s10">
@@ -512,6 +513,7 @@
 <li><strong>Interpretability-bounded capability growth.</strong> Can we operationalize the policy "capability cannot grow faster than our ability to interpret it"?</li>
 <li><strong>Multi-instance dynamics.</strong> What happens when multiple CSIS instances interact?</li>
 <li><strong>The why-doc gap.</strong> When is a human-readable why-doc structurally insufficient — and what comes next? (cf. ELK.)</li>
+<li><strong>Value-drift monitoring as a V5 signal.</strong> Anthropic's cross-model, cross-language value-expression study (reference 29) gives a compressed axis set (deference/caution, warmth/rigor, depth/brevity, candor/execution) for measuring whether a deployed model's expressed values match intent. Could the Auditor sample Builder/Critic output against axes like these as an early, cheap proxy for the calibration signal P1.5 (V5) needs — before a full Brier/log-loss harness exists?</li>
 </ol>
 </section>
 
@@ -545,6 +547,8 @@
 <li>OWASP. <i>MCP Top 10.</i></li>
 <li>Schmidhuber, J. <i>Formal Theory of Creativity, Fun, and Intrinsic Motivation.</i> 2010.</li>
 <li>Tulving, E. <i>Episodic and Semantic Memory.</i> 1972. Squire, L. R. <i>Memory Systems of the Brain.</i> 2004.</li>
+<li>Anthropic. <i>An off switch for dual-use knowledge in AI models</i> (GRAM: Gradient-Routed Auxiliary Modules). Research, July 2026.</li>
+<li>Anthropic. <i>Claude's values across models and languages.</i> Research, July 2026.</li>
 </ol>
 </section>
 
