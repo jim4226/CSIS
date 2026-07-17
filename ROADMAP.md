@@ -8,6 +8,8 @@ Phase 0 is shipped: the substrate runs, the loop completes end-to-end, 9 cycles 
 
 Replace the mock dreaming pipeline at `csis/dreams/` with the real Anthropic Dreams API once it's accessible to the operator. Today's mock implements the same partial-output-redaction and quality-scoring discipline so the swap should be a closed change. Risk: real Dreams has different latency + cost characteristics; will need a new round of budget tracking.
 
+**Update (2026-07-10):** Dreams (research preview) now supports Claude Fable 5 and Claude Sonnet 5 in addition to the models it already covered — see [Supported models](https://platform.claude.com/docs/en/managed-agents/dreams#limits). This widens which checkpoints a real integration could use once access is granted; it doesn't change the access-gating blocker itself, so this milestone stays queued behind operator access rather than moving up.
+
 **Tracking**: see issue `roadmap-P1.1-dreams-integration`.
 
 ### P1.2 · Process-level isolation for the wrapped-backend invariant (H2 + H11) · **load-bearing**
