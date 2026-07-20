@@ -11,4 +11,12 @@ Status values:
 
 | URL | First seen | Status | Notes |
 |---|---|---|---|
-| (none) | (initial) | quiet-day-empty | Ledger initialized; first real entries land on the routine's first scheduled run. |
+| https://www.anthropic.com/news/rare-disease-research-grants | 2026-07-20 | out-of-scope | Grant program announcement |
+| https://www.anthropic.com/news/claude-for-teachers | 2026-07-20 | out-of-scope | Consumer/education product launch |
+| https://www.anthropic.com/news/canadian-ai-research | 2026-07-20 | out-of-scope | Funding announcement |
+| https://www.anthropic.com/research/how-canada-uses-claude | 2026-07-20 | out-of-scope | Economic-impact research |
+| https://www.anthropic.com/research/claude-values-models-languages | 2026-07-20 | out-of-scope | Observational value-drift study; no code primitive |
+| https://platform.claude.com/docs/en/release-notes/overview#july-17-2026 | 2026-07-20 | out-of-scope | Workbench sunset, unused by CSIS |
+| https://platform.claude.com/docs/en/release-notes/overview#july-15-2026 | 2026-07-20 | out-of-scope | Mid-conversation system messages; no multi-turn state in CSIS backend to attach to |
+| https://platform.claude.com/docs/en/release-notes/overview#july-14-2026 | 2026-07-20 | out-of-scope | Admin API user management, no admin surface in CSIS |
+| https://code.claude.com/docs/en/whats-new/2026-w29 | 2026-07-20 | out-of-scope | CLI/product surface features; trust-lattice equivalent already enforced in CSIS code |
