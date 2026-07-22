@@ -149,6 +149,10 @@ class AnthropicBackend(LLMBackend):
             "backend": self.name,
             "model_id": self._resolve_model(checkpoint_id),
             "tool_set": "anthropic-native",
+            # verification-K4 (cycle-13): the model map always resolves a real
+            # Anthropic model id (never the checkpoint label), so this backend
+            # always declares.
+            "model_declared": "true",
         }
 
 

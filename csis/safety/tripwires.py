@@ -70,6 +70,19 @@ def _strip_invisible(text: str, *, format_as_space: bool) -> str:
                 out.append(" ")
             # else: delete
             continue
+        # crosscut-K1 (cycle-13): ALL Unicode whitespace is an INTER-word
+        # boundary — categories Zs/Zl/Zp (U+00A0, U+2028 line-sep, U+2029
+        # para-sep, U+1680 ogham space, ideographic space, …) plus any other
+        # str.isspace() char. Map every one to a plain ASCII space in BOTH
+        # forms. Without this, a Unicode space that NFKC does NOT fold to
+        # U+0020 (U+2028/U+2029/U+1680) survived _strip_invisible (not Cf) and
+        # was then DELETED by _confusable_fold's encode('ascii','ignore'),
+        # gluing the adjacent words ('disable<U+2028>the<U+2028>auditor' ->
+        # 'disabletheauditor') and silently defeating every multi-word /
+        # \b-anchored pattern in BOTH the Constitution and the Tripwires.
+        if cat[0] == "Z" or ch.isspace():
+            out.append(" ")
+            continue
         out.append(ch)
     return "".join(out)
 

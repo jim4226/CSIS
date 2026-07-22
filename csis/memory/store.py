@@ -336,12 +336,32 @@ class MemoryStore:
             # memory and _flush() FIRST (the durable, atomic state change), THEN
             # archive as best-effort audit, so an archive failure can no longer
             # corrupt or half-apply live state.
+            #
+            # store-K2 (cycle-13): _flush() ITSELF can raise (the live-side
+            # write is the second of two file writes). If it does, the in-memory
+            # mutation is already applied but the call reports FAILURE — and the
+            # next successful _flush() would persist that unreported promotion as
+            # a durable P1 ghost. Snapshot the dicts and restore them if _flush
+            # raises, so a reported failure leaves NO in-memory or on-disk trace.
+            live_before = dict(self._live)
+            cand_before = dict(self._candidate)
             promoted: list[MemoryEntry] = []
             for entry_id, promoted_cand, cand in staged:
                 self._live[entry_id] = promoted_cand
                 self._candidate.pop(entry_id, None)
-                promoted.append(promoted_cand)
-            self._flush()
+                # store-K1 (cycle-13): return a deep copy, never the object we
+                # just stored in _live. The M4 chokepoint _view() was applied to
+                # the four READ paths but not to promote()'s RETURN — a caller
+                # doing `promoted[0].extra['x'] = 'evil'` would otherwise write
+                # straight through into the LIVE store, outside promote(), the
+                # exact write-through M4 closed for reads.
+                promoted.append(self._view(promoted_cand))
+            try:
+                self._flush()
+            except Exception:
+                self._live = live_before
+                self._candidate = cand_before
+                raise
             for _entry_id, _promoted_cand, cand in staged:
                 try:
                     self._archive_candidate(cand, why_id)
@@ -359,13 +379,14 @@ class MemoryStore:
         "verified but stale precondition" from "never verified."
         """
         with self._lock:
+            cand_before = dict(self._candidate)  # store-K2 (cycle-13): rollback on flush failure
             out: list[MemoryEntry] = []
             for eid in entry_ids:
                 cand = self._candidate.get(eid)
                 if cand is None:
                     raise KeyError(f"no candidate with id={eid}")
                 if cand.trust >= TrustLevel.VERIFIED:
-                    out.append(cand)
+                    out.append(self._view(cand))  # store-K1 (cycle-13): never hand back the stored object
                     continue
                 # M1 (cycle-10): gate the CANDIDATE->VERIFIED bump on the SAME
                 # lattice-legality predicate promote() uses. Without this,
@@ -384,8 +405,12 @@ class MemoryStore:
                     )
                 upgraded = cand.model_copy(update={"trust": TrustLevel.VERIFIED})
                 self._candidate[eid] = upgraded
-                out.append(upgraded)
-            self._flush()
+                out.append(self._view(upgraded))  # store-K1 (cycle-13)
+            try:
+                self._flush()
+            except Exception:
+                self._candidate = cand_before  # store-K2 (cycle-13): reported failure leaves no trace
+                raise
             return out
 
     def discard_candidate(self, entry_id: str, *, reason: str) -> None:

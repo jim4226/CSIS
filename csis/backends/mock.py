@@ -101,6 +101,7 @@ class MockBackend(LLMBackend):
 
     def checkpoint_identity(self, checkpoint_id: str) -> dict[str, str]:
         with self._lock:
+            declared = checkpoint_id in self._model_id_for_checkpoint
             model_id = self._model_id_for_checkpoint.get(checkpoint_id, checkpoint_id)
             tools = list(self._tools_for_checkpoint.get(checkpoint_id, ["sandbox", "memory"]))
         # F1 mitigation: include model_id + tools as part of identity so the
@@ -117,4 +118,6 @@ class MockBackend(LLMBackend):
             "backend": self.name,
             "model_id": model_id,
             "tool_set": ",".join(sorted(tools)),
+            # verification-K4 (cycle-13): declared iff set_model_id was called.
+            "model_declared": "true" if declared else "false",
         }

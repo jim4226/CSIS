@@ -18,6 +18,7 @@ from typing import Iterable
 from csis.contracts import (
     Artifact,
     CriticFinding,
+    DistributionalGraderResult,
     GraderResult,
     Plan,
     VerifierCertificate,
@@ -118,6 +119,14 @@ def _assert_model_declared(name: str, identity: dict[str, str]) -> None:
             f"(model_id={identity.get('model_id')!r}); a backend must declare a "
             f"real model id. See cycle-10 Vf1 / cycle-11 F3."
         )
+    # verification-K4 (cycle-13): if the backend EXPLICITLY declared a model
+    # (model_declared == "true"), accept it even when it happens to equal the
+    # checkpoint label — a legitimate operator convention ("the opus checkpoint
+    # runs opus"). The model_id==checkpoint_id rejection is only for the
+    # UN-declared default (a backend that never asserted a real model), where a
+    # checkpoint rename would flip model_id in lockstep and spoof distinctness.
+    if identity.get("model_declared") == "true":
+        return
     if norm_model == _norm_model_id(identity.get("checkpoint_id")):
         raise CrossCheckpointViolation(
             f"{name} model identity not declared: model_id == checkpoint_id "
@@ -221,12 +230,14 @@ def build_certificate(
     verifier_identity: dict[str, str],
     grader_results: list[GraderResult],
     critic_findings: list[CriticFinding],
+    distributional_results: list[DistributionalGraderResult] | None = None,
     grader_drift: Iterable[str] = (),
     min_critic_attempts: int = 3,
 ) -> VerifierCertificate:
     """Build a VerifierCertificate. Raises on cross-checkpoint or grader-drift
-    violations. The cert's `passed` field is the AND of: every grader passed,
-    no critic finding is `falsified=True`, and minimum critic attempts met."""
+    violations. The cert's `passed` field is the AND of: every categorical
+    grader passed, every DISTRIBUTIONAL grader passed, no critic finding is
+    `falsified=True`, and minimum critic attempts met."""
     assert_cross_checkpoint(builder_identity, verifier_identity)
 
     drift_list = list(grader_drift)
@@ -236,7 +247,15 @@ def build_certificate(
             f"See red-team finding F6."
         )
 
+    distributional_results = list(distributional_results or [])
     all_pass = all(g.passed for g in grader_results)
+    # verification-K3 (cycle-13): the distributional graders' verdict MUST gate
+    # the cert. Vf1-Vf7 hardened DistributionalGraderResult.passed into a
+    # trustworthy conservative-CI bit, but build_certificate previously neither
+    # accepted the results nor folded their `.passed` into the cert `passed`,
+    # nor recorded them on the cert — so a failing distributional eval (e.g. a
+    # Dice CI below the bar) was silently ignored and the cert still passed.
+    all_distributional_pass = all(d.passed for d in distributional_results)
     any_falsified = any(f.falsified for f in critic_findings)
     # Vf7 (cycle 10): the min-attempts floor must measure REAL work, not
     # cardinality. Three identical {"attempt":"same"} (or blank /
@@ -245,12 +264,15 @@ def build_certificate(
     n_substantive_attempts = _count_substantive_attempts(critic_findings)
     enough_attempts = n_substantive_attempts >= min_critic_attempts
 
-    passed = all_pass and (not any_falsified) and enough_attempts
+    passed = all_pass and all_distributional_pass and (not any_falsified) and enough_attempts
 
     notes_parts: list[str] = []
     if not all_pass:
         failed = [g.grader for g in grader_results if not g.passed]
         notes_parts.append(f"v1_failed={failed}")
+    if not all_distributional_pass:
+        d_failed = [d.grader for d in distributional_results if not d.passed]
+        notes_parts.append(f"v1_distributional_failed={d_failed}")
     if any_falsified:
         falsified_attempts = [f.attempt for f in critic_findings if f.falsified]
         notes_parts.append(f"v2_falsified={falsified_attempts}")
@@ -268,6 +290,7 @@ def build_certificate(
         builder_checkpoint=builder_identity.get("checkpoint_id", "unknown"),
         verifier_checkpoint=verifier_identity.get("checkpoint_id", "unknown"),
         grader_results=grader_results,
+        distributional_results=distributional_results,
         critic_findings=critic_findings,
         passed=passed,
         signed_at=time.time(),

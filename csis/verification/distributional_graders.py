@@ -207,6 +207,15 @@ def bootstrap_ci(
             f"must never be aggregated into a passable CI. See cycle-10 Vf3."
         )
     rng = rng or random.Random(42)
+    # verification-K1 (cycle-13): canonicalize the input order before the
+    # resample loop. The loop draws a FIXED index sequence from the seeded RNG
+    # and maps it through sample_metrics[idx], so a permutation of the input
+    # yields a different realized CI even though the statistic (mean) is
+    # exchangeable and the TRUE bootstrap distribution is order-invariant.
+    # Sorting a local copy makes ci_lower/ci_upper — and thus the signed
+    # PASS/FAIL and the cert hash — a pure function of the value multiset + seed,
+    # completing the determinism guarantee Vf2 established for evaluate().
+    sample_metrics = sorted(sample_metrics)
     point = statistic(sample_metrics)
     resampled_stats: list[float] = []
     n = len(sample_metrics)
@@ -266,11 +275,19 @@ class DistributionalGrader(ABC):
         slice_min_n: int = 5,
         rng_seed: int = 42,
         min_nonempty_truth_fraction: float = 0.0,
+        min_main_n: int | None = None,
     ) -> None:
         self.threshold = threshold if threshold is not None else self.threshold
         self.n_bootstrap = n_bootstrap
         self.ci_level = ci_level
         self.slice_min_n = slice_min_n
+        # verification-K2 (cycle-13): a minimum-n floor on the MAIN estimate,
+        # mirroring slice_min_n. Slices are dropped below slice_min_n precisely
+        # because a bootstrap CI over <5 samples is meaningless — but the main
+        # estimate had NO such floor, so a single cherry-picked sample produced
+        # a zero-width "95% CI" that cleared the threshold, making the
+        # conservative-CI guarantee vacuous. Defaults to slice_min_n.
+        self.min_main_n = min_main_n if min_main_n is not None else slice_min_n
         # Vf6 (cycle 10): optional guard. Both-empty masks score 1.0 by
         # convention (Dice/IoU agree the structure is absent). An all-empty-
         # ground-truth eval set therefore scores a perfect pass for ANY
@@ -418,8 +435,22 @@ class DistributionalGrader(ABC):
 
         passed = self._passed(lo, hi)
 
-        # Vf6: degeneracy report + optional guard.
+        # verification-K2 (cycle-13): floor the MAIN estimate's sample count.
+        # A pass on fewer than min_main_n samples is not statistically
+        # meaningful (with n=1 the bootstrap can only resample the one value, so
+        # ci_lower==ci_upper==that value and any single good sample clears the
+        # bar). Only gate when there IS a bar (threshold set); report-only mode
+        # stays report-only.
         detail_parts: list[str] = []
+        if self.threshold is not None and len(samples) < self.min_main_n:
+            passed = False
+            detail_parts.append(
+                f"GUARD_FAILED: n_samples={len(samples)} < min_main_n="
+                f"{self.min_main_n}; a CI on too few samples is degenerate and "
+                f"cannot clear the threshold (cycle-13 verification-K2)"
+            )
+
+        # Vf6: degeneracy report + optional guard.
         if degeneracy_counts:
             detail_parts.append(
                 "degenerate_cases="

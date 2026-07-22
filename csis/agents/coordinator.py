@@ -240,7 +240,20 @@ class Coordinator:
                 approval_state="auto",
                 rollback_plan="candidate-discard",
             )
-            enforce(tag, self.tier_guard.ceiling("builder"))
+            # crosscut-K2 (cycle-13): consult cfg.phase_ceiling as an EFFECTIVE
+            # ceiling (the lower of the actor ceiling and the configured
+            # phase_ceiling), so an operator who hardens a deployment by lowering
+            # phase_ceiling actually tightens enforcement instead of getting a
+            # decorative field that _config_for_log nonetheless attests as the
+            # effective ceiling. enforce() still applies the hard PHASE_0_CEILING
+            # cap on top; phase_ceiling can only tighten, never loosen (validated
+            # in CSISConfig.__post_init__).
+            effective_ceiling = min(
+                self.tier_guard.ceiling("builder"),
+                self.config.phase_ceiling,
+                key=int,
+            )
+            enforce(tag, effective_ceiling)
         except TierViolation as exc:
             self.event_log.emit("coordinator", "tier.violation", {"actor": "builder", "tier": plan.tier.name, "reason": str(exc)})
             self._rollback(result, f"tier-violation:{exc}")
@@ -319,9 +332,22 @@ class Coordinator:
         # unstamped candidate whose id appears post-consolidate and was
         # NOT pre-existing is treated as this-iteration's. This keeps
         # the cycle-7 F2 / cycle-8 G2 attack scenarios closed.
+        # coordinator-K1 (cycle-13): capture pre-consolidate CONTENT HASHES,
+        # not just id-sets. Keying only on ids let the cleanup keep a
+        # pre-existing candidate id that was OVERWRITTEN IN PLACE this iteration
+        # (same id, new attacker-chosen bytes, no matching stamp) — the id is in
+        # the snapshot so it was treated as "the untouched legitimate
+        # pre-existing candidate, keep it", stranding the poisoned bytes after a
+        # rollback. content_hash (which excludes the writer-controlled
+        # bookkeeping fields, so a legitimate trust bump is not a false change)
+        # lets the cleanup tell "untouched" from "overwritten this iteration".
+        from csis.memory.store import content_hash as _content_hash
         tier_names = self.hierarchy.__class__.tier_names()  # H12 (cycle-9)
-        pre_consolidate_ids: dict[str, set[str]] = {
-            tier_name: self.hierarchy.tier(tier_name).candidate_ids()
+        pre_consolidate_hashes: dict[str, dict[str, str]] = {
+            tier_name: {
+                e.entry_id: _content_hash(e)
+                for e in self.hierarchy.tier(tier_name).candidates_snapshot()
+            }
             for tier_name in tier_names
         }
 
@@ -380,7 +406,7 @@ class Coordinator:
                     )
         except TierMismatch as exc:
             self._tier_mismatch_cleanup(
-                exc, candidates, iteration_id, pre_consolidate_ids, result,
+                exc, candidates, iteration_id, pre_consolidate_hashes, result,
             )
             return result
 
@@ -402,7 +428,7 @@ class Coordinator:
             )
         except TierMismatch as exc:
             self._tier_mismatch_cleanup(
-                exc, candidates, iteration_id, pre_consolidate_ids, result,
+                exc, candidates, iteration_id, pre_consolidate_hashes, result,
             )
             return result
         except BudgetCapExceeded:
@@ -480,9 +506,20 @@ class Coordinator:
             "new_live_hash": store.live_hash(),
         })
 
-        # Final tripwire / shutdown check (F11: don't tell agents, just halt).
-        if self.tripwires.fired() or self.shutdown.is_halted():
-            self.event_log.emit("coordinator", "post.halt", {"reason": "tripwire or shutdown after promote"})
+        # Final shutdown check (F11: don't tell agents, just halt).
+        # coordinator-K2 (cycle-13): gate on the real halt signal, not
+        # self.tripwires.fired() — that reads the STICKY cross-iteration firing
+        # history (True after ANY firing ever), so every successful iteration
+        # after the first-ever tripwire emitted a spurious post.halt. No
+        # this-iteration tripwire can fire here anyway: all tripwire scans run
+        # BEFORE promote and roll the iteration back. A shutdown requested
+        # during this iteration is the one post-promote signal that matters; the
+        # promotion itself already passed every gate and stands.
+        if self.shutdown.is_halted():
+            self.event_log.emit("coordinator", "post.halt", {
+                "reason": "shutdown requested during iteration",
+                "iteration_id": iteration_id,
+            })
 
         return result
 
@@ -613,7 +650,7 @@ class Coordinator:
         exc: TierMismatch,
         candidates: list[MemoryEntry],
         iteration_id: str,
-        pre_consolidate_ids: dict[str, set[str]],
+        pre_consolidate_hashes: dict[str, dict[str, str]],
         result: IterationResult,
     ) -> None:
         """H4 (cycle-9) cleanup. Two-tier identification:
@@ -632,11 +669,12 @@ class Coordinator:
            check prevents over-discard of pre-existing legitimate
            same-id candidates (cycle-7 F2 scenario).
         """
+        from csis.memory.store import content_hash as _content_hash
         tier_names = self.hierarchy.__class__.tier_names()  # H12 (cycle-9)
         discarded: list[tuple[str, str, str]] = []
         for tier_name in tier_names:
             tier_store = self.hierarchy.tier(tier_name)
-            tier_pre_ids = pre_consolidate_ids.get(tier_name, set())
+            tier_pre = pre_consolidate_hashes.get(tier_name, {})
             for stored in tier_store.candidates_snapshot():
                 stamp_matches = stored.writer_iteration_id == iteration_id
                 # F1 (cycle-11): the cycle-10 M5 structural branch only fired
@@ -655,14 +693,26 @@ class Coordinator:
                 # Phase-1 concern that needs a TRUSTED stamp source, not a data
                 # field the Librarian writes; until then a forged stamp must
                 # not buy survival.)
-                introduced_this_iteration = stored.entry_id not in tier_pre_ids
-                if not (stamp_matches or introduced_this_iteration):
+                introduced_this_iteration = stored.entry_id not in tier_pre
+                # coordinator-K1 (cycle-13): a pre-existing candidate id that was
+                # OVERWRITTEN IN PLACE this iteration (content_hash differs from
+                # the pre-consolidate snapshot) is also this iteration's write —
+                # keeping it would strand the poisoned bytes after a rollback.
+                # content_hash excludes the trust-lattice bookkeeping fields, so
+                # a legitimate mark_verified() bump is NOT a false "overwrite".
+                overwritten_in_place = (
+                    not introduced_this_iteration
+                    and _content_hash(stored) != tier_pre.get(stored.entry_id)
+                )
+                if not (stamp_matches or introduced_this_iteration or overwritten_in_place):
                     continue
                 tier_store.discard_candidate(stored.entry_id, reason=f"tier-mismatch:{exc}")
-                discarded.append(
-                    (tier_name, stored.entry_id,
-                     "stamp" if stamp_matches else "introduced")
-                )
+                discarded.append((
+                    tier_name, stored.entry_id,
+                    "stamp" if stamp_matches
+                    else "introduced" if introduced_this_iteration
+                    else "overwritten",
+                ))
         self.event_log.emit("coordinator", "tier.mismatch", {
             "reason": str(exc),
             "claimed_tier": exc.claimed_tier,

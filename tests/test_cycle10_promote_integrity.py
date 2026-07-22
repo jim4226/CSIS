@@ -192,11 +192,12 @@ def test_m5_cleanup_discards_unstamped_unadvertised_cross_tier_write(tmp_path: P
     # A pre-existing, unstamped, legitimate candidate that must NOT be over-discarded.
     pre = coord.hierarchy.tier("procedural")
     pre.write_candidate(_mk("e-pre", tier="procedural"))
-    pre_ids = {name: coord.hierarchy.tier(name).candidate_ids()
+    pre_ids = {name: {e.entry_id: content_hash(e)
+                      for e in coord.hierarchy.tier(name).candidates_snapshot()}
                for name in coord.hierarchy.__class__.tier_names()}
     # e-hidden was written AFTER the snapshot above only conceptually; emulate
     # the real ordering: pre-snapshot must contain e-pre but not e-hidden.
-    pre_ids["semantic"] = set()  # e-hidden is "introduced this iteration"
+    pre_ids["semantic"] = {}  # e-hidden is "introduced this iteration"
 
     result = IterationResult(iteration_id=iteration_id)
     exc = TierMismatch("lied", claimed_tier="episodic", target_tier="episodic")
@@ -215,7 +216,8 @@ def test_m5_pre_existing_unstamped_candidate_not_discarded(tmp_path: Path) -> No
     iteration_id = "iter-m5b"
     store = coord.hierarchy.tier("semantic")
     store.write_candidate(_mk("e-old", tier="semantic"))  # pre-existing, unstamped
-    pre_ids = {name: coord.hierarchy.tier(name).candidate_ids()
+    pre_ids = {name: {e.entry_id: content_hash(e)
+                      for e in coord.hierarchy.tier(name).candidates_snapshot()}
                for name in coord.hierarchy.__class__.tier_names()}
     assert "e-old" in pre_ids["semantic"]
     result = IterationResult(iteration_id=iteration_id)

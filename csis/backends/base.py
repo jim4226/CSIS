@@ -72,4 +72,10 @@ class LLMBackend(ABC):
             "backend": self.name,
             "model_id": checkpoint_id,
             "tool_set": "default",
+            # verification-K4 (cycle-13): the base identity did NOT declare a
+            # real model (model_id defaulted to checkpoint_id). The flag lets
+            # assert_cross_checkpoint reject the un-declared default WITHOUT
+            # false-rejecting a legitimate pair that explicitly declares a model
+            # named the same as its checkpoint.
+            "model_declared": "false",
         }

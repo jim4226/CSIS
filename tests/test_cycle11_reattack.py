@@ -27,7 +27,7 @@ from csis.backends.mock import MockBackend
 from csis.budget import BudgetCapExceeded, BudgetTracker
 from csis.config import CSISConfig
 from csis.contracts import MemoryEntry
-from csis.memory.store import MemoryStore, TrustViolation
+from csis.memory.store import MemoryStore, TrustViolation, content_hash
 from csis.memory.trust import TrustLevel
 from csis.safety.tripwires import Tripwires
 from csis.verification.certificates import CrossCheckpointViolation, assert_cross_checkpoint
@@ -65,9 +65,10 @@ def test_f1_forged_writer_iteration_id_is_discarded(tmp_path: Path) -> None:
 
     # pre-consolidate snapshot does NOT contain e-forged (it was "written
     # during" this iteration, after the snapshot).
-    pre_ids = {name: coord.hierarchy.tier(name).candidate_ids()
+    pre_ids = {name: {e.entry_id: content_hash(e)
+                      for e in coord.hierarchy.tier(name).candidates_snapshot()}
                for name in coord.hierarchy.__class__.tier_names()}
-    pre_ids["semantic"] = set()
+    pre_ids["semantic"] = {}
 
     result = IterationResult(iteration_id=iteration_id)
     exc = TierMismatch("lied", claimed_tier="episodic", target_tier="episodic")
@@ -85,7 +86,8 @@ def test_f1_pre_existing_candidate_still_survives(tmp_path: Path) -> None:
     coord = _coord(tmp_path)
     store = coord.hierarchy.tier("procedural")
     store.write_candidate(_mk("e-old", tier="procedural", stamp="some-old-iter"))
-    pre_ids = {name: coord.hierarchy.tier(name).candidate_ids()
+    pre_ids = {name: {e.entry_id: content_hash(e)
+                      for e in coord.hierarchy.tier(name).candidates_snapshot()}
                for name in coord.hierarchy.__class__.tier_names()}
     assert "e-old" in pre_ids["procedural"]
     result = IterationResult(iteration_id="iter-f1b")

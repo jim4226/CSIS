@@ -179,7 +179,14 @@ class EventLog:
             # Re-sync from disk under the lock so we see any sibling
             # writes that landed since our last emit. This is the fix
             # for the cross-process seq race that broke the chain.
-            self._restore_from_disk_unlocked()
+            # eventlog-K3 (cycle-13): use the TAIL-only fast path, not the
+            # full-file re-parse — the old _restore_from_disk_unlocked()
+            # read_bytes() the whole file and ran model_validate_json on EVERY
+            # line just to read the last record's seq/hash, giving O(n) work
+            # per emit / O(n^2) per session while holding the cross-process
+            # lock for O(n). The tail path parses one record; it falls back to
+            # the full walk only when the tail is torn/non-chaining (recovery).
+            self._resync_tail_unlocked()
             event = Event(
                 seq=self._seq,
                 timestamp=time.time(),
@@ -212,17 +219,37 @@ class EventLog:
         return self.iter_events()
 
     def iter_events(self, start: int = 0) -> Iterator[SignedEvent]:
-        """Yield SignedEvents in order, optionally starting at a seq number."""
+        """Yield SignedEvents in order, optionally starting at a seq number.
+
+        eventlog-K2 (cycle-13): read the file's bytes under the inter-process
+        ``file_lock`` (snapshot-12 serialized WRITERS but left READERS
+        lock-free, so a reader concurrent with an emit's non-atomic
+        write+flush+fsync could observe a torn partial final line — a spurious
+        ValidationError on the promotion-gating audit path the Auditor drives
+        via ``structured_query``). We snapshot the lines under the lock, then
+        release it before yielding so a slow consumer can't hold the lock. A
+        torn FINAL line (a sibling that crashed mid-append while we did not hold
+        the lock) is dropped rather than raised; a malformed NON-final line is
+        still a hard error (real corruption, surfaced by construction/recovery).
+        """
         if not self.path.exists():
             return
-        with self.path.open("r", encoding="utf-8") as f:
-            for line in f:
-                line = line.strip()
-                if not line:
-                    continue
+        with self._lock, file_lock(self._lock_path):
+            with self.path.open("r", encoding="utf-8") as f:
+                lines = f.readlines()
+        n = len(lines)
+        for idx, raw in enumerate(lines):
+            line = raw.strip()
+            if not line:
+                continue
+            try:
                 signed = SignedEvent.model_validate_json(line)
-                if signed.event.seq >= start:
-                    yield signed
+            except ValidationError:
+                if idx == n - 1 and not raw.endswith("\n"):
+                    return  # torn final line — stop cleanly (K2)
+                raise
+            if signed.event.seq >= start:
+                yield signed
 
     def latest_hash(self) -> str:
         """Useful for hash-preconditioned writes elsewhere."""
@@ -256,8 +283,13 @@ class EventLog:
         prev = GENESIS_PREV_HASH
         expected_seq = 0
         if self.path.exists():
-            with self.path.open("r", encoding="utf-8") as f:
-                for physical_lineno, raw in enumerate(f):
+            # eventlog-K2 (cycle-13): snapshot the log under the inter-process
+            # lock so a concurrent emit can't present a torn final line as a
+            # spurious verification failure.
+            with self._lock, file_lock(self._lock_path):
+                with self.path.open("r", encoding="utf-8") as f:
+                    _lines = f.readlines()
+            for physical_lineno, raw in enumerate(_lines):
                     line = raw.strip()
                     if not line:
                         # S2: reject, do not skip.
@@ -296,14 +328,18 @@ class EventLog:
                     f"{prev[:12]}…"
                 )
             if expected_seq > anchor_count:
-                # The file is LONGER than the anchor (e.g. an append landed
-                # but the anchor write was lost). The chain is internally
-                # consistent; flag it so a stale anchor doesn't masquerade as
-                # truncation, but don't fail an otherwise-intact longer chain.
-                return False, (
-                    f"head-anchor stale/behind: file has {expected_seq} events "
-                    f"but anchor records {anchor_count} (anchor write lost?)"
-                )
+                # eventlog-K1 (cycle-13): the file is LONGER than the anchor —
+                # emit() fsyncs the event LINE and only THEN advances the
+                # anchor, so an honest crash/SIGKILL in that window leaves a
+                # durable, fully-chained event whose anchor write was lost. The
+                # walk above already proved every hash links from genesis, so
+                # the chain IS intact — returning False here (as the old code
+                # did, contradicting its own comment) reported a healthy chain
+                # as tampered and would, e.g., wrongly halt a
+                # verify-on-startup. Only a SHORTER file (rollback, above) or a
+                # same-length divergent hash is a real failure; a longer intact
+                # chain is not. The next emit() realigns the anchor.
+                return True, None
         return True, None
 
     # ---- internal -------------------------------------------------------
@@ -314,6 +350,69 @@ class EventLog:
         variant since it already holds the lock."""
         with file_lock(self._lock_path):
             self._restore_from_disk_unlocked()
+
+    def _resync_tail_unlocked(self) -> None:
+        """Emit-time re-sync: recover ``_seq``/``_prev_hash`` by parsing ONLY
+        the tail of the file (eventlog-K3 cycle-13).
+
+        Caller MUST hold ``self._lock`` and the inter-process file lock. Reads a
+        bounded chunk from the end of the file, extracts the last complete line,
+        and adopts it if it parses and chains — O(1) amortized instead of the
+        full-file O(n) re-parse. Any ambiguity (a torn trailing fragment, a line
+        longer than the chunk, a non-parseable or non-chaining tail) falls back
+        to the full-walk ``_restore_from_disk_unlocked()``, which owns the
+        delicate S3/S4/recovery logic. This method never adopts an unvalidated
+        tail, so S4's "never extend a forged fork" property is preserved.
+        """
+        if not self.path.exists():
+            return
+        try:
+            size = self.path.stat().st_size
+        except OSError:
+            self._restore_from_disk_unlocked()
+            return
+        if size == 0:
+            self._seq = 0
+            self._prev_hash = GENESIS_PREV_HASH
+            return
+        chunk_size = 65536
+        start = max(0, size - chunk_size)
+        with self.path.open("rb") as f:
+            f.seek(start)
+            chunk = f.read()
+        ends_with_newline = chunk.endswith(b"\n")
+        if not ends_with_newline:
+            # Possible torn final line (a sibling crashed mid-append while we
+            # held no lock). Let the full walk detect/recover it.
+            self._restore_from_disk_unlocked()
+            return
+        body = chunk[:-1]  # drop the final newline
+        nl = body.rfind(b"\n")
+        if nl == -1:
+            if start > 0:
+                # The last line is longer than our chunk (or we started
+                # mid-line): we cannot prove it is complete — full walk.
+                self._restore_from_disk_unlocked()
+                return
+            last_line = body  # whole file is a single line
+        else:
+            last_line = body[nl + 1:]
+        tail = last_line.decode("utf-8", errors="replace").strip()
+        if not tail:
+            self._restore_from_disk_unlocked()
+            return
+        try:
+            last = SignedEvent.model_validate_json(tail)
+        except ValidationError:
+            self._restore_from_disk_unlocked()
+            return
+        if SignedEvent.compute_hash(last.event, last.prev_hash) != last.event_hash:
+            # Non-chaining tail (forged append or pre-cycle-10 hash format):
+            # quarantine + recover via the full walk (S4).
+            self._restore_from_disk_unlocked()
+            return
+        self._seq = last.event.seq + 1
+        self._prev_hash = last.event_hash
 
     def _restore_from_disk_unlocked(self) -> None:
         """Read the file's tail and update ``_seq``/``_prev_hash``.
