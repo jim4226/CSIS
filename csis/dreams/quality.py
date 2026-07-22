@@ -71,8 +71,14 @@ def _contradicts(a: str, b: str) -> bool:
     b_neg = bool(_NEG_RE.search(b_low))
     if a_neg == b_neg:
         return False
-    a_clean = _NEG_RE.sub("", a_low).strip()
-    b_clean = _NEG_RE.sub("", b_low).strip()
+    # agents-K2 (cycle-13): substitute the negation token with a SPACE and
+    # collapse whitespace, not delete it. Deleting an INTERNAL negation
+    # ("the migration is not safe" -> "the migration issafe") left a residual
+    # double space, so the cleaned forms only matched when the negation sat at
+    # the leading/trailing edge (where .strip() ate the gap) — the common
+    # internal-negation case never registered as a contradiction.
+    a_clean = re.sub(r"\s+", " ", _NEG_RE.sub(" ", a_low)).strip()
+    b_clean = re.sub(r"\s+", " ", _NEG_RE.sub(" ", b_low)).strip()
     return a_clean == b_clean and a_clean != ""
 
 

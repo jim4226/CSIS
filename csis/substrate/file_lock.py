@@ -22,9 +22,17 @@ file doesn't strand the lock (or vice versa).
 from __future__ import annotations
 
 import contextlib
+import os
 import sys
 import time
 from pathlib import Path
+
+
+# S1 (cycle-10): bound on the open/lock/inode-recheck retry loop. The swap
+# window (unlink + recreate between two holders) is tiny; if we re-detect a
+# mismatch this many times the path is being churned pathologically and we
+# refuse rather than spin forever.
+_INODE_RECHECK_MAX_TRIES = 50
 
 
 class LockUnavailable(RuntimeError):
@@ -78,14 +86,55 @@ def file_lock(lock_path: Path):
                     "fcntl module unavailable on this POSIX build; "
                     "cannot enforce inter-process file locking"
                 ) from exc
-            try:
-                fcntl.flock(f.fileno(), fcntl.LOCK_EX)
-                locked = True
-            except OSError as exc:
-                # ENOLCK on NFS / SMB — refuse rather than silently disable.
+            # S1 (cycle-10): fcntl.flock binds to the inode of the open fd,
+            # NOT the path. If the lock file is unlinked+recreated (stale-lock
+            # cleanup, tmpreaper, `rm *.lock`) between our open() and another
+            # holder's open(), both processes flock DIFFERENT inodes of the
+            # same path and both enter the critical section — mutual exclusion
+            # silently broken (the deferred H11, verified reproducible on
+            # Linux). After acquiring the flock we therefore validate that the
+            # inode we hold is still the inode the path resolves to. If a swap
+            # happened (st(path) != fstat(fd)) we are holding a now-orphaned
+            # inode that protects nothing: drop it, reopen the live file, and
+            # re-lock. Bounded retries so a pathologically churned path can't
+            # spin us forever.
+            for _attempt in range(_INODE_RECHECK_MAX_TRIES):
+                try:
+                    fcntl.flock(f.fileno(), fcntl.LOCK_EX)
+                except OSError as exc:
+                    # ENOLCK on NFS / SMB — refuse rather than silently disable.
+                    raise LockUnavailable(
+                        f"flock failed at {lock_path}: {exc!r} (NFS/SMB?)"
+                    ) from exc
+                st_fd = os.fstat(f.fileno())
+                try:
+                    st_path = os.stat(lock_path)
+                except FileNotFoundError:
+                    # Path was unlinked out from under us while we held the
+                    # flock — the inode we locked is orphaned. Re-create and
+                    # re-lock.
+                    st_path = None
+                if st_path is not None and (
+                    (st_path.st_dev, st_path.st_ino) == (st_fd.st_dev, st_fd.st_ino)
+                ):
+                    # We hold the flock on the inode the path resolves to:
+                    # genuine mutual exclusion.
+                    locked = True
+                    break
+                # Inode was swapped under the path. Release the orphaned
+                # inode's flock, close it, reopen the live path, and retry.
+                try:
+                    fcntl.flock(f.fileno(), fcntl.LOCK_UN)
+                except OSError:
+                    pass
+                f.close()
+                f = open(lock_path, "a+b")
+            if not locked:
                 raise LockUnavailable(
-                    f"flock failed at {lock_path}: {exc!r} (NFS/SMB?)"
-                ) from exc
+                    f"could not pin a stable inode for lock file {lock_path} "
+                    f"after {_INODE_RECHECK_MAX_TRIES} reopen attempts "
+                    f"(path being churned/swapped concurrently?)"
+                )
         yield
     finally:
         try:

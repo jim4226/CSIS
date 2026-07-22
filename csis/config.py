@@ -65,6 +65,18 @@ class CSISConfig:
                 f"builder_checkpoint must differ from auditor_checkpoint "
                 f"(both = {self.builder_checkpoint!r}). See red-team finding F1."
             )
+        # crosscut-K2 (cycle-13): phase_ceiling is an operator knob that may only
+        # TIGHTEN below the hard PHASE_0_CEILING, never loosen past it. A value
+        # above the cap would be silently ignored by enforce() while
+        # _config_for_log attests it as the effective ceiling — a false record
+        # in the tamper-evident audit trail. Reject it at construction.
+        if int(self.phase_ceiling) > int(PHASE_0_CEILING):
+            raise ValueError(
+                f"phase_ceiling={self.phase_ceiling.name} exceeds the hard "
+                f"Phase-0 ceiling {PHASE_0_CEILING.name}; it may only tighten "
+                f"(<= {PHASE_0_CEILING.name}), never loosen. See cycle-13 "
+                f"crosscut-K2."
+            )
 
     @classmethod
     def for_tests(cls, tmp_root: Path) -> "CSISConfig":

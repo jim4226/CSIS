@@ -106,11 +106,72 @@ def coverage_delta_grader(artifact: Artifact) -> GraderResult:
     )
 
 
+def diff_target_paths(body: str) -> set[str]:
+    """Extract and NORMALIZE the file paths a unified/git diff targets.
+
+    agents-K1 (cycle-13): the diff-scope guards used a raw ``forbidden in body``
+    substring test, which a builder evades by spelling the path so ``git apply``
+    still writes the real file but the literal substring is absent —
+    ``csis/agents//coordinator.py`` (redundant slash), ``csis/./agents/...``,
+    ``csis/x/../agents/...``. This reads the diff headers git itself uses
+    (``diff --git a/.. b/..``, ``--- a/..``, ``+++ b/..``), strips the a//b/
+    prefix, and collapses ``//`` / ``/./`` and resolves ``..`` with
+    ``posixpath.normpath`` — so every spelling resolves to the path git applies.
+    """
+    import posixpath
+    targets: set[str] = set()
+    for raw in body.splitlines():
+        line = raw.strip()
+        path = None
+        if line.startswith("diff --git "):
+            parts = line.split()
+            if len(parts) >= 4:
+                path = parts[-1]  # the b/ side
+        elif line.startswith("+++ ") or line.startswith("--- "):
+            token = line[4:].split("\t", 1)[0].strip().strip('"')
+            if token and token != "/dev/null":
+                path = token
+        if not path:
+            continue
+        if path.startswith(("a/", "b/")):
+            path = path[2:]
+        path = path.strip().strip('"')
+        if not path:
+            continue
+        targets.add(posixpath.normpath(path))
+    return targets
+
+
+def touches_forbidden(body: str, forbidden) -> list[str]:
+    """Forbidden entries a diff touches, robust to path-normalization evasion.
+
+    Union of (a) the NORMALIZED diff-target-path check (agents-K1) and (b) the
+    legacy raw-substring check — strictly stronger than either alone, so it
+    never loses detection, only adds it. A forbidden entry ending in '/' is a
+    directory prefix (matches any path under it); otherwise it is an exact file.
+    """
+    import posixpath
+    targets = diff_target_paths(body)
+    hits: list[str] = []
+    for f in forbidden:
+        matched = f in body  # legacy substring belt
+        if not matched:
+            fnorm = posixpath.normpath(f)
+            is_dir = f.endswith("/")
+            for t in targets:
+                if (is_dir and (t == fnorm or t.startswith(fnorm + "/"))) or (not is_dir and t == fnorm):
+                    matched = True
+                    break
+        if matched:
+            hits.append(f)
+    return hits
+
+
 def diff_scope_grader(artifact: Artifact) -> GraderResult:
     """F5/F6-adjacent: reject diffs that touch grader files or eval scaffolding."""
     body = artifact.body
     forbidden_paths = ("tests/", "csis/verification/graders.py", ".github/", "pyproject.toml")
-    touched = [p for p in forbidden_paths if p in body]
+    touched = touches_forbidden(body, forbidden_paths)
     return GraderResult(
         grader="diff_scope",
         passed=not touched,

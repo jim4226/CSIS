@@ -101,14 +101,23 @@ class MockBackend(LLMBackend):
 
     def checkpoint_identity(self, checkpoint_id: str) -> dict[str, str]:
         with self._lock:
+            declared = checkpoint_id in self._model_id_for_checkpoint
             model_id = self._model_id_for_checkpoint.get(checkpoint_id, checkpoint_id)
             tools = list(self._tools_for_checkpoint.get(checkpoint_id, ["sandbox", "memory"]))
         # F1 mitigation: include model_id + tools as part of identity so the
         # certificate records distinct values even when the prompt-level
         # behavior happens to be the same.
+        #
+        # Vf1 (cycle 10): when set_model_id was NOT called, model_id falls back
+        # to checkpoint_id. assert_cross_checkpoint now rejects that
+        # (model_id == checkpoint_id) so a mock can't be used un-declared on a
+        # cross-checkpoint cert. Tests / the loop / the daemon call
+        # set_model_id with distinct real ids for both checkpoints.
         return {
             "checkpoint_id": checkpoint_id,
             "backend": self.name,
             "model_id": model_id,
             "tool_set": ",".join(sorted(tools)),
+            # verification-K4 (cycle-13): declared iff set_model_id was called.
+            "model_declared": "true" if declared else "false",
         }

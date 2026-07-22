@@ -35,6 +35,12 @@ def _wire_backend(cfg: CSISConfig) -> MockBackend:
     backend = MockBackend()
     backend.set_model_id(cfg.builder_checkpoint, "mock-opus")
     backend.set_model_id(cfg.auditor_checkpoint, "mock-sonnet")
+    # Vf1 (cycle 10): cross-checkpoint now requires >=2 distinct SUBSTANTIVE
+    # identity keys (checkpoint_id no longer pads the count), so the two
+    # checkpoints must differ in tool_set as well as model_id to be a valid
+    # cross-checkpoint pair (mirrors the production loop/daemon wiring).
+    backend.set_tools(cfg.builder_checkpoint, ["sandbox.execute", "web_search"])
+    backend.set_tools(cfg.auditor_checkpoint, ["pinned_graders"])
     backend.script("researcher", cfg.builder_checkpoint,
         '{"plan_id":"p","frontier_item":"x","hypothesis":"benign",'
         '"falsification_condition":"y","budget":{"time_s":1,"tokens":10},'
@@ -160,9 +166,19 @@ def test_H4_sibling_write_during_consolidate_not_over_discarded(tmp_path: Path) 
         cm.consolidate_to_candidates = original
 
     assert res.outcome.startswith("rolled-back:tier-mismatch"), res.outcome
-    # The sibling write must survive because its stamp doesn't match.
-    assert coord.hierarchy.causal.has_candidate(SHARED), (
-        "H4 regression: sibling iteration's stamped candidate was over-discarded"
+    # cycle-11 F1 (revises cycle-9 H4): in Phase 0 the Coordinator runs ONE
+    # iteration at a time (the H6 note — no concurrent siblings), so an
+    # untracked/forged `writer_iteration_id` on a candidate absent from the
+    # pre-consolidate snapshot cannot be distinguished from this iteration's
+    # own hidden write. The cycle-10 re-attack showed that letting a
+    # non-matching stamp buy survival reopens the "wrote to a tier and lied"
+    # hole (a forged stamp evades the cleanup). So an untracked-stamp
+    # cross-tier write absent from the pre-snapshot is now correctly
+    # DISCARDED on rollback. Preserving a genuine concurrent sibling is a
+    # Phase-1 concern that needs a trusted (non-data-controlled) stamp source.
+    assert not coord.hierarchy.causal.has_candidate(SHARED), (
+        "cycle-11 F1: an untracked/forged-stamp cross-tier write absent from "
+        "the pre-consolidate snapshot must be discarded, not preserved"
     )
 
 

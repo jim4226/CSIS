@@ -61,15 +61,19 @@ def _artifact(scenarios: dict | None = None, body: str = "# clean patch\n") -> A
 # ---- F1 — cross-checkpoint -------------------------------------------
 
 
-def test_cross_checkpoint_requires_two_distinct_components() -> None:
+def test_cross_checkpoint_requires_a_different_model() -> None:
     same = {"checkpoint_id": "alpha", "model_id": "M", "tool_set": "T", "backend": "mock"}
     diff_only_id = {"checkpoint_id": "beta", "model_id": "M", "tool_set": "T", "backend": "mock"}
-    # Only checkpoint_id differs — fails (1 < 2).
+    # Only checkpoint_id differs — same model on both sides — must fail. Vf1
+    # (cycle 10): checkpoint_id is decorative and never satisfies the bar.
     with pytest.raises(CrossCheckpointViolation):
-        assert_cross_checkpoint(same, diff_only_id, min_distinct_components=2)
-    # Two distinct components — passes.
-    diff_two = {"checkpoint_id": "beta", "model_id": "N", "tool_set": "T", "backend": "mock"}
-    assert_cross_checkpoint(same, diff_two)  # no raise
+        assert_cross_checkpoint(same, diff_only_id)
+    # A different model_id is the binding cross-checkpoint signal and passes —
+    # even with the SAME tool_set/backend, which is what the real
+    # AnthropicBackend reports for every checkpoint (Opus builder / Sonnet
+    # verifier differ ONLY in model_id).
+    diff_model = {"checkpoint_id": "beta", "model_id": "N", "tool_set": "T", "backend": "mock"}
+    assert_cross_checkpoint(same, diff_model)  # no raise
 
 
 def test_cert_rejects_same_identity() -> None:
@@ -125,8 +129,10 @@ def test_pinned_grader_drift_detection() -> None:
 
 
 def test_cert_build_rejects_drifted_grader() -> None:
+    # Vf1 (cycle 10): identities must differ in >=2 SUBSTANTIVE keys, so the
+    # verifier differs in both model_id (M->N) and tool_set (T->U).
     builder = {"checkpoint_id": "alpha", "model_id": "M", "tool_set": "T", "backend": "mock"}
-    verifier = {"checkpoint_id": "beta", "model_id": "N", "tool_set": "T", "backend": "mock"}
+    verifier = {"checkpoint_id": "beta", "model_id": "N", "tool_set": "U", "backend": "mock"}
     with pytest.raises(GraderDriftViolation):
         build_certificate(
             plan=_plan(),
@@ -174,8 +180,9 @@ def test_critic_runs_through_mock_backend() -> None:
 
 
 def test_cert_rejects_too_few_critic_attempts() -> None:
+    # Vf1 (cycle 10): 2 substantive diffs (model_id + tool_set).
     builder = {"checkpoint_id": "alpha", "model_id": "M", "tool_set": "T", "backend": "mock"}
-    verifier = {"checkpoint_id": "beta", "model_id": "N", "tool_set": "T", "backend": "mock"}
+    verifier = {"checkpoint_id": "beta", "model_id": "N", "tool_set": "U", "backend": "mock"}
     cert = build_certificate(
         plan=_plan(),
         artifact=_artifact(),

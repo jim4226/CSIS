@@ -73,7 +73,15 @@ class SelfImproveDomain(Domain):
                 "csis/config.py",
                 "csis/loop.py",
             )
-            touched = [p for p in forbidden if p in body]
+            # agents-K1 (cycle-13): normalize the diff's target paths instead of
+            # a raw substring test — this guard is the load-bearing control that
+            # keeps the self-improve loop from certifying an artifact that
+            # rewrites its own coordinator/verifier/safety files, and a raw
+            # `p in body` was evadable by `csis/agents//coordinator.py` /
+            # `csis/./agents/...` / `csis/x/../agents/...` while `git apply`
+            # still wrote the real file.
+            from csis.verification.graders import touches_forbidden
+            touched = touches_forbidden(body, forbidden)
             return GraderResult(
                 grader="self_improve_diff_scope",
                 passed=not touched,
