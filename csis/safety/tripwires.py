@@ -121,6 +121,29 @@ _TRIP_PATTERNS: list[tuple[str, re.Pattern[str]]] = [
             r")\b"
         ),
     ),
+    (
+        # Content that asserts a gate has already been cleared (user
+        # consent, operator sign-off, auditor approval) as the reason to
+        # skip the *actual* structural gate. CSIS's trust lattice already
+        # forbids self-asserted trust elevation — the only path up is a
+        # structural gate (write -> Verifier check -> cert -> hash-CAS) —
+        # but nothing previously scanned agent-visible text for exactly
+        # this claim shape. Mirrors the provenance framing Anthropic
+        # documents for Routines' /fire payloads: a claim that "the user
+        # already approved/confirmed this" carried inside untrusted
+        # content is not itself authorization.
+        "false_authorization_claim",
+        re.compile(
+            r"\b("
+            r"(user|operator|overseer|auditor|reviewer)\s+(has\s+)?(already\s+)?"
+            r"(approved|confirmed|authorized|consented|signed\s+off)"
+            r".{0,60}\b(skip|bypass|without|no\s+need\s+for|proceed\s+without)\b"
+            r"|"
+            r"\b(skip|bypass|proceed\s+without|no\s+need\s+for)\b"
+            r".{0,60}(already\s+)?(approved|confirmed|authorized|consented|signed\s+off)\s+by\s+(the\s+)?(user|operator|overseer|auditor|reviewer)"
+            r")\b"
+        ),
+    ),
 ]
 
 
