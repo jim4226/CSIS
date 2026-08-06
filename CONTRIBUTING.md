@@ -9,7 +9,7 @@ git clone https://github.com/jim4226/CSIS
 cd CSIS
 pip install pydantic pytest
 
-python -m pytest tests/ -v          # confirm 213 tests pass before changing anything
+python -m pytest tests/ -v          # confirm 246 tests pass before changing anything
 python -m csis.loop                  # one full iteration end-to-end (mock backend)
 ```
 
