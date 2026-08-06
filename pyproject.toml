@@ -13,7 +13,7 @@ dependencies = [
 
 [project.optional-dependencies]
 anthropic = ["anthropic>=0.40,<1"]
-dev = ["pytest>=7.4,<9"]
+dev = ["pytest>=9.0.3,<10"]
 
 [tool.setuptools.packages.find]
 include = ["csis*"]
