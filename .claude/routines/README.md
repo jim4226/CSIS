@@ -6,7 +6,7 @@ This directory holds the **prompt files** for [Claude Code Routines](https://cod
 
 | Routine | Schedule | Prompt | Branch prefix |
 |---|---|---|---|
-| **daily-improvement** | Daily, 07:00 ET (12:00 UTC) | [`daily-improvement.md`](daily-improvement.md) | `claude/daily-*` |
+| **daily-improvement** | Daily (operator-managed; verify in the Routines UI) | [`daily-improvement.md`](daily-improvement.md) | `claude/daily-*` |
 
 ## How to register `daily-improvement`
 
@@ -19,15 +19,15 @@ This directory holds the **prompt files** for [Claude Code Routines](https://cod
    ```text
    Read .claude/routines/daily-improvement.md from this repository and execute
    it. The repo is CSIS, a continuous self-improving multi-agent system. Follow
-   the file's six steps in order; commit a daily log under brain/routines/ and
-   open draft PRs as the file specifies. End your run with a 1-3 sentence text
-   summary of what shipped.
+   the file's six steps in order, including its open-PR backpressure gate. Open
+   at most one combined draft proposal when capacity exists; never open a
+   log-only PR. End with a 1-3 sentence summary.
    ```
 
 4. **Model**: Sonnet (Opus is overkill for this; Haiku is too light for the triage). The selector lives next to the prompt input.
 5. **Repository**: `jim4226/CSIS`. Leave **Allow unrestricted branch pushes** *off* — the routine only needs `claude/`-prefixed branches.
 6. **Environment**: pick or create one with the network access below.
-7. **Trigger**: **Schedule** → **Daily** → `07:00` in your local zone (the UI converts to UTC). The minimum supported interval is 1h; daily is well above the floor. Custom cron (`0 12 * * *` UTC) is also fine via `/schedule update` if you prefer.
+7. **Trigger**: **Schedule** → **Daily** → choose the desired local time (the UI converts it to UTC). The schedule is external account state and cannot be verified from this repository; confirm it in the Routines UI after saving or changing it.
 8. **Connectors**: only **GitHub** is needed. Remove any others that get auto-included — fewer connectors means smaller blast radius if the routine misbehaves.
 9. **Save**, then click **Run now** once to validate. The first run's session shows up in the normal session list at [claude.ai/code](https://claude.ai/code).
 
@@ -61,7 +61,9 @@ None are required. The routine relies only on cloned-repo state and GitHub MCP a
 
 ## What the routine produces
 
-Each run writes one daily log to `brain/routines/YYYY-MM-DD.md`, appends to `brain/routines/index.md`, and opens between 0 and 4 draft PRs (1 log PR + up to 3 improvement PRs). See `daily-improvement.md` for the full output contract.
+Each run produces either zero repository artifacts or one combined draft proposal PR. The routine first counts open routine PRs and halts without scanning or mutation when there are 5 or more. When it does propose an improvement, the implementation, tests, run record under `brain/routines/`, and ledger update all travel in that same PR. Quiet days and deferred-only scans are text-only session results; the routine never opens a log-only PR.
+
+Every proposal requires human review and merge. The routine never merges, closes, or enables auto-merge on a PR. Before enabling or resuming the schedule, humans should reduce any existing routine backlog below the cap.
 
 ## Troubleshooting
 
@@ -70,5 +72,6 @@ Each run writes one daily log to `brain/routines/YYYY-MM-DD.md`, appends to `bra
 | Routine fails immediately with "host_not_allowed" | The environment is on **Trusted**, not **Custom** with Anthropic domains. See "Required network access" above. |
 | `/schedule` is missing in the CLI | You're inside a Claude Code on the web session, or your CLI is on a Console API key. See [troubleshooting in the Routines docs](https://code.claude.com/docs/en/routines#troubleshooting). |
 | Every day's run says "quiet day" even after a known Anthropic launch | Either the launch is older than the 9-day window (your routine has been idle), or the source page changed format and the index parsing failed silently. Open the most recent session transcript and search for "Sources unreachable" — most parse failures surface there. |
+| Routine exits without scanning or opening a branch | Five or more routine PRs are already open, or GitHub PR state could not be read reliably. Review/merge the backlog or repair connector access; do not raise the cap to work around it. |
 | PRs are opening on `main` instead of `claude/` branches | The routine's **Allow unrestricted branch pushes** got toggled on. Turn it back off. |
 | Routine consumed all daily-run cap on one day | One-off / manual `Run now` clicks don't count, but recurring schedules do. If you've been triggering manually, switch to relying on the daily schedule. |
