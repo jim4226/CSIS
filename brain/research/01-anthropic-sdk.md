@@ -2,6 +2,8 @@
 
 **Date:** 2026-05-16 · **Author:** SDK research engineer · **Scope:** what's shippable today vs what CSIS-architecture.html assumes
 
+> **2026-07-23 addendum** (daily-improvement routine): five Managed Agents surface changes shipped 2026-07-22 per the [Claude Platform release notes][9]. Folded into §1 and §3 below rather than re-dating the whole doc — the May 16 baseline is still the source of truth for everything not called out as updated.
+
 ---
 
 ## 1. What's shipping now vs the CSIS doc
@@ -16,6 +18,8 @@
 | Multi-agent: ≤25 threads, max-1 delegation | **Confirmed.** Coordinator config also caps the roster at **20 unique agents** (separate from 25 concurrent threads) ([Multi-agent docs][5]) | Shared container + per-thread isolated context is exactly as described. |
 | "Candidate Memory Stores" as a first-class feature | **Does not exist as a typed primitive.** A candidate store is just a regular `memory_store` you treat as staging, plus `archive`/`delete` to dispose. | CSIS plan to layer this on top of vanilla memory stores is the right call. |
 | Brain/harness/sandbox decoupling | **Architectural fact**, per Martin/Cemaj/Cohen April 2026 ([engineering post][1]) | See §5. |
+| Webhooks for memory-store lifecycle | **New 2026-07-22.** Three `memory_store.*` event types added alongside the existing agent/deployment/session/vault events ([release notes][9]). | This is the Anthropic-native version of what CSIS's own `EventLog` fakes locally — a promote/archive on a live memory store can now push instead of requiring the Auditor to poll. Not wired into Phase-0 (CSIS's `MemoryStore.promote()` is pure in-process), but worth a line in the Phase-1 P1.6 (multi-process EventLog) design once real-backend webhooks are in play. |
+| Session seeding with `initial_events` | **New 2026-07-22.** `POST /v1/sessions` accepts up to 50 `user.message`/`user.define_outcome` events; a non-empty list starts the agent loop in the same call ([release notes][9]). | Collapses the "create session, then separately send the first event" two-call pattern in §2's `sessions.create` snippet below into one call once CSIS migrates off the mock backend. |
 
 ---
 
@@ -77,6 +81,8 @@ for event in client.beta.sessions.threads.events.list(thread.id, session_id=sess
 ```
 
 Event types include `user.message`, `user.interrupt`, `user.tool_confirmation`, `agent.message`, `agent.thinking`, `agent.tool_use`, `agent.tool_result`, `agent.mcp_tool_use`, `session.thread_created`, `session.thread_status_idle`, etc. ([Events docs][6])
+
+**2026-07-22:** the per-thread stream (`sessions.threads.events.stream`, used for a specific sub-agent) now supports the same `event_deltas[]` opt-in as the session-level stream, so a connection can preview one sub-agent's text as it's generated without pulling every other thread's deltas too ([release notes][9]). Relevant to CSIS's Researcher/Builder/Librarian roster once real threads replace the mock loop — the Coordinator could tail a single role's output without the token overhead of streaming the whole roster.
 
 > **Reconnect protocol (UNCONFIRMED but recommended by community guide):** on every reconnect, open the stream first, then call `events.list()`, then dedupe by event ID. Original cite is the AI Workflows blog; the official docs describe streaming but I did not find an explicit "always re-list after reconnect" recipe in the platform docs — needs verification.
 
@@ -142,6 +148,8 @@ client.beta.memory_stores.memories.update(
 | **Dream inputs** | ≤ 100 sessions, ≤ 4,096 char `instructions`. Only `claude-opus-4-7` and `claude-sonnet-4-6` are supported during preview. |
 | **Beta headers** | `managed-agents-2026-04-01` always; Dreams additionally needs `dreaming-2026-04-21`. SDK sets these automatically — do not strip them. |
 | **Model IDs** | Confirmed: `claude-opus-4-7`, `claude-opus-4-6` (with `speed:"fast"`). `claude-sonnet-4-6` is Dreams-only in the docs I found — UNCONFIRMED whether usable for agent execution today. |
+| **Agent effort level** | **New 2026-07-22.** `effort` can now be set inside the `model` object at agent-create time ([release notes][9]). Maps cleanly onto CSIS's builder-checkpoint vs. verifier-checkpoint split: a real migration could dial Researcher/Builder to `high`/`xhigh` and Verifier/Auditor to a cheaper effort tier without touching the cross-checkpoint identity requirement in `assert_cross_checkpoint`. |
+| **Agent update concurrency** | **New 2026-07-22.** The `version` field on agent-update calls is now optional — supply it for optimistic concurrency (409 on mismatch) or omit it to apply unconditionally ([release notes][9]). CSIS's own promotion CAS should keep requiring its hash precondition regardless; this only affects agent *config* updates, not memory writes. |
 
 ---
 
@@ -261,6 +269,7 @@ For CSIS, the mapping is direct: every entry in the §10 table (`code_exec_sandb
 [6]: https://platform.claude.com/docs/en/managed-agents/events-and-streaming "Anthropic — Session event stream (Managed Agents docs)"
 [7]: https://github.com/anthropics/skills/blob/main/skills/claude-api/shared/managed-agents-api-reference.md "anthropics/skills — Managed Agents API reference (rate limits, model IDs, beta headers)"
 [8]: https://openai.github.io/openai-agents-python/guardrails/ "OpenAI Agents Python SDK — Guardrails"
+[9]: https://platform.claude.com/docs/en/release-notes/api "Claude Platform release notes — entry dated July 22, 2026"
 
 - [Scaling Managed Agents: Decoupling the brain from the hands][1]
 - [Sessions (Managed Agents docs)][2]
@@ -270,3 +279,4 @@ For CSIS, the mapping is direct: every entry in the §10 table (`code_exec_sandb
 - [Events & streaming (Managed Agents docs)][6]
 - [Managed Agents API reference (anthropics/skills)][7]
 - [OpenAI Agents Python SDK — Guardrails][8]
+- [Claude Platform release notes][9]
