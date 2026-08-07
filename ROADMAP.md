@@ -43,6 +43,12 @@ Today's Builder graders read the repo's current state; a real Builder would writ
 
 Today the why-doc summary is templated by the Coordinator. The architecture document treats this as a placeholder: a real Auditor would have the LLM write the summary AFTER reading the structured query results. The substitution is a one-method change but requires another tripwire pass on the LLM output before promote.
 
+### P1.9 · Event-driven memory tier sync via Managed Agents webhooks
+
+On 2026-07-22, Claude Managed Agents added `memory_store.*` and `environment.*` webhook event types, so a caller can react to memory store lifecycle changes without polling (see [Subscribe to webhooks](https://platform.claude.com/docs/en/managed-agents/webhooks#supported-event-types)). Today's `csis/memory/store.py` has no equivalent: the 5-tier hierarchy is read by polling on-disk JSON, and the live dashboard itself polls every 2s.
+
+Once CSIS moves off the mock/direct-backend Phase-0 substrate and onto real Managed Agents (§14 of `CSIS-architecture.html`), this webhook surface is a candidate replacement for polling as the notification path for `promote()` events — the Auditor's hash-preconditioned CAS could publish a `memory_store`-shaped event instead of (or alongside) the existing hash-chained `EventLog`. This is design input for that later phase, not an implementation task today: Phase-0's event log is intentionally single-process and file-based (see P1.6), and swapping its notification path is a real architectural decision, not a drop-in.
+
 ## Phase 2 milestones (later)
 
 ### P2.1 · I4 (DPO) improvement layer
