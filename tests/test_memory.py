@@ -146,6 +146,23 @@ def test_read_blocks_unauthorized_role(tmp_path: Path) -> None:
     assert store.read_live(e.entry_id, role="auditor") is not None
 
 
+def test_deprecate_live_stamps_deprecated_at(tmp_path: Path) -> None:
+    """deprecate_live() records when the deprecation happened, mirroring
+    promote()'s promoted_at stamp, so the audit trail can answer "how long
+    has this been deprecated" without re-deriving it from event-log seq."""
+    store = MemoryStore("episodic", tmp_path)
+    e = _entry()
+    store.write_candidate(e)
+    store.promote([e.entry_id], precondition_hash=store.live_hash(), why_id="why-keep")
+    before = time.time()
+    store.deprecate_live(e.entry_id, reason="superseded by new evidence")
+    after = time.time()
+    deprecated = store.read_live(e.entry_id, role="auditor")
+    assert deprecated is not None
+    assert deprecated.deprecated_at is not None
+    assert before <= deprecated.deprecated_at <= after
+
+
 def test_promote_rejects_deprecated_candidate(tmp_path: Path) -> None:
     """Cycle-2 invariant: promote() refuses to resurrect a DEPRECATED
     candidate. DEPRECATED is terminal."""

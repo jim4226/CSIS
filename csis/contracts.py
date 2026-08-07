@@ -279,6 +279,7 @@ class MemoryEntry(BaseModel):
     created_at: float
     promoted_at: Optional[float] = None
     deprecated_reason: Optional[str] = None
+    deprecated_at: Optional[float] = None
     writer_iteration_id: Optional[str] = Field(
         default=None,
         description=(

@@ -310,7 +310,11 @@ class MemoryStore:
             if entry is None:
                 return
             self._live[entry_id] = entry.model_copy(
-                update={"trust": TrustLevel.DEPRECATED, "deprecated_reason": reason}
+                update={
+                    "trust": TrustLevel.DEPRECATED,
+                    "deprecated_reason": reason,
+                    "deprecated_at": time.time(),
+                }
             )
             self._flush()
 
