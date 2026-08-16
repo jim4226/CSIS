@@ -12,3 +12,8 @@ Status values:
 | URL | First seen | Status | Notes |
 |---|---|---|---|
 | (none) | (initial) | quiet-day-empty | Ledger initialized; first real entries land on the routine's first scheduled run. |
+| https://www.anthropic.com/news/widening-conversation-ai | 2026-05-24 | opened-PR | PR #10 — ValueReminderTool in csis/safety/value_reminder.py |
+| https://www.anthropic.com/research/glasswing-initial-update | 2026-05-24 | deferred | Multi-agent scanning harness for Auditor; design sketch in 2026-05-24.md |
+| https://www.anthropic.com/news/anthropic-acquires-stainless | 2026-05-24 | deferred | MCP server stubs for agent roles; blocked on post-acquisition Stainless tooling |
+| https://www.anthropic.com/news/anthropic-kpmg | 2026-05-24 | out-of-scope | Enterprise partnership, no CSIS-relevant technical content |
+| https://www.anthropic.com/news/pwc-expanded-partnership | 2026-05-24 | out-of-scope | Enterprise partnership, outside 9-day window, no CSIS-relevant technical content |
