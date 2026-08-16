@@ -12,3 +12,5 @@ Status values:
 | URL | First seen | Status | Notes |
 |---|---|---|---|
 | (none) | (initial) | quiet-day-empty | Ledger initialized; first real entries land on the routine's first scheduled run. |
+| https://code.claude.com/docs/en/changelog | 2026-06-06 | opened-PR | v2.1.163 version gate → PR #35; v2.1.166 fallback model → PR #36; v2.1.166 thinking-disable → PR #37; v2.1.162 waitingFor → deferred |
+| https://www.anthropic.com/research/making-claude-a-chemist | 2026-06-06 | out-of-scope | NMR spectroscopy benchmark; no CSIS theme match (confirmed from 2026-06-05 log). |
