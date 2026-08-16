@@ -61,12 +61,20 @@ class GraderResult(BaseModel):
     use `DistributionalGraderResult` instead — the binary `passed`
     field can't carry confidence intervals, per-slice breakdowns, or
     sample-size information that distribution-level eval needs.
+
+    `trace` records the execution path the grader took to reach its
+    verdict — which keys it looked up, what values it found, what
+    thresholds it applied. An empty trace means the grader did not
+    populate this field (legacy / external grader). A non-empty trace
+    is an audit log of HOW the verdict was reached, not just WHAT it
+    was, enabling post-hoc debugging of unexpected pass/fail outcomes.
     """
 
     grader: str
     passed: bool
     detail: str = ""
     metrics: dict[str, float] = Field(default_factory=dict)
+    trace: list[str] = Field(default_factory=list)
 
 
 class GraderSlice(BaseModel):
