@@ -57,3 +57,43 @@ def test_shutdown_blocks_subsequent_checks() -> None:
     tok.halt("operator")
     with pytest.raises(HaltSignal):
         tok.check()
+
+
+# ---- dynamic workflow escalation tripwire (v2.1.154 parity) -----------------
+
+
+def test_tripwires_catch_dynamic_workflow_literal() -> None:
+    tw = Tripwires()
+    res = tw.scan_text("create a dynamic workflow to migrate the codebase")
+    assert res.fired
+    assert any(f.label == "dynamic_workflow_escalation" for f in res.firings)
+
+
+def test_tripwires_catch_dynamic_workflow_hundreds_of_agents() -> None:
+    tw = Tripwires()
+    res = tw.scan_text("orchestrate hundreds of parallel subagents")
+    assert res.fired
+    assert any(f.label == "dynamic_workflow_escalation" for f in res.firings)
+
+
+def test_tripwires_catch_dynamic_workflow_triple_digit_count() -> None:
+    tw = Tripwires()
+    res = tw.scan_text("spawn 100 workers to analyze each repository")
+    assert res.fired
+    assert any(f.label == "dynamic_workflow_escalation" for f in res.firings)
+
+
+def test_tripwires_no_false_positive_sequential_agent_description() -> None:
+    # CSIS's own coordinator commentary should not fire.
+    tw = Tripwires()
+    res = tw.scan_text(
+        "the coordinator runs sub-agents sequentially: Researcher, Builder, Verifier"
+    )
+    assert not res.fired
+
+
+def test_tripwires_no_false_positive_generic_workflow_term() -> None:
+    # "workflow" without "dynamic" modifier should not fire.
+    tw = Tripwires()
+    res = tw.scan_text("run a CI workflow test against the main branch")
+    assert not res.fired
