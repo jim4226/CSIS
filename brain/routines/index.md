@@ -12,3 +12,5 @@ Status values:
 | URL | First seen | Status | Notes |
 |---|---|---|---|
 | (none) | (initial) | quiet-day-empty | Ledger initialized; first real entries land on the routine's first scheduled run. |
+| https://www.anthropic.com/news/AI-enabled-cyber-threats-mitre-attack | 2026-06-03 | opened-PR | Theme 3+7; agentic_attack_orchestration tripwire; PR #31. |
+| https://www.anthropic.com/news/services-track-partner-hub | 2026-06-03 | out-of-scope | Partner network business announcement; no CSIS theme. |
