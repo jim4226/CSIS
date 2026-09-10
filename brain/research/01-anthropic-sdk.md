@@ -12,6 +12,7 @@
 | Memory Stores w/ `read_only` | **Shipping.** `access: "read_only" \| "read_write"`; capped at 8 stores per session, 100 kB per memory ([Memory docs][3]) | Read-only enforced at filesystem layer of the mount, not just policy. |
 | Hash preconditions (`content_sha256`) | **Shipping** on `memories.update` ([Memory docs §"Safe content edits"][3]) | Exactly the "hash-precondition on every write" the CSIS doc relies on for promotion gating. Mismatch returns 409 `memory_precondition_failed_error`. |
 | Memory versions, 30-day retention | **Confirmed** ([Memory docs §Audit memory changes][3]) — versions kept ≥30 days, recent ones kept longer; redact + retrieve endpoints exist | CSIS plan to export the why-doc archive within the window is correct. |
+| Memory *listing* beta header, `agent-memory-2026-07-22` | **Shipping July 2, 2026** ([Beta headers][9]). Replaces `managed-agents-2026-04-01` for `GET /v1/memory_stores/{id}/memories` only. Under it: results come back in a stable server-defined order (`order_by`/`order` are ignored), `depth` accepts only `0`, `1`, or omitted (other values 400), and `path_prefix` must end with `/` and matches whole path segments instead of substring. Page cursors from the old header aren't valid under the new one. Sending both headers on the same call 400s; `managed-agents-2026-04-01` inherits this list behavior automatically on 2026-07-22. | No code impact today — Phase-0's mock SDK shim (§4) doesn't model `memories.list` pagination/ordering at all, so there's nothing to break. Relevant once P1.1 (real Dreams/Memory integration) lands: candidate-store listing in the Librarian will need to stop relying on client-side `order_by`/`order`/substring `path_prefix`, and any stored page cursor must be dropped when adopting the new header. |
 | Dreams API, `dreaming-2026-04-21` | **Research preview, gated by access form.** ≤100 sessions per dream, ≤4,096 char `instructions`, models `claude-opus-4-7` and `claude-sonnet-4-6` ([Dreams docs][4]) | All limits in the CSIS doc check out. No mention of `claude-opus-4-7` having a `speed: "fast"` variant — only Opus 4.6 does. |
 | Multi-agent: ≤25 threads, max-1 delegation | **Confirmed.** Coordinator config also caps the roster at **20 unique agents** (separate from 25 concurrent threads) ([Multi-agent docs][5]) | Shared container + per-thread isolated context is exactly as described. |
 | "Candidate Memory Stores" as a first-class feature | **Does not exist as a typed primitive.** A candidate store is just a regular `memory_store` you treat as staging, plus `archive`/`delete` to dispose. | CSIS plan to layer this on top of vanilla memory stores is the right call. |
@@ -261,6 +262,7 @@ For CSIS, the mapping is direct: every entry in the §10 table (`code_exec_sandb
 [6]: https://platform.claude.com/docs/en/managed-agents/events-and-streaming "Anthropic — Session event stream (Managed Agents docs)"
 [7]: https://github.com/anthropics/skills/blob/main/skills/claude-api/shared/managed-agents-api-reference.md "anthropics/skills — Managed Agents API reference (rate limits, model IDs, beta headers)"
 [8]: https://openai.github.io/openai-agents-python/guardrails/ "OpenAI Agents Python SDK — Guardrails"
+[9]: https://platform.claude.com/docs/en/api/beta-headers#endpoint-specific-headers "Anthropic — Beta headers (endpoint-specific)"
 
 - [Scaling Managed Agents: Decoupling the brain from the hands][1]
 - [Sessions (Managed Agents docs)][2]
@@ -270,3 +272,4 @@ For CSIS, the mapping is direct: every entry in the §10 table (`code_exec_sandb
 - [Events & streaming (Managed Agents docs)][6]
 - [Managed Agents API reference (anthropics/skills)][7]
 - [OpenAI Agents Python SDK — Guardrails][8]
+- [Beta headers — endpoint-specific (2026-07-22 memory listing change)][9]
