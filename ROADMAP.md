@@ -19,6 +19,8 @@ Cycle 9 deferred two findings honestly: closure-cell mutation (H2) and POSIX unl
 
 Either makes the H2 closure-cell attack impossible because the attacker would need code-execution rights inside a separate process they don't control.
 
+**Related work (added 2026-07-16):** Anthropic's GRAM research (compartmentalizing dual-use knowledge into removable, gradient-routed modules at the weights layer) is a useful reference point for this milestone — it's a different layer (model weights, not process boundaries) but the same underlying goal of making a capability ceiling structurally enforced rather than prompt-enforced. Worth citing in the eventual P1.2 design doc, not a substitute for the process-isolation work itself.
+
 ### P1.3 · V3 (debate) verification
 
 A second pinned Verifier on yet another checkpoint argues against the first Verifier's cert. Disagreement triggers escalation. Already designed in `CSIS-architecture.html §7.3`; just needs implementation + a new test class.
@@ -30,6 +32,8 @@ Re-run the Builder on a different checkpoint with the same plan; require both ar
 ### P1.5 · V5 (calibration) verification
 
 Verifier reports its own confidence with a calibration history. Cert promotion is gated on calibrated confidence threshold, not on a binary pass/fail. This is the layer where the system stops being "follow the rules" and starts being "follow the rules with judgment about its own uncertainty."
+
+**Related work (added 2026-07-16):** Anthropic's cross-model, cross-language value-expression study gives a compressed axis set (deference/caution, warmth/rigor, depth/brevity, candor/execution) for measuring whether a model's expressed values match intent post-deployment. A cheap proxy version of that — the Auditor sampling Builder/Critic output against a small axis set — could be a stepping stone to the full Brier/log-loss calibration harness this milestone eventually needs.
 
 ### P1.6 · Multi-process EventLog
 
