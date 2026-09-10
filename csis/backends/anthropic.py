@@ -14,6 +14,12 @@ Monitoring instrumentation (added for the live-dashboard work):
   - Retry count + retry reasons captured in LLMResponse.raw['retries']
   - Exponential backoff on RateLimitError / APIStatusError 5xx
   - Real token counts always taken from the API response (not estimated)
+
+Effort control: an optional per-checkpoint `effort` level (Messages API
+`output_config.effort` — "low"/"medium"/"high"/"xhigh"/"max") can be set
+via the `effort_map` constructor argument, keyed by checkpoint_id the same
+way `model_map` is. Phase-0 default is empty (no override, matching the
+API's own "high" default), so existing callers see identical behavior.
 """
 from __future__ import annotations
 
@@ -32,6 +38,10 @@ _DEFAULT_MODEL_MAP = {
     "beta": "claude-sonnet-4-6",
 }
 
+# Empty by default: omitting `effort` matches the API's own "high" default,
+# so an operator who never sets effort_map sees unchanged behavior.
+_DEFAULT_EFFORT_MAP: dict[str, str] = {}
+
 
 class AnthropicBackend(LLMBackend):
     name = "anthropic"
@@ -40,6 +50,7 @@ class AnthropicBackend(LLMBackend):
         self,
         api_key: str | None = None,
         model_map: dict[str, str] | None = None,
+        effort_map: dict[str, str] | None = None,
     ) -> None:
         try:
             import anthropic  # type: ignore  # noqa: F401
@@ -58,9 +69,13 @@ class AnthropicBackend(LLMBackend):
             )
         self._client = Anthropic(api_key=key)
         self._model_map = {**_DEFAULT_MODEL_MAP, **(model_map or {})}
+        self._effort_map = {**_DEFAULT_EFFORT_MAP, **(effort_map or {})}
 
     def _resolve_model(self, checkpoint_id: str) -> str:
         return self._model_map.get(checkpoint_id, "claude-opus-4-7")
+
+    def _resolve_effort(self, checkpoint_id: str) -> str | None:
+        return self._effort_map.get(checkpoint_id)
 
     # Retry policy for transient API failures. Tuned conservatively because
     # the BudgetTracker reservation is already debited; we want the call to
@@ -70,6 +85,15 @@ class AnthropicBackend(LLMBackend):
 
     def complete(self, req: LLMRequest) -> LLMResponse:
         model = self._resolve_model(req.checkpoint_id)
+        effort = self._resolve_effort(req.checkpoint_id)
+        create_kwargs: dict[str, Any] = dict(
+            model=model,
+            max_tokens=req.max_tokens,
+            system=req.system,
+            messages=[{"role": "user", "content": req.prompt}],
+        )
+        if effort is not None:
+            create_kwargs["output_config"] = {"effort": effort}
         retries: list[dict] = []
         msg = None
         last_exc = None
@@ -85,12 +109,7 @@ class AnthropicBackend(LLMBackend):
 
         for attempt in range(self._MAX_RETRIES + 1):
             try:
-                msg = self._client.messages.create(
-                    model=model,
-                    max_tokens=req.max_tokens,
-                    system=req.system,
-                    messages=[{"role": "user", "content": req.prompt}],
-                )
+                msg = self._client.messages.create(**create_kwargs)
                 break
             except RateLimitError as exc:  # 429
                 last_exc = exc
@@ -137,6 +156,7 @@ class AnthropicBackend(LLMBackend):
             raw={
                 "backend": "anthropic",
                 "model": model,
+                "effort": effort,
                 "stop_reason": getattr(msg, "stop_reason", None),
                 "latency_ms": latency_ms,
                 "retries": retries,
