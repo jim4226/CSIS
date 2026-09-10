@@ -32,6 +32,7 @@ _DEFAULT_FRONTIER_SEEDS = (
     "perf scan: profile the slowest test in the suite",
     "skill candidate: factor a repeated helper out of two modules",
     "docs touch-up: a single-line README correction",
+    "security probe: red-team one module as an attacker would, then propose the minimal blue-team fix",
 )
 
 
