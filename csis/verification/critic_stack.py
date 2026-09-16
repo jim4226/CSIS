@@ -14,6 +14,7 @@ Critic can't be tuned-into-quietude.
 from __future__ import annotations
 
 import json
+import math
 import re
 from dataclasses import dataclass, field
 from typing import Iterable
@@ -95,6 +96,71 @@ def run_critic(
     )
     resp = backend.complete(req)
     return parse_critic_output(resp.text)
+
+
+def multi_critic_vote(
+    *,
+    backend: LLMBackend,
+    checkpoint_id: str,
+    plan: Plan,
+    artifact: Artifact,
+    grader_results: list[GraderResult],
+    min_attempts: int = 3,
+    n_critics: int = 1,
+) -> list[CriticFinding]:
+    """Run n_critics independent critic passes; require a majority to vote
+    'falsified' before the artifact is treated as falsified.
+
+    n_critics=1 is equivalent to run_critic() (backward-compatible default).
+
+    Implements the adversarial-verify quality pattern: a single critic pass
+    can produce a plausible-but-wrong rejection; requiring majority agreement
+    suppresses false positives without weakening the overall gate (Theme 2:
+    Trust + verification, V3 debate-as-verification).
+
+    Returns a merged list of all CriticFindings across all passes. When the
+    majority threshold is NOT met, all findings are returned with
+    falsified=False so build_certificate's any(f.falsified) check returns
+    False. The original detail strings are annotated with the vote tally.
+    """
+    if n_critics == 1:
+        return run_critic(
+            backend=backend,
+            checkpoint_id=checkpoint_id,
+            plan=plan,
+            artifact=artifact,
+            grader_results=grader_results,
+            min_attempts=min_attempts,
+        )
+
+    all_rounds: list[list[CriticFinding]] = [
+        run_critic(
+            backend=backend,
+            checkpoint_id=checkpoint_id,
+            plan=plan,
+            artifact=artifact,
+            grader_results=grader_results,
+            min_attempts=min_attempts,
+        )
+        for _ in range(n_critics)
+    ]
+
+    votes_yes = sum(1 for r in all_rounds if any(f.falsified for f in r))
+    majority = math.ceil(n_critics / 2)
+    merged: list[CriticFinding] = [f for r in all_rounds for f in r]
+
+    if votes_yes >= majority:
+        return merged
+
+    # Minority voted yes: suppress all falsified flags and annotate detail.
+    return [
+        CriticFinding(
+            attempt=f.attempt,
+            falsified=False,
+            detail=f"[vote-suppressed {votes_yes}/{n_critics}] {f.detail}",
+        )
+        for f in merged
+    ]
 
 
 # ---- F7 mitigation: synthetic-flaw evaluator ----------------------------

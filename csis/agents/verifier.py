@@ -4,7 +4,7 @@ from __future__ import annotations
 from csis.agents.base import AgentContext, Role
 from csis.contracts import Artifact, Plan, VerifierCertificate
 from csis.verification.certificates import build_certificate
-from csis.verification.critic_stack import run_critic
+from csis.verification.critic_stack import multi_critic_vote
 from csis.verification.graders import GraderRegistry
 
 
@@ -16,21 +16,28 @@ def verify(
     plan: Plan,
     artifact: Artifact,
     min_critic_attempts: int = 3,
+    n_critics: int = 1,
 ) -> VerifierCertificate:
     """Run V1 graders + V2 critic; produce cert. Raises on cross-checkpoint
-    or grader-drift violations (F1 / F6)."""
+    or grader-drift violations (F1 / F6).
+
+    n_critics controls the adversarial-verify fan-out: n_critics=1 (default)
+    runs a single critic pass; n_critics>1 applies majority-vote suppression
+    via multi_critic_vote() before building the certificate.
+    """
     assert ctx.role == Role.VERIFIER
 
     # F6: every grader's pinned source-hash must still match.
     ok, drifted = registry.verify_pinned_hashes()
     grader_results = registry.evaluate(artifact)
-    critic_findings = run_critic(
+    critic_findings = multi_critic_vote(
         backend=ctx.backend,
         checkpoint_id=ctx.checkpoint_id,
         plan=plan,
         artifact=artifact,
         grader_results=grader_results,
         min_attempts=min_critic_attempts,
+        n_critics=n_critics,
     )
     verifier_identity = ctx.backend.checkpoint_identity(ctx.checkpoint_id)
 
