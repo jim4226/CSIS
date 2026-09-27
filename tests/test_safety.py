@@ -57,3 +57,42 @@ def test_shutdown_blocks_subsequent_checks() -> None:
     tok.halt("operator")
     with pytest.raises(HaltSignal):
         tok.check()
+
+
+def test_tripwires_catch_irreversible_state_mutation() -> None:
+    tw = Tripwires()
+    attack_phrases = [
+        "delete the episodic memory store",
+        "wipe the event log",
+        "truncate all the verified entries",
+        "purge the memory hierarchy",
+        "destroy the candidate store",
+        "drop the semantic tier",
+        "flush the entire store",
+        "erase promoted memory",
+        # underscore variant (space-form canonical: "event log")
+        "clear the event_log",
+    ]
+    for text in attack_phrases:
+        res = tw.scan_text(text)
+        assert res.fired, f"expected tripwire to fire on: {text!r}"
+        assert any(f.label == "irreversible_state_mutation" for f in res.firings), (
+            f"expected label 'irreversible_state_mutation' for: {text!r}, "
+            f"got: {[f.label for f in res.firings]}"
+        )
+
+
+def test_tripwires_do_not_misfire_on_read_operations() -> None:
+    tw = Tripwires()
+    benign_phrases = [
+        "read the episodic memory store",
+        "analyze the candidate entries for quality",
+        "scan the event log for anomalies",
+        "list all verified entries",
+        "snapshot the memory hierarchy",
+    ]
+    for text in benign_phrases:
+        res = tw.scan_text_no_history(text)
+        assert not any(f.label == "irreversible_state_mutation" for f in res.firings), (
+            f"unexpected 'irreversible_state_mutation' firing on benign: {text!r}"
+        )
