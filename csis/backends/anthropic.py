@@ -7,6 +7,10 @@ MockBackend in that case (handled at config-load time).
 Mapping from CSIS checkpoint labels to Anthropic models:
     "alpha"  ->  claude-opus-4-7
     "beta"   ->  claude-sonnet-4-6
+    "fable"  ->  claude-fable-5    (Fable 5, June 2026; self-validation +
+                                    structural safety classifiers matching
+                                    the Verifier/Auditor separation pattern)
+    "mythos" ->  claude-mythos-5   (Mythos 5, June 2026; frontier-scale)
 Custom labels can override via the constructor mapping.
 
 Monitoring instrumentation (added for the live-dashboard work):
@@ -30,6 +34,8 @@ _DEFAULT_MODEL_MAP = {
     "mock-beta": "claude-sonnet-4-6",
     "alpha": "claude-opus-4-7",
     "beta": "claude-sonnet-4-6",
+    "fable": "claude-fable-5",
+    "mythos": "claude-mythos-5",
 }
 
 
