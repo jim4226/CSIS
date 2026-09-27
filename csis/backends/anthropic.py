@@ -5,9 +5,15 @@ is set, instantiation raises immediately — the prototype falls back to
 MockBackend in that case (handled at config-load time).
 
 Mapping from CSIS checkpoint labels to Anthropic models:
-    "alpha"  ->  claude-opus-4-7
+    "alpha"  ->  claude-opus-4-8  (flagship; was 4-7 before Jun 2026)
     "beta"   ->  claude-sonnet-4-6
 Custom labels can override via the constructor mapping.
+
+Model availability note (2026-06-12): Claude Fable 5 and Mythos 5 were
+launched on 2026-06-09 then suspended globally by US government directive on
+2026-06-12. Claude Opus 4.8 remains the most capable available model and
+served as the safety-classifier fallback for those launches. The alpha
+checkpoint therefore maps to claude-opus-4-8, not Fable 5.
 
 Monitoring instrumentation (added for the live-dashboard work):
   - Per-call latency captured in LLMResponse.raw['latency_ms']
@@ -26,9 +32,9 @@ from csis.backends.base import LLMBackend, LLMRequest, LLMResponse
 
 
 _DEFAULT_MODEL_MAP = {
-    "mock-alpha": "claude-opus-4-7",
+    "mock-alpha": "claude-opus-4-8",
     "mock-beta": "claude-sonnet-4-6",
-    "alpha": "claude-opus-4-7",
+    "alpha": "claude-opus-4-8",
     "beta": "claude-sonnet-4-6",
 }
 
@@ -60,7 +66,7 @@ class AnthropicBackend(LLMBackend):
         self._model_map = {**_DEFAULT_MODEL_MAP, **(model_map or {})}
 
     def _resolve_model(self, checkpoint_id: str) -> str:
-        return self._model_map.get(checkpoint_id, "claude-opus-4-7")
+        return self._model_map.get(checkpoint_id, "claude-opus-4-8")
 
     # Retry policy for transient API failures. Tuned conservatively because
     # the BudgetTracker reservation is already debited; we want the call to
