@@ -198,3 +198,37 @@ def test_tier_guard_allows_builder_to_procedural() -> None:
     guard = TierGuard()
     ok, _ = guard.write_tier("builder", "procedural")
     assert ok
+
+
+# ---- cross-domain promotion guard ----------------------------------------
+
+
+def test_cross_domain_promotion_rejected(tmp_path: Path) -> None:
+    """Domain guard: a store labeled 'lean_math' rejects entries labeled 'pr_maintenance'."""
+    store = MemoryStore("episodic", tmp_path, domain="lean_math")
+    e = _entry().model_copy(update={"memory_domain": "pr_maintenance"})
+    store.write_candidate(e)
+    pre_hash = store.live_hash()
+    with pytest.raises(TrustViolation, match="cross-domain promotion rejected"):
+        store.promote([e.entry_id], precondition_hash=pre_hash, why_id="why-cross-domain")
+
+
+def test_unscoped_entry_promotes_into_scoped_store(tmp_path: Path) -> None:
+    """None memory_domain is unscoped — it promotes into any domain-labeled store."""
+    store = MemoryStore("episodic", tmp_path, domain="lean_math")
+    e = _entry()  # memory_domain=None
+    store.write_candidate(e)
+    pre_hash = store.live_hash()
+    promoted = store.promote([e.entry_id], precondition_hash=pre_hash, why_id="why-unscoped")
+    assert len(promoted) == 1
+    assert promoted[0].trust == TrustLevel.PROMOTED
+
+
+def test_unscoped_store_accepts_domain_entry(tmp_path: Path) -> None:
+    """Unscoped store (domain=None) accepts entries of any memory_domain."""
+    store = MemoryStore("episodic", tmp_path)  # domain=None
+    e = _entry().model_copy(update={"memory_domain": "lean_math"})
+    store.write_candidate(e)
+    pre_hash = store.live_hash()
+    promoted = store.promote([e.entry_id], precondition_hash=pre_hash, why_id="why-unscoped-store")
+    assert len(promoted) == 1

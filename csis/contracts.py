@@ -291,4 +291,13 @@ class MemoryEntry(BaseModel):
             "entries without the field skip the cleanup."
         ),
     )
+    memory_domain: Optional[str] = Field(
+        default=None,
+        description=(
+            "Optional domain scope (e.g. 'lean_math', 'pr_maintenance'). "
+            "When set, a MemoryStore with a matching domain label rejects "
+            "cross-domain promotion with TrustViolation. None = unscoped "
+            "(backward-compatible with all existing callers)."
+        ),
+    )
     extra: dict[str, Any] = Field(default_factory=dict)
