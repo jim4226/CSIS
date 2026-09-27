@@ -12,3 +12,11 @@ Status values:
 | URL | First seen | Status | Notes |
 |---|---|---|---|
 | (none) | (initial) | quiet-day-empty | Ledger initialized; first real entries land on the routine's first scheduled run. |
+| https://www.anthropic.com/news/claude-fable-5-mythos-5 | 2026-06-14 | opened-PR | PR #57: fable/mythos checkpoint labels in _DEFAULT_MODEL_MAP |
+| https://www.anthropic.com/research/agents-in-biology | 2026-06-14 | deferred | Deterministic retrieval layer → DeterministicGrader protocol; needs AST-vs-regex design decision |
+| https://www.anthropic.com/research/making-claude-a-chemist | 2026-06-14 | out-of-scope | Pure chemistry domain benchmarking; no CSIS theme |
+| https://www.anthropic.com/news/claude-corps | 2026-06-14 | out-of-scope | Community/workforce program; no CSIS theme |
+| https://www.anthropic.com/news/tcs-anthropic-partnership | 2026-06-14 | out-of-scope | Business partnership; no CSIS theme |
+| https://www.anthropic.com/news/dxc-anthropic-alliance | 2026-06-14 | out-of-scope | Business partnership; no CSIS theme |
+| https://www.anthropic.com/news/fable-mythos-access | 2026-06-14 | out-of-scope | Government policy statement; no CSIS theme |
+| https://www.anthropic.com/news/anthropic-public-record | 2026-06-14 | out-of-scope | Corporate governance; no CSIS theme |
