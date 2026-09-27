@@ -12,9 +12,24 @@ collapse whitespace). Phase-1 plugs in real classifiers as tools.
 """
 from __future__ import annotations
 
+import enum
 import re
 import unicodedata
 from dataclasses import dataclass, field
+
+
+class TripwireDisposition(enum.Enum):
+    """Action the Coordinator should take when a tripwire fires.
+
+    Phase-0 treats every fired result as HALT. Phase-1 will differentiate:
+    ROUTE_FALLBACK redirects the iteration to a more restricted backend
+    rather than halting the loop entirely — analogous to how Fable-5
+    safety classifiers route sensitive-but-recoverable requests to a
+    fallback model instead of refusing outright.
+    """
+
+    HALT = "halt"
+    ROUTE_FALLBACK = "route_fallback"
 
 
 def canonicalize(text: str) -> str:
@@ -130,10 +145,34 @@ class TripwireFiring:
     snippet: str
 
 
+# Per-label disposition. Labels absent from this map default to HALT.
+# escalate_to_t2 is ROUTE_FALLBACK: a request for elevated access is
+# worth redirecting (a human may be asking legitimately) rather than
+# halting the loop entirely. All attack-shaped labels keep HALT.
+_TRIP_DISPOSITION: dict[str, TripwireDisposition] = {
+    "escalate_to_t2": TripwireDisposition.ROUTE_FALLBACK,
+}
+
+
+def _worst_disposition(firings: list[TripwireFiring]) -> TripwireDisposition:
+    """Return the most-severe disposition across all fired labels.
+
+    HALT is more severe than ROUTE_FALLBACK; if any label maps to HALT
+    the result disposition is HALT regardless of other labels. An empty
+    firings list (not-fired result) also returns HALT as the safe default.
+    """
+    for f in firings:
+        if _TRIP_DISPOSITION.get(f.label, TripwireDisposition.HALT) is TripwireDisposition.HALT:
+            return TripwireDisposition.HALT
+    # Either empty list or all labels map to ROUTE_FALLBACK.
+    return TripwireDisposition.HALT if not firings else TripwireDisposition.ROUTE_FALLBACK
+
+
 @dataclass
 class TripwireResult:
     fired: bool
     firings: list[TripwireFiring] = field(default_factory=list)
+    disposition: TripwireDisposition = field(default=TripwireDisposition.HALT)
 
 
 _DEFAULT_HISTORY_MAX = 10_000
@@ -187,7 +226,11 @@ class Tripwires:
                         self._history_keys.popitem(last=False)
                     self._fired_history.append(f)
                     self._history_keys[key] = None
-        return TripwireResult(fired=bool(firings), firings=firings)
+        return TripwireResult(
+            fired=bool(firings),
+            firings=firings,
+            disposition=_worst_disposition(firings),
+        )
 
     def scan_text_no_history(self, text: str) -> TripwireResult:
         """Same as scan_text but does NOT append to _fired_history.
@@ -197,7 +240,11 @@ class Tripwires:
         state.
         """
         firings = self._scan_dual_form(text)
-        return TripwireResult(fired=bool(firings), firings=firings)
+        return TripwireResult(
+            fired=bool(firings),
+            firings=firings,
+            disposition=_worst_disposition(firings),
+        )
 
     def fired(self) -> bool:
         return bool(self._fired_history)
