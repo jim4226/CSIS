@@ -11,4 +11,8 @@ Status values:
 
 | URL | First seen | Status | Notes |
 |---|---|---|---|
-| (none) | (initial) | quiet-day-empty | Ledger initialized; first real entries land on the routine's first scheduled run. |
+| https://www.anthropic.com/news/claude-fable-5-mythos-5 | 2026-06-11 | opened-PR | PR #49: distillation_attempt tripwire + fable5 model alias |
+| https://www.anthropic.com/research/agents-in-biology | 2026-06-11 | deferred | DataSourceTag / deterministic-source grader pattern |
+| https://platform.claude.com/docs/en/api/getting-started | 2026-06-11 | deferred | Claude Managed Agents APIs (Sessions/Agents/Environments); touches Coordinator.__init__ chokepoint |
+| https://www.anthropic.com/research/making-claude-a-chemist | 2026-06-11 | out-of-scope | NMR chemistry domain; no CSIS module mapping |
+| https://www.anthropic.com/news/AI-enabled-cyber-threats-mitre-attack | 2026-06-11 | out-of-scope | Policy/threat-intel piece; no concrete code signal |
