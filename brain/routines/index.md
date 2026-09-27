@@ -12,3 +12,10 @@ Status values:
 | URL | First seen | Status | Notes |
 |---|---|---|---|
 | (none) | (initial) | quiet-day-empty | Ledger initialized; first real entries land on the routine's first scheduled run. |
+| https://www.anthropic.com/research/claude-code-expertise | 2026-06-18 | opened-PR | PR #65: verifier-calibration-history — CalibrationHistory + verifier_confidence field (P1.5 data layer) |
+| https://www.anthropic.com/research/project-fetch-phase-two | 2026-06-18 | deferred | Robotics research; weak Theme 6 match; no actionable CSIS change until physical substrate is modelled |
+| https://www.anthropic.com/news/seoul-office-partnerships-korean-ai-ecosystem | 2026-06-18 | out-of-scope | Business/organizational news |
+| https://www.anthropic.com/news/fable-mythos-access | 2026-06-18 | out-of-scope | External regulatory action; no internal CSIS pattern |
+| https://www.anthropic.com/news/anthropic-public-record | 2026-06-18 | out-of-scope | Public opinion polling; no agent/eval methodology |
+| https://www.anthropic.com/news/tcs-anthropic-partnership | 2026-06-18 | out-of-scope | Business partnership |
+| https://www.anthropic.com/news/claude-corps | 2026-06-18 | out-of-scope | Fellowship program; no technical architecture |
