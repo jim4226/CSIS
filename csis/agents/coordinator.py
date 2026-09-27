@@ -41,7 +41,14 @@ from csis.safety.constitution import Constitution
 from csis.safety.shutdown import HaltSignal, ShutdownToken
 from csis.safety.tier_guard import TierGuard
 from csis.safety.tripwires import Tripwires
-from csis.substrate.capability import CapabilityTag, CapabilityTier, TierViolation, enforce
+from csis.substrate.capability import (
+    CapabilityTag,
+    CapabilityTier,
+    RiskClass,
+    RollbackPlan,
+    TierViolation,
+    enforce,
+)
 from csis.substrate.event_log import EventLog
 from csis.substrate.hashing import canonical_json_hash
 from csis.verification.certificates import (
@@ -143,6 +150,38 @@ class Coordinator:
             )
         self._backend = value
 
+    # ---- tier gate -------------------------------------------------------
+
+    def _enforce_agent(
+        self,
+        role_str: str,
+        tool: str,
+        tier: CapabilityTier,
+        input_hash: str,
+        *,
+        risk_class: RiskClass = "low",
+        rollback_plan: RollbackPlan = "noop",
+    ) -> None:
+        """Explicit per-role tier gate before every agent delegation.
+
+        Claude Code v2.1.186 fixed a bug where Agent(type) spawns bypassed
+        deny-rule enforcement when addressed by name rather than anonymously.
+        The CSIS analogue: run_iteration() only had an explicit enforce() call
+        at the Builder site; Researcher, Verifier (T1), Librarian, and Auditor
+        had none. This method closes that gap — call it before every _ctx()
+        delegation so the event log has a gate record for every role.
+        """
+        tag = CapabilityTag(
+            actor=f"{role_str}-v1",
+            tool=tool,
+            tier=tier,
+            input_hash=input_hash,
+            risk_class=risk_class,
+            approval_state="auto",
+            rollback_plan=rollback_plan,
+        )
+        enforce(tag, self.tier_guard.ceiling(role_str))
+
     # ---- contexts -------------------------------------------------------
 
     def _ctx(self, role: Role, *, side: str = "builder") -> AgentContext:
@@ -196,6 +235,19 @@ class Coordinator:
             self._rollback(result, f"tripwire:{[f.label for f in front_trip.firings]}")
             return result
 
+        # Tier gate: Researcher is T0.
+        try:
+            self._enforce_agent(
+                "researcher", "plan.propose", CapabilityTier.T0,
+                canonical_json_hash({"frontier": frontier_item, "salt": str(salt)}),
+            )
+        except TierViolation as exc:
+            self.event_log.emit("coordinator", "tier.violation", {
+                "actor": "researcher", "tier": "T0", "reason": str(exc),
+            })
+            self._rollback(result, f"tier-violation:{exc}")
+            return result
+
         # Researcher (steps 1–3): propose plan.
         try:
             plan = propose_plan(self._ctx(Role.RESEARCHER, side="builder"), frontier_item)
@@ -230,19 +282,19 @@ class Coordinator:
             self._rollback(result, f"constitution:{decision.reason}")
             return result
 
+        # Tier gate: Builder is T1. Uses plan.tier so over-privileged
+        # plans (tier=T2+) are caught here before execute_plan() is called.
         try:
-            tag = CapabilityTag(
-                actor="builder-v1",
-                tool="sandbox.execute",
-                tier=plan.tier,
-                input_hash=canonical_json_hash(plan.model_dump(mode="json")),
+            self._enforce_agent(
+                "builder", "sandbox.execute", plan.tier,
+                canonical_json_hash(plan.model_dump(mode="json")),
                 risk_class="medium",
-                approval_state="auto",
                 rollback_plan="candidate-discard",
             )
-            enforce(tag, self.tier_guard.ceiling("builder"))
         except TierViolation as exc:
-            self.event_log.emit("coordinator", "tier.violation", {"actor": "builder", "tier": plan.tier.name, "reason": str(exc)})
+            self.event_log.emit("coordinator", "tier.violation", {
+                "actor": "builder", "tier": plan.tier.name, "reason": str(exc),
+            })
             self._rollback(result, f"tier-violation:{exc}")
             return result
 
@@ -270,6 +322,21 @@ class Coordinator:
                 "labels": [f.label for f in trip.firings],
             })
             self._rollback(result, f"tripwire:{[f.label for f in trip.firings]}")
+            return result
+
+        # Tier gate: Verifier is T1. Explicit check needed — the Verifier
+        # ceiling in TierGuard is T1 but no enforce() call existed here
+        # before this fix (same gap class as Claude Code v2.1.186).
+        try:
+            self._enforce_agent(
+                "verifier", "cert.sign", CapabilityTier.T1,
+                artifact.body_hash,
+            )
+        except TierViolation as exc:
+            self.event_log.emit("coordinator", "tier.violation", {
+                "actor": "verifier", "tier": "T1", "reason": str(exc),
+            })
+            self._rollback(result, f"tier-violation:{exc}")
             return result
 
         # Verifier (step 5): V1 + V2 with cross-checkpoint pinning + grader-hash check.
@@ -324,6 +391,19 @@ class Coordinator:
             tier_name: self.hierarchy.tier(tier_name).candidate_ids()
             for tier_name in tier_names
         }
+
+        # Tier gate: Librarian is T0.
+        try:
+            self._enforce_agent(
+                "librarian", "candidates.write", CapabilityTier.T0,
+                artifact.body_hash,
+            )
+        except TierViolation as exc:
+            self.event_log.emit("coordinator", "tier.violation", {
+                "actor": "librarian", "tier": "T0", "reason": str(exc),
+            })
+            self._rollback(result, f"tier-violation:{exc}")
+            return result
 
         # Librarian (step 6): consolidate to candidate stores.
         try:
@@ -382,6 +462,19 @@ class Coordinator:
             self._tier_mismatch_cleanup(
                 exc, candidates, iteration_id, pre_consolidate_ids, result,
             )
+            return result
+
+        # Tier gate: Auditor is T0.
+        try:
+            self._enforce_agent(
+                "auditor", "why_doc.write", CapabilityTier.T0,
+                canonical_json_hash({"cert_id": cert.cert_id, "artifact_hash": cert.artifact_hash}),
+            )
+        except TierViolation as exc:
+            self.event_log.emit("coordinator", "tier.violation", {
+                "actor": "auditor", "tier": "T0", "reason": str(exc),
+            })
+            self._rollback(result, f"tier-violation:{exc}")
             return result
 
         # Auditor (steps 7-8): write why-doc, sign with hash precondition, promote.

@@ -57,3 +57,42 @@ def test_shutdown_blocks_subsequent_checks() -> None:
     tok.halt("operator")
     with pytest.raises(HaltSignal):
         tok.check()
+
+
+# ---- v2.1.186 regression: per-role tier enforcement ----------------------
+# Claude Code v2.1.186 fixed Agent(type) deny rules not being enforced for
+# named subagent spawns. The CSIS analogue: Coordinator._enforce_agent() must
+# fire for every role, not just the Builder.
+
+def _make_coordinator(tmp_path) -> "Coordinator":
+    from pathlib import Path
+    from csis.agents.coordinator import Coordinator
+    from csis.backends.mock import MockBackend
+    from csis.config import CSISConfig
+    from tests._helpers import wrap_for_test
+
+    cfg = CSISConfig.for_tests(Path(tmp_path))
+    backend = MockBackend()
+    backend.set_model_id(cfg.builder_checkpoint, "mock-opus")
+    backend.set_model_id(cfg.auditor_checkpoint, "mock-sonnet")
+    return Coordinator(config=cfg, backend=wrap_for_test(backend, tmp_path))
+
+
+def test_enforce_agent_passes_for_verifier_t1(tmp_path) -> None:
+    """Verifier (T1) passes enforcement — its ceiling is T1 and PHASE_0_CEILING is T1."""
+    from csis.substrate.capability import CapabilityTier, TierViolation
+    coord = _make_coordinator(tmp_path)
+    # Must not raise: Verifier is T1, ceiling is T1, PHASE_0_CEILING is T1.
+    coord._enforce_agent("verifier", "cert.sign", CapabilityTier.T1, "sha256:" + "a" * 32)
+
+
+def test_enforce_agent_raises_for_t2_request(tmp_path) -> None:
+    """Any T2 request is rejected by PHASE_0_CEILING regardless of role ceiling.
+
+    Regression: before _enforce_agent() was wired to every call site, a
+    T2-requesting Verifier would have reached cert.sign() unchecked.
+    """
+    from csis.substrate.capability import CapabilityTier, TierViolation
+    coord = _make_coordinator(tmp_path)
+    with pytest.raises(TierViolation):
+        coord._enforce_agent("verifier", "cert.sign", CapabilityTier.T2, "sha256:" + "b" * 32)
