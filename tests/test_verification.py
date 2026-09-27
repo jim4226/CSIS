@@ -16,6 +16,7 @@ from csis.contracts import Artifact, CriticFinding, GraderResult, Plan
 from csis.substrate.capability import CapabilityTier
 from csis.substrate.hashing import hash_artifact
 from csis.verification.certificates import (
+    CalibrationHistory,
     CrossCheckpointViolation,
     GraderDriftViolation,
     assert_cross_checkpoint,
@@ -187,6 +188,72 @@ def test_cert_rejects_too_few_critic_attempts() -> None:
     )
     assert not cert.passed
     assert "minimum" in cert.notes
+
+
+# ---- P1.5 — CalibrationHistory ------------------------------------------
+
+
+def test_calibration_history_prior_only() -> None:
+    """Zero real observations → confidence equals the novice prior α/(α+β)."""
+    cal = CalibrationHistory()
+    # α=1.5, β=8.5 → prior = 1.5/10 = 0.15
+    assert abs(cal.confidence() - 0.15) < 1e-9
+
+
+def test_calibration_history_accumulates() -> None:
+    cal = CalibrationHistory()
+    for _ in range(3):
+        cal.record(passed=True)
+    for _ in range(7):
+        cal.record(passed=False)
+    # (3 + 1.5) / (10 + 1.5 + 8.5) = 4.5 / 20 = 0.225
+    assert abs(cal.confidence() - 0.225) < 1e-9
+
+
+def test_calibration_history_converges_toward_empirical_rate() -> None:
+    """With many observations the prior weight becomes negligible."""
+    cal = CalibrationHistory()
+    for _ in range(300):
+        cal.record(passed=True)
+    for _ in range(700):
+        cal.record(passed=False)
+    # Should be close to 0.30 (30% empirical rate), prior ≈ irrelevant at 1000 obs.
+    assert abs(cal.confidence() - 0.30) < 0.01
+
+
+def test_build_certificate_populates_verifier_confidence() -> None:
+    """When calibration is provided the cert carries a non-None confidence."""
+    builder = {"checkpoint_id": "alpha", "model_id": "M", "tool_set": "T", "backend": "mock"}
+    verifier = {"checkpoint_id": "beta", "model_id": "N", "tool_set": "T", "backend": "mock"}
+    cal = CalibrationHistory()
+    cert = build_certificate(
+        plan=_plan(),
+        artifact=_artifact(),
+        builder_identity=builder,
+        verifier_identity=verifier,
+        grader_results=[GraderResult(grader="g", passed=True)],
+        critic_findings=[CriticFinding(attempt="x", falsified=False)] * 3,
+        calibration=cal,
+    )
+    assert cert.verifier_confidence is not None
+    assert 0.0 < cert.verifier_confidence < 1.0
+    # History should have been updated: 1 pass in 1 attempt.
+    assert cal.attempts == 1 and cal.passes == 1
+
+
+def test_build_certificate_confidence_none_without_calibration() -> None:
+    """Without calibration argument verifier_confidence must be None (backward-compat)."""
+    builder = {"checkpoint_id": "alpha", "model_id": "M", "tool_set": "T", "backend": "mock"}
+    verifier = {"checkpoint_id": "beta", "model_id": "N", "tool_set": "T", "backend": "mock"}
+    cert = build_certificate(
+        plan=_plan(),
+        artifact=_artifact(),
+        builder_identity=builder,
+        verifier_identity=verifier,
+        grader_results=[GraderResult(grader="g", passed=True)],
+        critic_findings=[CriticFinding(attempt="x", falsified=False)] * 3,
+    )
+    assert cert.verifier_confidence is None
 
 
 def test_seeded_flaw_evaluator_tracks_catch_rate() -> None:

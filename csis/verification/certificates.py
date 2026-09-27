@@ -12,6 +12,7 @@ from __future__ import annotations
 
 import time
 import uuid
+from dataclasses import dataclass, field
 from typing import Iterable
 
 from csis.contracts import (
@@ -21,6 +22,48 @@ from csis.contracts import (
     Plan,
     VerifierCertificate,
 )
+
+
+@dataclass
+class CalibrationHistory:
+    """Running tally of Verifier outcomes for Laplace-smoothed confidence.
+
+    Infrastructure stub for ROADMAP P1.5 (V5 calibration verification).
+    Seeded from Anthropic's empirical finding that intermediate-domain-expert
+    sessions achieve ~28–33% verified success versus ~15% for novices
+    ("Agentic coding and persistent returns to expertise", 2026-06-16): these
+    figures initialise the Beta prior so early-iteration estimates start from
+    an honest baseline rather than cold from zero.
+
+    Usage: construct one per domain (or globally), call record(passed) after
+    every cert build, read confidence() before deciding whether to promote.
+    Gating promotion on the confidence value is deferred to P1.5 completion;
+    this class is the data layer that makes it possible.
+    """
+
+    # Beta prior: novice baseline α/(α+β) = 1.5/10 ≈ 0.15, matching the
+    # empirical 15% for novice-domain sessions in the 2026-06-16 paper.
+    alpha_prior: float = field(default=1.5)
+    beta_prior: float = field(default=8.5)
+    passes: int = field(default=0)
+    attempts: int = field(default=0)
+
+    def record(self, passed: bool) -> None:
+        """Record one cert outcome (call once per build_certificate invocation)."""
+        self.attempts += 1
+        if passed:
+            self.passes += 1
+
+    def confidence(self) -> float:
+        """Laplace-smoothed point estimate of the domain success rate.
+
+        Returns (passes + α) / (attempts + α + β). With zero real
+        observations returns α / (α + β) ≈ 0.15 (the novice prior).
+        Converges toward the empirical rate as attempts accumulate.
+        """
+        return (self.passes + self.alpha_prior) / (
+            self.attempts + self.alpha_prior + self.beta_prior
+        )
 
 
 class CrossCheckpointViolation(Exception):
@@ -99,10 +142,16 @@ def build_certificate(
     critic_findings: list[CriticFinding],
     grader_drift: Iterable[str] = (),
     min_critic_attempts: int = 3,
+    calibration: CalibrationHistory | None = None,
 ) -> VerifierCertificate:
     """Build a VerifierCertificate. Raises on cross-checkpoint or grader-drift
     violations. The cert's `passed` field is the AND of: every grader passed,
-    no critic finding is `falsified=True`, and minimum critic attempts met."""
+    no critic finding is `falsified=True`, and minimum critic attempts met.
+
+    If `calibration` is provided the cert carries a `verifier_confidence` value
+    (Laplace-smoothed domain success rate) and the history is updated in-place
+    to reflect this outcome. Confidence gating on promotion is ROADMAP P1.5.
+    """
     assert_cross_checkpoint(builder_identity, verifier_identity)
 
     drift_list = list(grader_drift)
@@ -131,6 +180,11 @@ def build_certificate(
             f"minimum {min_critic_attempts}"
         )
 
+    verifier_confidence: float | None = None
+    if calibration is not None:
+        calibration.record(passed)
+        verifier_confidence = calibration.confidence()
+
     return VerifierCertificate(
         cert_id=f"cert-{uuid.uuid4().hex[:12]}",
         plan_id=plan.plan_id,
@@ -143,4 +197,5 @@ def build_certificate(
         passed=passed,
         signed_at=time.time(),
         notes="; ".join(notes_parts) if notes_parts else "all-clear",
+        verifier_confidence=verifier_confidence,
     )

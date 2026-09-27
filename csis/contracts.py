@@ -164,6 +164,16 @@ class VerifierCertificate(BaseModel):
     passed: bool
     signed_at: float
     notes: str = ""
+    verifier_confidence: Optional[float] = Field(
+        default=None,
+        description=(
+            "Laplace-smoothed domain success-rate estimate from CalibrationHistory. "
+            "None until a CalibrationHistory is wired into build_certificate(). "
+            "ROADMAP P1.5: cert promotion will be gated on this once domain-specific "
+            "thresholds are established. Empirical prior: ~0.15 for novice domains, "
+            "~0.30 for intermediate-expert domains (Anthropic, 2026-06-16)."
+        ),
+    )
 
     def is_cross_checkpoint(self) -> bool:
         return self.builder_checkpoint != self.verifier_checkpoint
