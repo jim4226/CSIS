@@ -34,7 +34,7 @@ import traceback
 from collections import deque
 from dataclasses import asdict, dataclass, field
 from pathlib import Path
-from typing import Optional
+from typing import Callable, Optional
 
 from csis.agents.coordinator import Coordinator, IterationResult
 from csis.backends.base import LLMBackend
@@ -117,6 +117,7 @@ class Daemon:
         domain: "object | None" = None,
         max_cost_per_day_usd: float | None = None,
         max_cost_per_call_usd: float | None = None,
+        on_iteration_complete: Callable[[IterationResult], None] | None = None,
     ) -> None:
         self.config = config
         # Wrap the backend in the budget tracker so EVERY complete() call
@@ -165,6 +166,7 @@ class Daemon:
         self._stats_path = config.brain_root / "daemon.stats.json"
         self._stop_file = Path(config.event_log_path).parent.parent / STOP_FILE_NAME
         self._stopped = threading.Event()
+        self.on_iteration_complete = on_iteration_complete
 
     # H3 (cycle-9): backend is a property + setter. Post-init reassignment
     # must go through the setter, which re-validates exact-type. Defeats
@@ -238,6 +240,8 @@ class Daemon:
         # regex-extracting a possibly-misleading substring.
         res = self.coord.run_iteration(frontier_item=item.text, salt=item.salt)
         self.stats.record(res)
+        if self.on_iteration_complete is not None:
+            self.on_iteration_complete(res)
 
         if res.outcome == "promoted":
             self.curiosity.record_promoted(item.text)
