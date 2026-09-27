@@ -186,7 +186,7 @@ class DreamCandidate(BaseModel):
     input_store_hash: str
     output_store_id: str
     instructions_hash: str = Field(..., description="Hash of the instructions template used")
-    model: str = Field(..., description="e.g. claude-opus-4-7 or claude-sonnet-4-6")
+    model: str = Field(..., description="e.g. claude-opus-4-8 (default), claude-opus-4-7, or claude-sonnet-4-6")
     session_ids: list[str] = Field(default_factory=list)
     quality: dict[str, float] = Field(
         default_factory=dict,
