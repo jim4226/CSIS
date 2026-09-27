@@ -5,6 +5,7 @@ inside a target repo); they exercise the adapter contracts:
   - can_run() returns DomainReadiness with sensible reason
   - graders() returns a GraderRegistry that passes verify_pinned_hashes
   - curiosity() returns a Curiosity with non-empty seeds
+  - context_engine() returns None or a valid ContextEngine
 """
 from __future__ import annotations
 
@@ -13,7 +14,7 @@ from pathlib import Path
 
 import pytest
 
-from csis.domains.base import Domain, DomainReadiness
+from csis.domains.base import ContextEngine, Domain, DomainReadiness
 from csis.domains.lean_math import LeanMathDomain
 from csis.domains.pr_maintenance import PRMaintenanceDomain
 from csis.domains.self_improve import SelfImproveDomain
@@ -31,6 +32,8 @@ def _check_domain_contract(d: Domain) -> None:
     cur = d.curiosity()
     assert cur.seeds and len(cur.seeds) >= 3
     assert d.describe()
+    engine = d.context_engine()
+    assert engine is None or isinstance(engine, ContextEngine)
 
 
 def test_pr_maintenance_contract_with_fake_repo(tmp_path: Path) -> None:
@@ -119,3 +122,45 @@ def test_daemon_select_domain_known_names(tmp_path: Path) -> None:
 
     with pytest.raises(SystemExit):
         _select_domain("bogus_domain", repo_path=None)
+
+
+def test_context_engine_default_is_none(tmp_path: Path) -> None:
+    (tmp_path / ".git").mkdir()
+    domains: list[Domain] = [
+        PRMaintenanceDomain(repo_path=tmp_path, run_tests=False, run_lint=False, run_mypy=False),
+        SelfImproveDomain(),
+        LeanMathDomain(graceful_fallback=True),
+    ]
+    for d in domains:
+        assert d.context_engine() is None, f"{d.name}.context_engine() should default to None"
+
+
+def test_context_engine_custom_domain_returns_engine() -> None:
+    from csis.curiosity import Curiosity
+
+    class _CorpusDomain(Domain):
+        name = "corpus_test"
+
+        def can_run(self) -> DomainReadiness:
+            return DomainReadiness(True, "test")
+
+        def graders(self) -> GraderRegistry:
+            reg = GraderRegistry()
+            reg.pin("always_pass", lambda a: __import__("csis.contracts", fromlist=["GraderResult"]).GraderResult(grader="always_pass", passed=True))
+            return reg
+
+        def curiosity(self) -> Curiosity:
+            return Curiosity(seeds=("a", "b", "c"))
+
+        def describe(self) -> str:
+            return "corpus test domain"
+
+        def context_engine(self) -> ContextEngine:
+            return ContextEngine(label="test-corpus", fetch=lambda: "deterministic corpus data")
+
+    d = _CorpusDomain()
+    engine = d.context_engine()
+    assert engine is not None
+    assert isinstance(engine, ContextEngine)
+    assert engine.label == "test-corpus"
+    assert engine.fetch() == "deterministic corpus data"
