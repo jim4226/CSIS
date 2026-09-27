@@ -121,6 +121,33 @@ _TRIP_PATTERNS: list[tuple[str, re.Pattern[str]]] = [
             r")\b"
         ),
     ),
+    # Fable-5 / Mythos-5 (2026-06-09): Anthropic shipped a "Distillation"
+    # safety classifier that blocks unauthorized capability extraction —
+    # using a model's outputs to train a competing system. CSIS faces the
+    # same threat: an adversary could prompt CSIS to produce systematically
+    # labelled outputs for downstream fine-tuning, or enumerate capabilities
+    # to replicate the system elsewhere. This pattern detects the three
+    # surface forms: (A) harvesting training data FROM this agent, (B)
+    # fine-tuning/distilling another model ON this agent's outputs, and
+    # (C/D) wholesale capability extraction from this system.
+    (
+        "distillation_guard",
+        re.compile(
+            r"\b("
+            # A: collecting training data from this agent/model
+            r"(generate|harvest|collect)\s+.{0,25}\btraining\s+(data|set|corpus)\b.{0,25}\bfrom\s+(your|this\s+(model|agent|system|ai|csis))\b"
+            r"|"
+            # B: fine-tuning or distilling another model on this agent's outputs
+            r"\b(fine[\-_\s]?tune|distill)\b.{0,50}\b(on|from)\b.{0,20}\b(your|this\s+(model|agent|system|ai|csis))\b.{0,30}\b(outputs?|responses?|completions?)\b"
+            r"|"
+            # C: explicit capability extraction targeting this system
+            r"\b(extract|harvest|capture)\s+(your|this\s+(model|agent|system|ai|csis))\s+(capabilities?|skills?|knowledge|weights?)\b"
+            r"|"
+            # D: systematic capability mapping (the MITRE gap for agentic autonomy)
+            r"\bsystematically\s+(probe|enumerate|extract)\b.{0,30}\b(your|this\s+(model|agent|system|ai|csis))\b.{0,20}\bcapabilities?\b"
+            r")\b"
+        ),
+    ),
 ]
 
 
