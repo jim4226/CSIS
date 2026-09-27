@@ -57,6 +57,12 @@ class CSISConfig:
     critic_min_attempts: int = 3
     critic_synthetic_flaw_check_every_n: int = 10  # seed a known flaw periodically
 
+    # Fallback model chain for the Anthropic backend. When the primary model
+    # exhausts retries on capacity errors (429 rate-limit or 5xx overloaded),
+    # these Anthropic model IDs are tried in order with one attempt each.
+    # Mirrors Claude Code v2.1.166 fallbackModel setting (Theme 6).
+    fallback_models: list[str] = field(default_factory=list)
+
     def __post_init__(self) -> None:
         # Cross-checkpoint structural enforcement (F1 mitigation).
         # Even in mock mode, the two checkpoints must not be the same string.
