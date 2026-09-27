@@ -12,3 +12,5 @@ Status values:
 | URL | First seen | Status | Notes |
 |---|---|---|---|
 | (none) | (initial) | quiet-day-empty | Ledger initialized; first real entries land on the routine's first scheduled run. |
+| https://code.claude.com/docs/en/changelog | 2026-07-04 | out-of-scope | v2.1.200 (Jul 3) — CLI/UX + reliability fixes incl. stale `daemon.lock` recovery; no API/SDK primitive for CSIS. |
+| https://code.claude.com/docs/en/changelog | 2026-07-04 | out-of-scope | v2.1.201 (Jul 3) — internal reminder-injection plumbing change in Claude Code itself; nothing CSIS consumes. |
