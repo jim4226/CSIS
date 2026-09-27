@@ -416,7 +416,7 @@ class Daemon:
 def _select_backend(name: str, config: CSISConfig) -> LLMBackend:
     if name == "anthropic":
         from csis.backends.anthropic import AnthropicBackend
-        return AnthropicBackend()
+        return AnthropicBackend(thinking_disabled=config.thinking_disabled)
     backend = MockBackend()
     # Wire the mock so it produces well-formed responses regardless of
     # what the curiosity module asks. The responses don't need to vary

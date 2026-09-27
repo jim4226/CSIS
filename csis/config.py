@@ -57,6 +57,13 @@ class CSISConfig:
     critic_min_attempts: int = 3
     critic_synthetic_flaw_check_every_n: int = 10  # seed a known flaw periodically
 
+    # When True, explicitly passes thinking={"type": "disabled"} to the
+    # Anthropic API for every call. Mirrors Claude Code v2.1.166
+    # MAX_THINKING_TOKENS=0 / --thinking disabled flag. Phase-0 should
+    # suppress extended thinking to keep capability within T0/T1 bounds
+    # on models (e.g. Opus 4.8) that think by default (Theme 6).
+    thinking_disabled: bool = False
+
     def __post_init__(self) -> None:
         # Cross-checkpoint structural enforcement (F1 mitigation).
         # Even in mock mode, the two checkpoints must not be the same string.

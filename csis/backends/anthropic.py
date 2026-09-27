@@ -40,6 +40,7 @@ class AnthropicBackend(LLMBackend):
         self,
         api_key: str | None = None,
         model_map: dict[str, str] | None = None,
+        thinking_disabled: bool = False,
     ) -> None:
         try:
             import anthropic  # type: ignore  # noqa: F401
@@ -58,6 +59,9 @@ class AnthropicBackend(LLMBackend):
             )
         self._client = Anthropic(api_key=key)
         self._model_map = {**_DEFAULT_MODEL_MAP, **(model_map or {})}
+        # When True, passes thinking={"type":"disabled"} to suppress extended
+        # thinking on models (e.g. Opus 4.8) that have it on by default.
+        self._thinking_disabled = thinking_disabled
 
     def _resolve_model(self, checkpoint_id: str) -> str:
         return self._model_map.get(checkpoint_id, "claude-opus-4-7")
@@ -83,6 +87,10 @@ class AnthropicBackend(LLMBackend):
             APIStatusError = Exception  # type: ignore
             RateLimitError = Exception  # type: ignore
 
+        extra: dict[str, Any] = {}
+        if self._thinking_disabled:
+            extra["thinking"] = {"type": "disabled"}
+
         for attempt in range(self._MAX_RETRIES + 1):
             try:
                 msg = self._client.messages.create(
@@ -90,6 +98,7 @@ class AnthropicBackend(LLMBackend):
                     max_tokens=req.max_tokens,
                     system=req.system,
                     messages=[{"role": "user", "content": req.prompt}],
+                    **extra,
                 )
                 break
             except RateLimitError as exc:  # 429
