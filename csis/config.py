@@ -57,6 +57,13 @@ class CSISConfig:
     critic_min_attempts: int = 3
     critic_synthetic_flaw_check_every_n: int = 10  # seed a known flaw periodically
 
+    # Advisor tool (Anthropic API advisor-tool-2026-03-01 beta).
+    # When set, Builder LLM calls attach this model as an advisor that
+    # provides strategic guidance mid-generation. None = no advisor.
+    # Only meaningful with the AnthropicBackend; MockBackend ignores it.
+    builder_advisor_model: str | None = None
+    builder_advisor_max_tokens: int | None = None
+
     def __post_init__(self) -> None:
         # Cross-checkpoint structural enforcement (F1 mitigation).
         # Even in mock mode, the two checkpoints must not be the same string.

@@ -83,14 +83,36 @@ class AnthropicBackend(LLMBackend):
             APIStatusError = Exception  # type: ignore
             RateLimitError = Exception  # type: ignore
 
+        # Build the advisor tool definition once (outside the retry loop)
+        # so the retry path doesn't mutate it.
+        advisor_tool: dict[str, Any] | None = None
+        if req.advisor_model:
+            advisor_tool = {
+                "type": "advisor_20260301",
+                "name": "advisor",
+                "model": self._resolve_model(req.advisor_model),
+            }
+            if req.advisor_max_tokens is not None:
+                advisor_tool["max_tokens"] = req.advisor_max_tokens
+
         for attempt in range(self._MAX_RETRIES + 1):
             try:
-                msg = self._client.messages.create(
-                    model=model,
-                    max_tokens=req.max_tokens,
-                    system=req.system,
-                    messages=[{"role": "user", "content": req.prompt}],
-                )
+                if advisor_tool is not None:
+                    msg = self._client.beta.messages.create(
+                        model=model,
+                        max_tokens=req.max_tokens,
+                        system=req.system,
+                        messages=[{"role": "user", "content": req.prompt}],
+                        tools=[advisor_tool],
+                        betas=["advisor-tool-2026-03-01"],
+                    )
+                else:
+                    msg = self._client.messages.create(
+                        model=model,
+                        max_tokens=req.max_tokens,
+                        system=req.system,
+                        messages=[{"role": "user", "content": req.prompt}],
+                    )
                 break
             except RateLimitError as exc:  # 429
                 last_exc = exc

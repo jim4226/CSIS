@@ -26,6 +26,11 @@ class LLMRequest:
     tools: list[str] = field(default_factory=list)
     max_tokens: int = 2000
     metadata: dict[str, Any] = field(default_factory=dict)
+    # Anthropic advisor tool: when set, the executor model calls an advisor
+    # model mid-generation for strategic guidance (advisor-tool-2026-03-01).
+    # max_tokens caps each advisor sub-call; None = advisor model's default.
+    advisor_model: str | None = None
+    advisor_max_tokens: int | None = None
 
 
 @dataclass
