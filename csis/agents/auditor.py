@@ -126,6 +126,40 @@ def _build_diff(
     return WhyDocDiff(deltas=deltas, tier_counts=counts)
 
 
+def fast_audit_check(
+    cert: "VerifierCertificate",
+    candidate_entries: "list[MemoryEntry]",
+    target_tier: str,
+) -> list[str]:
+    """Tier-1 structural pre-check before write_why_doc (no LLM call).
+
+    Inspired by the security-guidance plugin's tiered review pattern
+    (fast pattern check → per-turn model review → deeper review on commit).
+    This is the cheap structural tier: pure-Python invariant checks that
+    catch obvious problems before the expensive why-doc LLM pass.
+
+    Returns a list of violation strings; empty list means all clear.
+    The Coordinator calls this immediately before write_why_doc() and rolls
+    back cleanly if violations are found, avoiding a wasted LLM call.
+    """
+    violations: list[str] = []
+    if not cert.passed:
+        # Defense-in-depth: the Coordinator checks this at the verifier step,
+        # but a second check here prevents a wasted write_why_doc() LLM call
+        # if the cert slips through in an unusual rollback-recovery path.
+        violations.append(
+            f"cert {cert.cert_id} passed=False; Auditor must not sign a failed certificate"
+        )
+    if not candidate_entries:
+        # Not caught elsewhere: the loop would silently succeed with zero
+        # promotions if the Librarian returns nothing. Fail fast instead.
+        violations.append("candidate_entries is empty; nothing to promote")
+    # Note: entry.tier vs target_tier mismatches are intentionally left to
+    # _build_diff() (cycle-6 E1 fix) so the existing TierMismatch cleanup
+    # path handles them with the full rollback machinery.
+    return violations
+
+
 def write_why_doc(
     *,
     ctx: AgentContext,
