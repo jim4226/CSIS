@@ -6,8 +6,15 @@ MockBackend in that case (handled at config-load time).
 
 Mapping from CSIS checkpoint labels to Anthropic models:
     "alpha"  ->  claude-opus-4-7
-    "beta"   ->  claude-sonnet-4-6
+    "beta"   ->  claude-sonnet-5  (was claude-sonnet-4-6 before 2026-06-30)
 Custom labels can override via the constructor mapping.
+
+Model availability note (2026-06-30): Claude Sonnet 5 launched today as the
+next Sonnet generation. It is API-compatible with this module's call shape
+(no temperature/top_p/top_k or thinking params are sent in `complete()`), so
+the bump is a pure config change. The "beta" checkpoint stays Sonnet-class
+while "alpha" stays Opus-class, preserving the cross-checkpoint distinction
+`assert_cross_checkpoint` relies on for Verifier/Auditor vs. Builder/Researcher.
 
 Monitoring instrumentation (added for the live-dashboard work):
   - Per-call latency captured in LLMResponse.raw['latency_ms']
@@ -27,9 +34,9 @@ from csis.backends.base import LLMBackend, LLMRequest, LLMResponse
 
 _DEFAULT_MODEL_MAP = {
     "mock-alpha": "claude-opus-4-7",
-    "mock-beta": "claude-sonnet-4-6",
+    "mock-beta": "claude-sonnet-5",
     "alpha": "claude-opus-4-7",
-    "beta": "claude-sonnet-4-6",
+    "beta": "claude-sonnet-5",
 }
 
 
