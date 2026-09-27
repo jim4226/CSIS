@@ -12,3 +12,4 @@ Status values:
 | URL | First seen | Status | Notes |
 |---|---|---|---|
 | (none) | (initial) | quiet-day-empty | Ledger initialized; first real entries land on the routine's first scheduled run. |
+| https://www.anthropic.com/research/making-claude-a-chemist | 2026-06-05 | out-of-scope | NMR spectroscopy benchmark; no CSIS theme match. |
