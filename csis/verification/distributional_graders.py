@@ -228,6 +228,7 @@ class DistributionalGrader(ABC):
         self.n_bootstrap = n_bootstrap
         self.ci_level = ci_level
         self.slice_min_n = slice_min_n
+        self._rng_seed = rng_seed
         self._rng = random.Random(rng_seed)
 
     @abstractmethod
@@ -254,6 +255,13 @@ class DistributionalGrader(ABC):
         return ci_upper <= self.threshold
 
     def evaluate(self, samples: Sequence[Sample]) -> DistributionalGraderResult:
+        # Reset to seed so identical inputs always produce identical CI bounds.
+        # Without this, the stateful _rng advances across calls and consecutive
+        # evaluate() calls return different CIs for the same sample population —
+        # violating the "deterministic execution layer" guarantee that the
+        # agents-in-biology result depends on (all agents reached >90% only
+        # after the retrieval layer became fully reproducible).
+        self._rng = random.Random(self._rng_seed)
         if not samples:
             return DistributionalGraderResult(
                 grader=self.name,
