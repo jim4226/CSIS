@@ -121,6 +121,32 @@ _TRIP_PATTERNS: list[tuple[str, re.Pattern[str]]] = [
             r")\b"
         ),
     ),
+    (
+        # Source: Anthropic MITRE ATT&CK cyber-threat mapping report (2026-06-03).
+        # Key finding: MITRE ATT&CK lacks an "agentic orchestration" category —
+        # AI autonomously chaining attack stages without human intervention is
+        # the highest-risk pattern observed. Three sub-patterns:
+        #   A — autonomous/autonomously + offensive action in proximity (≤60 chars)
+        #   B — chain/orchestrate/automate + offensive stages (the MITRE gap)
+        #   C — no human oversight/intervention + offensive action nearby
+        # Phase-0 acceptance: fires on attack-shaped AND benign documentation
+        # phrasings; daemon logs C cases as false_positives (WARN), not HALT.
+        "agentic_attack_orchestration",
+        re.compile(
+            r"\b("
+            r"autonom(?:ous|ously)\s.{0,50}"
+            r"(?:attack|exploit|malware|payload|exfiltration|lateral\s+movement|privilege\s+escalation)"
+            r"|"
+            r"(?:chain|orchestrate|automate)\s+(?:the\s+)?"
+            r"(?:attack|offensive|exploit|malicious)\s+"
+            r"(?:steps?|stages?|phases?|operations?|ttps?)"
+            r"|"
+            r"without\s+human\s+(?:oversight|intervention|supervision)"
+            r".{0,50}"
+            r"(?:attack|exploit|malware|offensive)"
+            r")\b"
+        ),
+    ),
 ]
 
 
