@@ -31,6 +31,11 @@ def _check_domain_contract(d: Domain) -> None:
     cur = d.curiosity()
     assert cur.seeds and len(cur.seeds) >= 3
     assert d.describe()
+    # Phase-1 hook points: must return None (default) or valid types
+    sp = d.system_prompt()
+    assert sp is None or isinstance(sp, str)
+    at = d.allowed_tools()
+    assert at is None or (isinstance(at, list) and all(isinstance(t, str) for t in at))
 
 
 def test_pr_maintenance_contract_with_fake_repo(tmp_path: Path) -> None:
@@ -119,3 +124,45 @@ def test_daemon_select_domain_known_names(tmp_path: Path) -> None:
 
     with pytest.raises(SystemExit):
         _select_domain("bogus_domain", repo_path=None)
+
+
+# ---------------------------------------------------------------------------
+# Phase-1 hook points: system_prompt() and allowed_tools()
+# ---------------------------------------------------------------------------
+
+def test_all_adapters_return_none_system_prompt_by_default() -> None:
+    """Phase-0 behaviour: no domain overrides the Builder's system prompt."""
+    domains = [SelfImproveDomain(), LeanMathDomain(graceful_fallback=True)]
+    for dom in domains:
+        assert dom.system_prompt() is None, f"{dom.name}.system_prompt() should default to None"
+
+
+def test_all_adapters_return_none_allowed_tools_by_default() -> None:
+    """Phase-0 behaviour: no domain restricts the Builder's tool access."""
+    domains = [SelfImproveDomain(), LeanMathDomain(graceful_fallback=True)]
+    for dom in domains:
+        assert dom.allowed_tools() is None, f"{dom.name}.allowed_tools() should default to None"
+
+
+def test_system_prompt_override_is_valid_string(tmp_path: Path) -> None:
+    """Concrete subclass can override system_prompt() with a non-empty string."""
+    from csis.domains.base import Domain, DomainReadiness
+    from csis.curiosity import Curiosity
+    from csis.verification.graders import GraderRegistry, make_default_pr_registry
+
+    class StubDomain(Domain):
+        name = "stub"
+        def can_run(self) -> DomainReadiness: return DomainReadiness(ready=True)
+        def graders(self) -> GraderRegistry: return make_default_pr_registry()
+        def curiosity(self) -> Curiosity: return SelfImproveDomain().curiosity()
+        def describe(self) -> str: return "stub domain"
+        def system_prompt(self) -> str | None:
+            return "You are the Builder for stub tasks. Produce a JSON artifact."
+        def allowed_tools(self) -> list[str] | None:
+            return ["Read", "Bash"]
+
+    dom = StubDomain()
+    sp = dom.system_prompt()
+    assert isinstance(sp, str) and len(sp) > 0
+    at = dom.allowed_tools()
+    assert isinstance(at, list) and "Read" in at and "Bash" in at
