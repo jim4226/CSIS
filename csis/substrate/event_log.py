@@ -45,6 +45,19 @@ class Event(BaseModel):
     Strict shape checking lives in the producers (e.g., the Verifier
     produces VerifierCertificate-shaped payloads, the Auditor produces
     WhyDoc-shaped payloads).
+
+    ``agent_id`` and ``parent_agent_id`` are optional span-correlation fields
+    mirroring the OTEL span fields shipped in Claude Code v2.1.145. When a
+    Coordinator spawns concurrent agent invocations (V3 debate, V4 replication)
+    each invocation carries a unique ``agent_id``; child events set
+    ``parent_agent_id`` to the spawning event's ``agent_id``. The Auditor
+    uses these to partition the event stream by invocation without relying
+    solely on timestamp ordering, which becomes unreliable once P1.6
+    (multi-process EventLog) lands.
+
+    Both fields default to ``None`` for backward compatibility — existing JSONL
+    files without the fields remain valid because Pydantic v2 treats missing
+    optional fields as their default value on deserialization.
     """
 
     seq: int = Field(..., description="Monotonic counter starting at 0")
@@ -52,6 +65,21 @@ class Event(BaseModel):
     actor: str = Field(..., description="Role that emitted this event")
     kind: str = Field(..., description="Event kind, e.g. 'plan.proposed', 'verifier.cert', 'auditor.signed'")
     payload: dict[str, Any] = Field(default_factory=dict)
+    agent_id: str | None = Field(
+        default=None,
+        description=(
+            "Unique ID for the specific agent invocation that emitted this event. "
+            "UUID or opaque string; stable for the lifetime of one agent call."
+        ),
+    )
+    parent_agent_id: str | None = Field(
+        default=None,
+        description=(
+            "agent_id of the spawning invocation, if this event was emitted by a "
+            "sub-agent (e.g. a Verifier spawned by the Coordinator). None for "
+            "top-level Coordinator events."
+        ),
+    )
 
 
 class SignedEvent(BaseModel):
@@ -122,7 +150,15 @@ class EventLog:
 
     # ---- writes ---------------------------------------------------------
 
-    def emit(self, actor: str, kind: str, payload: dict[str, Any] | None = None) -> SignedEvent:
+    def emit(
+        self,
+        actor: str,
+        kind: str,
+        payload: dict[str, Any] | None = None,
+        *,
+        agent_id: str | None = None,
+        parent_agent_id: str | None = None,
+    ) -> SignedEvent:
         """Append a new event. Returns the signed wrapper.
 
         Raises UnknownActorError if `actor` is not in the Phase-0 allow-list
@@ -131,6 +167,11 @@ class EventLog:
         Snapshot-12: acquires an inter-process file lock for the
         read-tail / write-line / advance-counter critical section so
         concurrent processes share a single linear hash chain.
+
+        ``agent_id`` and ``parent_agent_id`` are optional span-correlation
+        fields. Pass them when the Coordinator spawns concurrent agent
+        invocations (V3 debate, V4 replication) so the Auditor can partition
+        the event stream by invocation without relying on timestamp ordering.
         """
         if actor not in _load_allowed_actors():
             raise UnknownActorError(
@@ -148,6 +189,8 @@ class EventLog:
                 actor=actor,
                 kind=kind,
                 payload=payload or {},
+                agent_id=agent_id,
+                parent_agent_id=parent_agent_id,
             )
             event_hash = SignedEvent.compute_hash(event, self._prev_hash)
             signed = SignedEvent(event=event, prev_hash=self._prev_hash, event_hash=event_hash)

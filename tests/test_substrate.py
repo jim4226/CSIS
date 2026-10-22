@@ -158,6 +158,102 @@ for i in range({n_per}):
     )
 
 
+# ---- event log agent/parent span IDs ------------------------------------
+
+
+def test_event_log_agent_id_stored_and_survives_chain(tmp_path: Path) -> None:
+    """Agent/parent span IDs survive round-trip and the chain stays valid.
+
+    Regression guard for the span-correlation fields added in response to
+    Claude Code v2.1.145 (agent_id / parent_agent_id in OTEL spans). The
+    fields are optional / backward-compatible: existing JSONL without them
+    must still deserialize cleanly (tested by other tests that never pass
+    agent_id); new JSONL with them must round-trip correctly.
+    """
+    log = EventLog(tmp_path / "events.jsonl")
+    # Coordinator spawns two concurrent verifier invocations (V3 pattern).
+    coord_event = log.emit("coordinator", "iteration.start", {}, agent_id="coord-1")
+    v_event_a = log.emit(
+        "verifier",
+        "cert.requested",
+        {"attempt": "A"},
+        agent_id="verifier-1a",
+        parent_agent_id="coord-1",
+    )
+    v_event_b = log.emit(
+        "verifier",
+        "cert.requested",
+        {"attempt": "B"},
+        agent_id="verifier-1b",
+        parent_agent_id="coord-1",
+    )
+
+    assert coord_event.event.agent_id == "coord-1"
+    assert coord_event.event.parent_agent_id is None
+
+    assert v_event_a.event.agent_id == "verifier-1a"
+    assert v_event_a.event.parent_agent_id == "coord-1"
+
+    assert v_event_b.event.agent_id == "verifier-1b"
+    assert v_event_b.event.parent_agent_id == "coord-1"
+
+    # Chain must be intact after span-annotated events.
+    ok, reason = log.verify_chain()
+    assert ok, reason
+
+    # Round-trip: reload from disk and confirm fields survive serialization.
+    log2 = EventLog(tmp_path / "events.jsonl")
+    events = list(log2.iter_events())
+    assert events[1].event.agent_id == "verifier-1a"
+    assert events[1].event.parent_agent_id == "coord-1"
+    assert events[2].event.agent_id == "verifier-1b"
+
+    # Existing emit() call without span args still works (backward compat).
+    log2.emit("coordinator", "no-span-event", {})
+    ok2, reason2 = log2.verify_chain()
+    assert ok2, reason2
+
+
+def test_event_log_span_fields_default_none_for_old_jsonl(tmp_path: Path) -> None:
+    """Legacy JSONL lines without agent_id/parent_agent_id fields deserialize
+    with None defaults — the schema addition is backward compatible.
+    """
+    import json
+
+    path = tmp_path / "legacy.jsonl"
+    # Write a hand-crafted event that mirrors pre-span-fields JSONL.
+    legacy_event = {
+        "seq": 0,
+        "timestamp": 1000.0,
+        "actor": "coordinator",
+        "kind": "boot",
+        "payload": {},
+    }
+    from csis.substrate.event_log import GENESIS_PREV_HASH, SignedEvent, Event
+
+    event_obj = Event(
+        seq=0,
+        timestamp=1000.0,
+        actor="coordinator",
+        kind="boot",
+        payload={},
+        # agent_id and parent_agent_id intentionally omitted — simulate legacy
+    )
+    event_hash = SignedEvent.compute_hash(event_obj, GENESIS_PREV_HASH)
+    signed = SignedEvent(event=event_obj, prev_hash=GENESIS_PREV_HASH, event_hash=event_hash)
+    # Write the JSON but strip the None fields to simulate truly old JSONL.
+    raw = json.loads(signed.model_dump_json())
+    raw["event"].pop("agent_id", None)
+    raw["event"].pop("parent_agent_id", None)
+    path.write_text(json.dumps(raw) + "\n", encoding="utf-8")
+
+    log = EventLog(path)
+    events = list(log.iter_events())
+    assert len(events) == 1
+    assert events[0].event.agent_id is None
+    assert events[0].event.parent_agent_id is None
+
+
 # ---- capability enforcement ----------------------------------------------
 
 
