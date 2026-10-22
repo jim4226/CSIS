@@ -48,6 +48,20 @@ DISALLOWED_TOOL_SUBSTRINGS: tuple[str, ...] = (
     "weights", "disable", "deactivate",
 )
 
+# Human-readable category labels mapping 1-to-1 with DISALLOWED_PATTERNS.
+# Used by Constitution.reminder() to surface active constraints as plain text
+# — the CSIS equivalent of the in-task ethical-reminder tool described in
+# Anthropic's 2026-05-19 "Widening the conversation on frontier AI" post.
+_CONSTRAINT_CATEGORIES: tuple[str, ...] = (
+    "disable/deactivate safety components (auditor, verifier, tripwire, shutdown)",
+    "remove/bypass safety mechanisms or the Constitution",
+    "exfiltrate secrets (api keys, tokens, credentials)",
+    "self-modify weights, constitution, or scaffold",
+    "override airgap restrictions",
+    "escalate capability tier to T2+",
+    "override or bypass shutdown/halt/killswitch",
+)
+
 
 @dataclass
 class ConstitutionDecision:
@@ -103,6 +117,41 @@ class Constitution:
         snapshot — any concurrent add/remove builds a fresh tuple."""
         with self._patterns_lock:
             return self._patterns
+
+    def reminder(self) -> str:
+        """Plain-text summary of active constraints for mid-task injection.
+
+        Pure read — no state mutation. The Coordinator (or any agent loop)
+        can prepend this to a prompt to give an agent an on-demand reminder of
+        its constitutional commitments, analogous to the in-task ethical-reminder
+        tool studied by Anthropic (2026-05-19, "Widening the conversation on
+        frontier AI"). Extra patterns added via add_pattern() appear in the
+        count and are noted as operator-specific.
+        """
+        current = self.patterns()
+        pattern_count = len(current)
+        tool_count = len(DISALLOWED_TOOL_SUBSTRINGS)
+        base_count = len(_CONSTRAINT_CATEGORIES)
+        extra = pattern_count - len(DISALLOWED_PATTERNS)
+        extra_note = f" + {extra} operator-added" if extra > 0 else ""
+        lines = [
+            "Constitutional commitments in effect (Phase-0):",
+            "",
+            f"Prohibited behavior categories "
+            f"({base_count} base{extra_note}; "
+            f"{pattern_count} active patterns, "
+            f"{tool_count} banned tool-name substrings):",
+        ]
+        for cat in _CONSTRAINT_CATEGORIES:
+            lines.append(f"  - {cat}")
+        if extra > 0:
+            lines.append(f"  - ({extra} operator-specific pattern(s) also active)")
+        lines += [
+            "",
+            "These constraints cannot be relaxed within a session.",
+            "Call constitution.allows(plan) before delegating any plan.",
+        ]
+        return "\n".join(lines)
 
     def allows(self, plan: Plan) -> ConstitutionDecision:
         # P11: concatenate every string-valued field, including tool names
