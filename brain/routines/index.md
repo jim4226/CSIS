@@ -12,3 +12,10 @@ Status values:
 | URL | First seen | Status | Notes |
 |---|---|---|---|
 | (none) | (initial) | quiet-day-empty | Ledger initialized; first real entries land on the routine's first scheduled run. |
+| https://www.anthropic.com/research/glasswing-initial-update | 2026-05-23 | opened-PR | PR #8 glasswing-frontier-ranking |
+| https://www.anthropic.com/news/widening-conversation-ai | 2026-05-24 | opened-PR | PR #10 value-reminder-tripwire (also PR #18 constitution-reminder-tool) |
+| https://code.claude.com/docs/en/changelog | 2026-05-25 | opened-PR | PR #12 event-span-agent-ids, PR #13 critic-effort-levels |
+| https://www.anthropic.com/engineering/how-we-contain-claude | 2026-05-26 | opened-PR | PR #15 external-content-layer |
+| https://code.claude.com/docs/en/agent-sdk/overview | 2026-05-26 | opened-PR | PR #16 domain-system-prompt |
+| https://www.anthropic.com/news/claude-opus-4-8 | 2026-05-28 | opened-PR | PR #20 opus-4-8-effort |
+| https://www.anthropic.com/research/coding-agents-social-sciences | 2026-05-28 | out-of-scope | Behavioral adoption study, no technical CSIS-theme content |
