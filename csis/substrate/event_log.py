@@ -52,6 +52,15 @@ class Event(BaseModel):
     actor: str = Field(..., description="Role that emitted this event")
     kind: str = Field(..., description="Event kind, e.g. 'plan.proposed', 'verifier.cert', 'auditor.signed'")
     payload: dict[str, Any] = Field(default_factory=dict)
+    # Mirrors the OTEL tool_parameters field shipped in Claude Code v2.1.157.
+    # Callers emitting tool_decision-class events set this to the tool's
+    # call parameters (bash command, MCP tool name, skill URI); all other
+    # emits leave it None. Existing JSONL files without this field
+    # deserialize with None via Pydantic's default — backward compatible.
+    tool_parameters: dict[str, Any] | None = Field(
+        default=None,
+        description="Tool-call parameters for tool_decision events; None otherwise.",
+    )
 
 
 class SignedEvent(BaseModel):
@@ -122,7 +131,14 @@ class EventLog:
 
     # ---- writes ---------------------------------------------------------
 
-    def emit(self, actor: str, kind: str, payload: dict[str, Any] | None = None) -> SignedEvent:
+    def emit(
+        self,
+        actor: str,
+        kind: str,
+        payload: dict[str, Any] | None = None,
+        *,
+        tool_parameters: dict[str, Any] | None = None,
+    ) -> SignedEvent:
         """Append a new event. Returns the signed wrapper.
 
         Raises UnknownActorError if `actor` is not in the Phase-0 allow-list
@@ -148,6 +164,7 @@ class EventLog:
                 actor=actor,
                 kind=kind,
                 payload=payload or {},
+                tool_parameters=tool_parameters,
             )
             event_hash = SignedEvent.compute_hash(event, self._prev_hash)
             signed = SignedEvent(event=event, prev_hash=self._prev_hash, event_hash=event_hash)
