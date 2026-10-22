@@ -26,6 +26,11 @@ class LLMRequest:
     tools: list[str] = field(default_factory=list)
     max_tokens: int = 2000
     metadata: dict[str, Any] = field(default_factory=dict)
+    # Prior turns for multi-turn calls. Each entry is a messages-API dict
+    # (role/content or mid_conv_system block). When non-empty, the backend
+    # prepends this list before the current prompt turn, allowing callers to
+    # inject mid-conversation system updates without busting the prompt cache.
+    conversation_history: list[dict] = field(default_factory=list)
 
 
 @dataclass

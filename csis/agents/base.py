@@ -90,12 +90,19 @@ class AgentContext:
     def actor_name(self) -> str:
         return self.role.value
 
-    def complete(self, prompt: str, max_tokens: int = 2000) -> LLMResponse:
+    def complete(
+        self,
+        prompt: str,
+        max_tokens: int = 2000,
+        *,
+        conversation_history: list[dict] | None = None,
+    ) -> LLMResponse:
         req = LLMRequest(
             role=self.role.value,
             checkpoint_id=self.checkpoint_id,
             system=SYSTEM_PROMPTS[self.role],
             prompt=prompt,
             max_tokens=max_tokens,
+            conversation_history=conversation_history or [],
         )
         return self.backend.complete(req)
