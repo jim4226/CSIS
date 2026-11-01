@@ -93,6 +93,10 @@ def euclidean_distance(p1: Sequence[float], p2: Sequence[float]) -> float:
     """L2 distance between two points of any dimension."""
     if len(p1) != len(p2):
         raise ValueError(f"dim mismatch: {len(p1)} vs {len(p2)}")
+    if not p1:
+        raise ValueError("landmark coordinates must have at least one dimension")
+    if not all(math.isfinite(x) for point in (p1, p2) for x in point):
+        raise ValueError("landmark coordinates must be finite")
     return math.sqrt(sum((a - b) ** 2 for a, b in zip(p1, p2)))
 
 
@@ -113,7 +117,9 @@ def landmark_error_mm(
             f"landmark count mismatch: pred={len(pred_pts)} true={len(true_pts)}"
         )
     if not pred_pts:
-        return 0.0
+        raise ValueError("at least one landmark pair is required")
+    if not math.isfinite(voxel_mm) or voxel_mm <= 0:
+        raise ValueError("voxel_mm must be finite and positive")
     errs = [euclidean_distance(p, t) * voxel_mm for p, t in zip(pred_pts, true_pts)]
     return statistics.mean(errs)
 
@@ -160,17 +166,26 @@ def bootstrap_ci(
     gives well-calibrated CIs; for very skewed distributions consider
     BCa correction (out of scope here — easy to add as a wrapper).
     """
-    if not sample_metrics:
-        return 0.0, 0.0, 0.0
+    if not math.isfinite(ci_level) or not 0 < ci_level < 1:
+        raise ValueError(f"ci_level must be finite and strictly between 0 and 1, got {ci_level}")
     if n_bootstrap < 1:
         raise ValueError(f"n_bootstrap must be >= 1, got {n_bootstrap}")
+    if not sample_metrics:
+        return 0.0, 0.0, 0.0
+    if not all(math.isfinite(x) for x in sample_metrics):
+        raise ValueError("sample metrics must be finite")
     rng = rng or random.Random(42)
     point = statistic(sample_metrics)
+    if not math.isfinite(point):
+        raise ValueError("bootstrap statistic must be finite")
     resampled_stats: list[float] = []
     n = len(sample_metrics)
     for _ in range(n_bootstrap):
         sample = [sample_metrics[rng.randrange(n)] for _ in range(n)]
-        resampled_stats.append(statistic(sample))
+        value = statistic(sample)
+        if not math.isfinite(value):
+            raise ValueError("bootstrap statistic must be finite")
+        resampled_stats.append(value)
     resampled_stats.sort()
     lower_idx = int((1.0 - ci_level) / 2.0 * n_bootstrap)
     upper_idx = int((1.0 - (1.0 - ci_level) / 2.0) * n_bootstrap) - 1

@@ -53,6 +53,9 @@ class MemoryStore:
     On a successful promote the candidate's trust is atomically bumped to
     PROMOTED inside the store under lock; the Coordinator never pre-writes
     PROMOTED candidates (P1 mitigation).
+
+    Public reads and writes use detached, deep copies. A caller holding a
+    MemoryEntry must not be able to bypass the store's mutation methods.
     """
 
     def __init__(
@@ -132,19 +135,17 @@ class MemoryStore:
         iteration wrote the same entry_id mid-window).
         """
         with self._lock:
-            if writer_iteration_id is not None:
-                entry = entry.model_copy(update={"writer_iteration_id": writer_iteration_id})
-            self._candidate[entry.entry_id] = entry
+            updates = {} if writer_iteration_id is None else {"writer_iteration_id": writer_iteration_id}
+            self._candidate[entry.entry_id] = entry.model_copy(deep=True, update=updates)
             self._flush()
 
     def write_candidates(
         self, entries: Iterable[MemoryEntry], *, writer_iteration_id: str | None = None
     ) -> None:
         with self._lock:
-            for entry in entries:
-                if writer_iteration_id is not None:
-                    entry = entry.model_copy(update={"writer_iteration_id": writer_iteration_id})
-                self._candidate[entry.entry_id] = entry
+            updates = {} if writer_iteration_id is None else {"writer_iteration_id": writer_iteration_id}
+            detached = [entry.model_copy(deep=True, update=updates) for entry in entries]
+            self._candidate.update({entry.entry_id: entry for entry in detached})
             self._flush()
 
     # ---- live-side reads ------------------------------------------------
@@ -158,7 +159,7 @@ class MemoryStore:
                 raise TrustViolation(
                     f"role={role} not permitted to read trust={entry.trust.name} in tier={self.tier}"
                 )
-            return entry
+            return entry.model_copy(deep=True)
 
     def read_candidate(self, entry_id: str, *, role: str) -> MemoryEntry | None:
         with self._lock:
@@ -169,13 +170,15 @@ class MemoryStore:
                 raise TrustViolation(
                     f"role={role} not permitted to read trust={entry.trust.name} in tier={self.tier}"
                 )
-            return entry
+            return entry.model_copy(deep=True)
 
     def iter_live(self, *, role: str) -> Iterable[MemoryEntry]:
         with self._lock:
-            for entry in list(self._live.values()):
-                if role_may_read(role, entry.trust):
-                    yield entry
+            entries = [
+                entry.model_copy(deep=True) for entry in self._live.values()
+                if role_may_read(role, entry.trust)
+            ]
+        yield from entries
 
     # ---- promotion ------------------------------------------------------
 
@@ -191,13 +194,18 @@ class MemoryStore:
 
         Raises:
           PromotionPreconditionFailure — precondition_hash != current live_hash().
-          TrustViolation              — promotion goes the wrong way through the lattice.
+          TrustViolation              — invalid trust transition or duplicate entry id.
+          KeyError                    — a requested candidate does not exist.
           TierConsumerViolation       — producer_role lacks authority to write to
                                         this tier's consumer tier (P4 invariant).
 
         On success: bumps each candidate's trust atomically to PROMOTED,
         moves it to live, archives the candidate side. The Coordinator never
         pre-writes PROMOTED candidates — that's now this store's job (P1).
+
+        Validate the complete batch before changing state or writing archives.
+        This guarantees rejection on invalid input leaves the batch untouched;
+        the JSON files are not a crash-atomic, multi-file transaction.
         """
         with self._lock:
             # P4 invariant: tier consumer ceiling enforced at the substrate.
@@ -213,6 +221,10 @@ class MemoryStore:
                     f"current={current_live_hash[:24]}..."
                 )
 
+            if len(entry_ids) != len(set(entry_ids)):
+                raise TrustViolation("duplicate candidate ids in promotion batch")
+
+            candidates: list[MemoryEntry] = []
             promoted: list[MemoryEntry] = []
             now = time.time()
             for entry_id in entry_ids:
@@ -228,7 +240,7 @@ class MemoryStore:
                     )
                 # P1/P10: bump trust to PROMOTED inside the store under lock.
                 promoted_cand = cand.model_copy(
-                    update={"trust": TrustLevel.PROMOTED, "promoted_at": now}
+                    deep=True, update={"trust": TrustLevel.PROMOTED, "promoted_at": now}
                 )
                 existing = self._live.get(entry_id)
                 if existing is not None and not valid_promotion(existing.trust, promoted_cand.trust):
@@ -236,14 +248,19 @@ class MemoryStore:
                         f"invalid promotion in tier={self.tier} for entry={entry_id}: "
                         f"{existing.trust.name} -> {promoted_cand.trust.name}"
                     )
-                self._live[entry_id] = promoted_cand
+                candidates.append(cand)
                 promoted.append(promoted_cand)
-                # Move out of active candidates into the archive for audit.
+
+            # Archive only after every candidate has passed validation. Keep
+            # live/candidate state untouched if an archive write itself fails.
+            for cand in candidates:
                 self._archive_candidate(cand, why_id)
-                del self._candidate[entry_id]
+            for promoted_cand in promoted:
+                self._live[promoted_cand.entry_id] = promoted_cand
+                del self._candidate[promoted_cand.entry_id]
 
             self._flush()
-            return promoted
+            return [entry.model_copy(deep=True) for entry in promoted]
 
     def mark_verified(self, entry_ids: list[str]) -> list[MemoryEntry]:
         """P10 mitigation. After the Verifier certifies an iteration's
@@ -261,11 +278,18 @@ class MemoryStore:
                 if cand.trust >= TrustLevel.VERIFIED:
                     out.append(cand)
                     continue
+                if not valid_promotion(cand.trust, TrustLevel.VERIFIED):
+                    raise TrustViolation(
+                        f"cannot verify candidate at trust={cand.trust.name} "
+                        f"in tier={self.tier} for entry={eid}"
+                    )
                 upgraded = cand.model_copy(update={"trust": TrustLevel.VERIFIED})
-                self._candidate[eid] = upgraded
                 out.append(upgraded)
+            # Missing or terminal entries must not leave earlier entries in
+            # the batch verified after this operation is rejected.
+            self._candidate.update({entry.entry_id: entry for entry in out})
             self._flush()
-            return out
+            return [entry.model_copy(deep=True) for entry in out]
 
     def discard_candidate(self, entry_id: str, *, reason: str) -> None:
         """Drop a candidate entry. Always allowed (it's not yet live)."""
@@ -298,10 +322,10 @@ class MemoryStore:
         """H4 (cycle-9) API surface: snapshot list of every current candidate
         entry under lock. The Coordinator's TierMismatch cleanup uses this
         to filter by writer_iteration_id (race-free vs. cycle-8's
-        snapshot-diff approach). Returns a new list so callers can iterate
-        safely after the lock releases."""
+        snapshot-diff approach). Returns detached entries so callers can
+        inspect them safely after the lock releases."""
         with self._lock:
-            return list(self._candidate.values())
+            return [entry.model_copy(deep=True) for entry in self._candidate.values()]
 
     def deprecate_live(self, entry_id: str, *, reason: str) -> None:
         """Mark a live entry deprecated. Terminal; cannot be undone here."""

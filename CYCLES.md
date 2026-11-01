@@ -21,7 +21,7 @@ Each cycle: parallel red-team agents attack the previous cycle's fixes; findings
 
 **99 findings, 96 closed in code, 3 deferred** (E8 Pydantic frozen-dict; H2 closure-cell mutation; H11 POSIX unlink-during-lock — all with explicit Phase-1 plans). Test count grew to **213** across the nine cycles (52 after cycle 1 → 213 after cycle 9).
 
-The suite stands at **246 passing** (4 skipped) today. The two later additions — the distributional-grader stack and a cross-process event-log chain-integrity fix — are feature and bug work, not red-team cycles, so they don't appear in the table above.
+The suite stands at **282 passing** (4 skipped) after the focused November 2026 review below. The two later additions — the distributional-grader stack and a cross-process event-log chain-integrity fix — are feature and bug work, not red-team cycles, so they don't appear in the table above.
 
 ## What changed cycle by cycle
 
@@ -62,6 +62,39 @@ Top-of-funnel for a cold reader: open `brain/BRAIN.html` in a browser. It is the
 - This is not a proof of safety. The 213 tests and 99 findings from these nine cycles are *evidence* of careful engineering, not *certification* of safe behavior under adversarial conditions. The cycle 9 H2/H11 deferrals are explicit about this.
 - The LLM backend is mock by default. Real Anthropic calls are gated behind `--backend anthropic` + an `ANTHROPIC_API_KEY` + cost ceilings + WAL-backed budget metering. No agent is currently improving itself at production scale on this codebase.
 - "Self-improving" in Phase 0 means *the infrastructure for self-improvement is working and tested*. Real learning happens via `scripts/burst.py` on demand against the real Anthropic backend. The longer-arc framing is in [CSIS-architecture.html Appendix A](CSIS-architecture.html#appA).
+
+## Memory and evaluation boundary review (November 2026)
+
+This focused code review is separate from the nine historical agent review cycles.
+Baseline: 246 passed, 4 skipped. Added 36 regression cases; 33 of the initial 34
+cases failed before the fixes (the successful batch test already passed).
+
+- **Batch rejection:** `MemoryStore.promote()` validated each entry after already
+  moving earlier entries. A missing, duplicate, deprecated, or existing live id
+  later in the batch could therefore leave partial changes despite an exception.
+  The complete batch is now checked before archive writes or memory changes.
+  `mark_verified()` likewise stages a batch and rejects deprecated entries;
+  the coordinator handles that rejection as a rollback.
+- **Object isolation:** candidate writes, reads, iteration, snapshots, verification,
+  and promotion exposed shared objects or nested dictionaries. Caller mutation
+  could change live memory without a store write. Public boundaries now copy
+  entries deeply; tests cover both direct content and nested data mutations.
+- **Evaluation evidence:** empty landmark lists, zero-dimensional points, and
+  nonpositive voxel sizes could appear to have zero or negative error. They now
+  raise `ValueError`, as do nonfinite coordinates, metrics, bootstrap statistics,
+  and confidence levels outside the open interval `(0, 1)`.
+
+Validation: full local suite, **282 passed, 4 skipped**. Existing positive-path
+checks still cover normal reconstruction metrics and end-to-end promotion. New
+checks also cover successful multi-entry persistence, archive-write failure
+without live/candidate mutation, and coordinator rollback on deprecated input.
+
+Limits: the JSON stores are not a transactional database. A process crash or I/O
+failure during the two-file flush can still leave inconsistent disk state;
+multiple store instances do not share a storage lock. Archive I/O failure can
+leave an unused archive record even though live/candidate state is unchanged.
+Those persistence guarantees need a separate storage change. This review also
+does not establish safety against arbitrary code execution in the same process.
 
 ## Pointer back
 
