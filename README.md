@@ -4,7 +4,7 @@
 
 <p align="center">
   <img alt="phase" src="https://img.shields.io/badge/phase-0%20%E2%80%94%20runnable-d97757">
-  <img alt="tests" src="https://img.shields.io/badge/tests-246%20passing-788c5d">
+  <img alt="tests" src="https://img.shields.io/badge/tests-282%20passing-788c5d">
   <img alt="cycles" src="https://img.shields.io/badge/critique%E2%86%92fix%20cycles-9-6a9bcc">
   <img alt="findings" src="https://img.shields.io/badge/findings-99%20%C2%B7%200%20open-788c5d">
   <img alt="python" src="https://img.shields.io/badge/python-3.10%2B-6a9bcc">
@@ -57,7 +57,7 @@ flowchart LR
 - Constitution + tripwires + shutdown token + tier guard, all enforced as code
 - 24/7 daemon: curiosity-driven frontier-item generation, budget caps, watchdog, stop file, auto-snapshots
 - 3 domain adapters: PR maintenance (any git repo), self-improvement (this repo), Lean formal math (graceful fallback if Lean isn't installed)
-- 246 tests passing (4 skipped); every cycle's findings have regression tests, plus the distributional grader stack added after the nine cycles (Dice / IoU / landmark-error / ASSD with bootstrap CIs + per-slice breakdown)
+- 282 tests passing (4 skipped); every cycle's findings have regression tests, plus the distributional grader stack added after the nine cycles (Dice / IoU / landmark-error / ASSD with bootstrap CIs + per-slice breakdown)
 
 ## Evals as a first-class primitive
 
@@ -128,7 +128,7 @@ Concrete graders shipped: `DiceGrader`, `IoUGrader`, `LandmarkErrorGrader`, `Ass
 ```bash
 pip install pydantic pytest
 
-# Run the test suite (246 passing).
+# Run the test suite (282 passing).
 python -m pytest tests/ -v
 
 # Run one full iteration end-to-end (mock backend, no API key).
@@ -225,6 +225,19 @@ To resume cold: read `brain/BRAIN.html`, then the highest-numbered snapshot, the
 | **Mock** (default) | Architecture exercises itself: curiosity → plan → mock artifact → V1/V2 → promote. Procedural store accumulates. Demonstrates infrastructure survives 24/7. **No real learning.** | $0 |
 | **Anthropic** (`--backend anthropic`, requires `ANTHROPIC_API_KEY`) | Real Opus 4.7 (Researcher / Builder / Librarian) + real Sonnet 4.6 (Verifier / Critic / Auditor) calls. Real artifacts, real falsification attempts, real gain accumulation. | ~$0.05–0.15 per iteration. See [`scripts/burst.py`](scripts/burst.py) for finite runs with a hard cost ceiling. |
 
+## Memory and evaluation boundary review (November 2026)
+
+A focused review found failures that the original suite did not exercise:
+rejected multi-entry updates could partially change memory, returned objects
+could mutate stored entries, and empty landmark inputs could pass as zero error.
+The fixes validate complete batches before mutation, deep-copy objects across
+public store boundaries, and reject invalid numerical evidence. Regression
+coverage includes successful batch persistence and coordinator rollback.
+See [the review record](CYCLES.md#memory-and-evaluation-boundary-review-november-2026).
+
+The memory store still uses separate JSON files. These changes do not provide
+crash-atomic persistence or coordination between multiple store processes.
+
 ## Safety properties (load-bearing)
 
 | Property | Implementation | Regression test |
@@ -242,7 +255,7 @@ To resume cold: read `brain/BRAIN.html`, then the highest-numbered snapshot, the
 | Distributional cert is bound to evidence, not point estimates | `DistributionalGraderResult` carries bootstrap CI + sample size; conservative `passed` rule requires lower-CI-bound clearing the threshold (higher-is-better) or upper bound staying under (lower-is-better) | `test_dice_grader_fails_when_ci_lower_below_threshold`, `test_landmark_grader_fails_when_ci_upper_exceeds_threshold` |
 | Event-log hash chain holds across processes | `EventLog.emit()` takes an inter-process file lock and re-reads the file tail under it, so two daemons sharing one `session.jsonl` can't tear the seq chain | `test_event_log_cross_process_serialization` |
 
-246 tests total. Each cycle's findings have a regression test that proves the mitigation works. Full cycle history → **[CYCLES.md](CYCLES.md)**.
+282 tests passing, 4 skipped. Each cycle's findings have a regression test that proves the mitigation works. Full cycle history → **[CYCLES.md](CYCLES.md)**.
 
 ## How this was built
 
@@ -252,7 +265,7 @@ The pattern that emerged: each cycle, parallel red-team agents attack the prior 
 
 ## Status
 
-Phase 0. Runnable end-to-end on mock or real Anthropic backend. Architecture-document, critique trail, and 246 passing tests are the proof that's the right framing for "Phase-0 is done."
+Phase 0. Runnable end-to-end on mock or real Anthropic backend. Architecture-document, critique trail, and 282 passing tests are the proof that's the right framing for "Phase-0 is done."
 
 The system runs 24/7 in mock mode as a structural watchdog. Real-backend learning happens via `scripts/burst.py` on demand. Both paths are documented in [RUN.md](RUN.md).
 

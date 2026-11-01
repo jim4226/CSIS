@@ -73,6 +73,31 @@ def test_full_iteration_promotes(tmp_path: Path) -> None:
         assert required in kinds, f"missing {required} in {kinds}"
 
 
+def test_iteration_rolls_back_on_deprecated_candidate(tmp_path: Path, monkeypatch) -> None:
+    import csis.agents.coordinator as coord_mod
+    from csis.memory.trust import TrustLevel
+
+    cfg = CSISConfig.for_tests(tmp_path)
+    coord = Coordinator(config=cfg, backend=wrap_for_test(_wire_backend(cfg), tmp_path))
+    consolidate = coord_mod.consolidate_to_candidates
+
+    def deprecated_candidates(*args, **kwargs):
+        candidates = consolidate(*args, **kwargs)
+        for candidate in candidates:
+            candidate.trust = TrustLevel.DEPRECATED
+            kwargs["hierarchy"].tier(candidate.tier).write_candidate(candidate)
+        return candidates
+
+    monkeypatch.setattr(coord_mod, "consolidate_to_candidates", deprecated_candidates)
+    result = coord.run_iteration(frontier_item="integration test frontier")
+    assert result.outcome.startswith("rolled-back:mark-verified-failed:"), result.outcome
+    assert result.promoted == []
+    assert list(coord.hierarchy.episodic.iter_live(role="auditor")) == []
+    kinds = [s.event.kind for s in coord.event_log]
+    assert "promote.failed" in kinds
+    assert "iter.promoted" not in kinds
+
+
 def test_iteration_rolls_back_on_constitution_or_tripwire(tmp_path: Path) -> None:
     """A plan with disallowed phrasing rolls back. Cycle-2 expanded the
     tripwire/constitution coverage so either layer may catch it first;

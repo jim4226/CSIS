@@ -105,8 +105,9 @@ def test_landmark_error_with_voxel_scaling() -> None:
     assert landmark_error_mm(pred, truth, voxel_mm=0.5) == pytest.approx(2.0)
 
 
-def test_landmark_error_empty_returns_zero() -> None:
-    assert landmark_error_mm([], []) == 0.0
+def test_landmark_error_empty_rejected() -> None:
+    with pytest.raises(ValueError, match="landmark pair"):
+        landmark_error_mm([], [])
 
 
 def test_hausdorff_symmetric() -> None:

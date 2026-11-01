@@ -437,7 +437,7 @@ class Coordinator:
         # (E1: `store` already assigned above the auditor try-except block.)
         try:
             store.mark_verified([e.entry_id for e in candidates])
-        except KeyError as exc:
+        except (KeyError, TrustViolation) as exc:
             self.event_log.emit("coordinator", "promote.failed", {"reason": f"mark_verified:{exc}"})
             self._rollback(result, f"mark-verified-failed:{exc}")
             return result
