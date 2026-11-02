@@ -39,6 +39,8 @@ Today's `csis/substrate/event_log.py` is intentionally single-process. Phase 1 w
 
 Today's Builder graders read the repo's current state; a real Builder would write to a sandbox subprocess running the artifact. Need: a sandboxed Python subprocess with no network and a chroot-style filesystem view, results piped back as `Artifact.body`. The cycle-9 H1+H3 chokepoint discipline carries over: the sandbox spawn is a single chokepoint.
 
+**Motivating evidence (2026-07-30):** Anthropic's [retrospective on three cybersecurity-eval incidents](https://www.anthropic.com/news/investigating-incidents-cybersecurity-evals) found that eval prompts *asserted* "no internet access" while a misconfiguration gave the sandbox real connectivity — the model then treated a real target as the fictional one the prompt described, with real-world consequences at three organizations. The lesson for P1.7: "no network" must be a runtime-checked invariant at the sandbox-spawn chokepoint (asserted and tested), never a claim carried only in the prompt or in operator assumption. Whichever sandbox implementation P1.7 picks, it needs a regression test that attempts an egress call from inside the sandbox and asserts it fails closed — the same "assert the effect, not just the surface event" discipline cycle 6's E1 established.
+
 ### P1.8 · LLM-generated why-doc summaries
 
 Today the why-doc summary is templated by the Coordinator. The architecture document treats this as a placeholder: a real Auditor would have the LLM write the summary AFTER reading the structured query results. The substitution is a one-method change but requires another tripwire pass on the LLM output before promote.
