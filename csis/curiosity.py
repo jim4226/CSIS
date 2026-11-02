@@ -10,6 +10,9 @@ Sources of frontier items:
      a fresh system has something to chew on.
   2. **Outcome-driven** — for every iteration that rolled back, add a
      follow-up item ("re-investigate X: previous attempt failed because Y").
+     If the *same* root item keeps failing, the follow-up escalates to
+     **redirect-driven** instead of repeating the identical retry — see
+     `_ROOT_UNWRAP_RE` and `_REDIRECT_THRESHOLD`.
   3. **Gap-driven** — if a memory tier has fewer than N promoted entries,
      bias toward items that would land in that tier.
 
@@ -21,6 +24,7 @@ from __future__ import annotations
 
 import os
 import random
+import re
 from collections import deque
 from dataclasses import dataclass, field
 from typing import Iterable
@@ -36,6 +40,33 @@ def _default_rng() -> random.Random:
     re-manufacturing the mock-skill artifact synthesis #6 was meant to
     kill."""
     return random.Random(os.urandom(16))
+
+
+# Redirect-driven follow-ups: after this many consecutive rollbacks on the
+# *same* root frontier item, stop reissuing an identical re-investigate
+# prompt and redirect to a broader one instead. Mirrors the exploration
+# pattern from Anthropic's Frontier Red Team cryptographic-weakness research
+# (anthropic.com/research/discovering-cryptographic-weaknesses): when an
+# attempt doesn't work, redirect away from the same narrow retry toward
+# deeper/different exploration rather than repeating it verbatim.
+_REDIRECT_THRESHOLD = 2
+
+_ROOT_UNWRAP_RE = re.compile(
+    r"^(?:re-investigate '(?P<reinvestigate>.+)': previous attempt failed \(.+\)"
+    r"|redirect: '(?P<redirect>.+)' kept failing.+)$",
+    re.DOTALL,
+)
+
+
+def _root_text(text: str) -> str:
+    """Unwrap nested re-investigate/redirect wrapping to find the original
+    frontier item text, so a failure streak tracks the same underlying item
+    across repeated wrapping rather than treating each wrapped retry as new."""
+    while True:
+        m = _ROOT_UNWRAP_RE.match(text)
+        if not m:
+            return text
+        text = m.group("reinvestigate") or m.group("redirect")
 
 
 CURIOSITY_SEEDS: tuple[str, ...] = (
@@ -54,7 +85,7 @@ CURIOSITY_SEEDS: tuple[str, ...] = (
 @dataclass
 class FrontierItem:
     text: str
-    source: str  # "seed" | "rollback-follow-up" | "gap-driven"
+    source: str  # "seed" | "rollback-follow-up" | "redirect-driven" | "gap-driven"
     priority: int = 0
     salt: int | None = None  # D9: recorded on gap-driven items for replay
 
@@ -73,7 +104,11 @@ class Curiosity:
 
     seeds: tuple[str, ...] = field(default_factory=lambda: CURIOSITY_SEEDS)
     recent: deque[str] = field(default_factory=lambda: deque(maxlen=8))
-    _rollback_followups: deque[str] = field(default_factory=lambda: deque(maxlen=16))
+    # Each entry is (text, source) so next() can tell a plain follow-up from
+    # a redirect-driven escalation apart when it pops from the queue.
+    _rollback_followups: deque[tuple[str, str]] = field(default_factory=lambda: deque(maxlen=16))
+    # Root frontier-item text -> consecutive-rollback count. Cleared on promotion.
+    _failure_streaks: dict[str, int] = field(default_factory=dict)
     _seed_index: int = 0
     # Cycle-4 C5 fix: non-deterministic RNG by default. Cycle-5 D9: opt-in
     # deterministic for tests/replay via the rng kwarg.
@@ -86,20 +121,31 @@ class Curiosity:
 
     def record_rollback(self, frontier_item: str, reason: str) -> None:
         """Called by the daemon after a rolled-back iteration."""
-        # Keep follow-ups specific so the loop has something concrete to do.
-        followup = f"re-investigate '{frontier_item}': previous attempt failed ({reason})"
-        self._rollback_followups.append(followup)
+        root = _root_text(frontier_item)
+        streak = self._failure_streaks.get(root, 0) + 1
+        self._failure_streaks[root] = streak
+        if streak >= _REDIRECT_THRESHOLD:
+            # The narrow retry isn't working — redirect instead of reissuing
+            # the same re-investigate prompt a third time.
+            followup = f"redirect: '{root}' kept failing (latest: {reason}); broaden scope instead of retrying the same fix"
+            self._rollback_followups.append((followup, "redirect-driven"))
+        else:
+            # Keep follow-ups specific so the loop has something concrete to do.
+            followup = f"re-investigate '{root}': previous attempt failed ({reason})"
+            self._rollback_followups.append((followup, "rollback-follow-up"))
 
     def record_promoted(self, frontier_item: str) -> None:
         # Avoid repeating successful items immediately — there's nothing left
         # to learn there until something changes.
         self.recent.append(frontier_item)
+        self._failure_streaks.pop(_root_text(frontier_item), None)
 
     def next(self, hierarchy: MemoryHierarchy) -> FrontierItem:
         """Pick the next frontier item."""
         # 1) Drain pending rollback follow-ups first; they encode learning.
         if self._rollback_followups:
-            return FrontierItem(text=self._rollback_followups.popleft(), source="rollback-follow-up", priority=5)
+            text, source = self._rollback_followups.popleft()
+            return FrontierItem(text=text, source=source, priority=5)
 
         # 2) Gap-driven: which tier has the fewest promoted entries?
         gap_item = self._gap_driven(hierarchy)

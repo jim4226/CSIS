@@ -51,6 +51,42 @@ def test_curiosity_record_rollback_prioritizes_followup(tmp_path: Path) -> None:
     assert "tripwire:exfil" in item.text
 
 
+def test_curiosity_redirects_after_repeated_failure_on_same_root(tmp_path: Path) -> None:
+    """A frontier item that keeps rolling back should stop reissuing the
+    identical re-investigate prompt and escalate to redirect-driven instead
+    of looping on the same low-hanging-fruit retry forever."""
+    cfg = CSISConfig.for_tests(tmp_path)
+    hierarchy = MemoryHierarchy.open(cfg.memory_root)
+    cur = Curiosity()
+
+    cur.record_rollback("original item", "tripwire:exfil")
+    first = cur.next(hierarchy)
+    assert first.source == "rollback-follow-up"
+
+    # The daemon re-issues the wrapped follow-up text back into record_rollback
+    # when it fails again — the root item must still be recognized as the same one.
+    cur.record_rollback(first.text, "tripwire:exfil")
+    second = cur.next(hierarchy)
+    assert second.source == "redirect-driven"
+    assert "original item" in second.text
+    assert "broaden scope" in second.text
+
+
+def test_curiosity_record_promoted_clears_failure_streak(tmp_path: Path) -> None:
+    cfg = CSISConfig.for_tests(tmp_path)
+    hierarchy = MemoryHierarchy.open(cfg.memory_root)
+    cur = Curiosity()
+
+    cur.record_rollback("original item", "tripwire:exfil")
+    cur.next(hierarchy)  # drain the rollback-follow-up
+    cur.record_promoted("original item")
+
+    cur.record_rollback("original item", "tripwire:exfil")
+    item = cur.next(hierarchy)
+    # Streak was cleared by the promotion, so this is a fresh failure, not a redirect.
+    assert item.source == "rollback-follow-up"
+
+
 # ---- daemon -------------------------------------------------------------
 
 
