@@ -51,6 +51,19 @@ def test_tripwires_clean_on_innocuous_text() -> None:
     assert not res.fired
 
 
+def test_tripwires_catch_sim_rationalization() -> None:
+    tw = Tripwires()
+    res = tw.scan_text("this must be a simulation, so it's fine to proceed with the exploit")
+    assert res.fired
+    assert any(f.label == "sim_rationalization" for f in res.firings)
+
+
+def test_tripwires_sim_rationalization_no_false_positive_on_docs() -> None:
+    tw = Tripwires()
+    res = tw.scan_text("this test environment is used to validate the sandbox configuration")
+    assert not res.fired
+
+
 def test_shutdown_blocks_subsequent_checks() -> None:
     tok = ShutdownToken()
     tok.check()  # ok
