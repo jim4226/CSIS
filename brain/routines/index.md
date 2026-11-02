@@ -12,3 +12,4 @@ Status values:
 | URL | First seen | Status | Notes |
 |---|---|---|---|
 | (none) | (initial) | quiet-day-empty | Ledger initialized; first real entries land on the routine's first scheduled run. |
+| https://www.anthropic.com/news/investigating-incidents-cybersecurity-evals | 2026-07-30 | opened-PR | PR #123. See `brain/routines/2026-07-30.md` for the operational note: this ledger never accumulated across 2026-06-30–2026-07-29 because none of those runs' PRs have merged to `main` — see that day's log for the full backlog list and dedup workaround used this run. |
