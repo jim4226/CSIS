@@ -12,3 +12,14 @@ Status values:
 | URL | First seen | Status | Notes |
 |---|---|---|---|
 | (none) | (initial) | quiet-day-empty | Ledger initialized; first real entries land on the routine's first scheduled run. |
+| https://code.claude.com/docs/en/routines | 2026-07-31 | opened-PR | v2.1.214 prompt-provenance framing → new `false_authorization_claim` tripwire pattern. |
+| https://www.anthropic.com/news/investigating-incidents-cybersecurity-evals | 2026-07-31 | deferred | Real sandbox-escape incidents; motivates P1.2/P1.7 process isolation, not a Phase-0 patch. |
+| https://www.anthropic.com/research/discovering-cryptographic-weaknesses | 2026-07-31 | deferred | Hypothesis-driven multi-agent research loop; candidate feedback signal for `csis/curiosity.py` scoring. |
+| https://www.anthropic.com/news/claude-opus-5 | 2026-07-31 | out-of-scope | Model version launch; doesn't map to a CSIS architecture theme. |
+| https://www.anthropic.com/news/position-open-weights-models | 2026-07-31 | out-of-scope | Policy position, not an architectural change CSIS consumes. |
+| https://www.anthropic.com/news/cognizant-anthropic | 2026-07-31 | out-of-scope | Enterprise partnership announcement. |
+| https://www.anthropic.com/news/economic-futures-research-fund-agenda | 2026-07-31 | out-of-scope | Economic research funding agenda, no architectural theme. |
+| https://www.anthropic.com/news/anthropic-economic-index-connector | 2026-07-31 | out-of-scope | Consumer Claude.ai connector feature. |
+| https://www.anthropic.com/research/project-pilot | 2026-07-31 | out-of-scope | Drone-control frontier red-team study; no multi-agent/trust/curiosity theme fit beyond generic capability eval. |
+| https://www.anthropic.com/research/how-canada-uses-claude | 2026-07-31 | out-of-scope | Economic Index regional usage study, outside the 9-day window and no theme fit. |
+| https://www.anthropic.com/research/claude-values-models-languages | 2026-07-31 | out-of-scope | Societal-impacts study, outside the 9-day window and no theme fit. |
